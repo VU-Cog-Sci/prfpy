@@ -9,6 +9,7 @@ This software is very much in development, and this development has just started
 ### Policy & To Do
 - [x] install using `python setup.py develop`
 - [x] Docstrings in numpy format. 
+- [ ] PEP8 !
 - [ ] Documentation with Sphinx
 - [ ] Git-flow for feature additions after first beta 
 - [ ] Full unit test coverage
