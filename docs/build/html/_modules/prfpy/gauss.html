@@ -1,0 +1,191 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>prfpy.gauss &#8212; pRFpy 0.1.dev0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for prfpy.gauss</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<div class="viewcode-block" id="gauss1D_cart"><a class="viewcode-back" href="../../index.html#prfpy.gauss.gauss1D_cart">[docs]</a><span class="k">def</span> <span class="nf">gauss1D_cart</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">mu</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;gauss1D_cart</span>
+<span class="sd">    </span>
+<span class="sd">    gauss1D_cart takes a 1D array x, a mean and standard deviation,</span>
+<span class="sd">    and produces a gaussian with given parameters, with a peak of height 1.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : numpy.ndarray (1D)</span>
+<span class="sd">        space on which to calculate the gauss</span>
+<span class="sd">    mu : float, optional</span>
+<span class="sd">        mean/mode of gaussian (the default is 0.0)</span>
+<span class="sd">    sigma : float, optional</span>
+<span class="sd">        standard deviation of gaussian (the default is 1.0)</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        gaussian values at x</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">((</span><span class="n">x</span><span class="o">-</span><span class="n">mu</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="gauss1D_log"><a class="viewcode-back" href="../../index.html#prfpy.gauss.gauss1D_log">[docs]</a><span class="k">def</span> <span class="nf">gauss1D_log</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">mu</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;gauss1D_log</span>
+<span class="sd">    </span>
+<span class="sd">    gauss1D_log takes a 1D array x, a mean and standard deviation,</span>
+<span class="sd">    and produces a pRF with given parameters with the distance between mean and x log-scaled </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : numpy.ndarray (1D)</span>
+<span class="sd">        space on which to calculate the gauss</span>
+<span class="sd">    mu : float, optional</span>
+<span class="sd">        mean/mode of gaussian (the default is 0.0)</span>
+<span class="sd">    sigma : float, optional</span>
+<span class="sd">        standard deviation of gaussian (the default is 1.0)</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        gaussian values at log(x)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">mu</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="gauss2D_iso_cart"><a class="viewcode-back" href="../../index.html#prfpy.gauss.gauss2D_iso_cart">[docs]</a><span class="k">def</span> <span class="nf">gauss2D_iso_cart</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">mu</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">0.0</span><span class="p">),</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;gauss2D_iso_cart</span>
+<span class="sd">    </span>
+<span class="sd">    gauss2D_iso_cart takes two-dimensional arrays x and y, containing</span>
+<span class="sd">    the x and y coordinates at which to evaluate the 2D isotropic gaussian </span>
+<span class="sd">    function, with a given sigma, and returns a 2D array of Z values.</span>
+<span class="sd">        </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : numpy.ndarray, 2D</span>
+<span class="sd">        2D, containing x coordinates</span>
+<span class="sd">    y : numpy.ndarray, 2D</span>
+<span class="sd">        2D, containing y coordinates</span>
+<span class="sd">    mu : tuple, optional</span>
+<span class="sd">        mean, 2D coordinates of mean/mode of gauss (the default is (0.0,0.0))</span>
+<span class="sd">    sigma : float, optional</span>
+<span class="sd">        standard deviation of gauss (the default is 1.0</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray, 2D</span>
+<span class="sd">        gaussian values evaluated at (x,y)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">((</span><span class="n">x</span><span class="o">-</span><span class="n">mu</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">mu</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="gauss2D_rot_cart"><a class="viewcode-back" href="../../index.html#prfpy.gauss.gauss2D_rot_cart">[docs]</a><span class="k">def</span> <span class="nf">gauss2D_rot_cart</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">mu</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">0.0</span><span class="p">),</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">theta</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">ar</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;gauss2D_rot_cart</span>
+<span class="sd">    </span>
+<span class="sd">    gauss2D_rot_cart takes two-dimensional arrays x and y, containing</span>
+<span class="sd">    the x and y coordinates at which to evaluate the 2D non-isotropic gaussian </span>
+<span class="sd">    function, with a given sigma, angle of rotation theta, and aspect ratio ar.</span>
+<span class="sd">    it returns a 2D array of Z values. Default is an isotropic gauss.</span>
+<span class="sd">        </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : numpy.ndarray, 2D</span>
+<span class="sd">        2D, containing x coordinates</span>
+<span class="sd">    y : numpy.ndarray, 2D</span>
+<span class="sd">        2D, containing y coordinates</span>
+<span class="sd">    mu : tuple, optional</span>
+<span class="sd">        mean, 2D coordinates of mean/mode of gauss (the default is (0.0,0.0))</span>
+<span class="sd">    sigma : float, optional</span>
+<span class="sd">        standard deviation of gauss (the default is 1.0)</span>
+<span class="sd">    theta : float, optional</span>
+<span class="sd">        angle of rotation of gauss (the default is 0.0)   </span>
+<span class="sd">    ar : float, optional</span>
+<span class="sd">        aspect ratio of gauss, multiplies the rotated y parameters (the default is 1.0)</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    numpy.ndarray, 2D</span>
+<span class="sd">        gaussian values evaluated at (x,y)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">xr</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">mu</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">mu</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
+    <span class="n">yr</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">mu</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">mu</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">xr</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">ar</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">yr</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span></div>
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tomas Knapen, Serge Dumoulin, Marco Aqil.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
