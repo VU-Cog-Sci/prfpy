@@ -97,7 +97,16 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'github_banner': True,
+    'github_user': 'spinoza-centre',
+    'github_repo': 'prfpy',    
+    'github_banner': 'true',
+    'github_button': 'true',
+    'description': 'a population receptive field (pRF) simulation and fitting package',
+    'font_size': 'small',
+    'code_font_size': 'small'
+    }
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
