@@ -63,6 +63,43 @@ def generate_arima_noise(ar=(1,0.4),
     """
     return np.array([arma_generate_sample(ar, ma, dimensions[1]) for i in range(dimensions[0])])
 
+def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, **kwargs):
+    """sgfilter_predictions
+    
+    savitzky golay filter predictions, to conform to data filtering
+    
+    Parameters
+    ----------
+    predictions : numpy.ndarray
+        array containing predictions, last dimension is time
+    window_length : int, optional
+        window length for SG filter (the default is 201, which is ok for prf experiments, and 
+        a bit long for event-related experiments)
+    polyorder : int, optional
+        polynomial order for SG filter (the default is 3, which performs well for fMRI signals
+        when the window length is longer than 2 minutes)
+
+    **kwargs are passed on to scipy.signal.savgol_filter
+    
+    Raises
+    ------
+    ValueError
+        when window_length is even
+    
+    Returns
+    -------
+    numpy.ndarray
+        filtered version of the array
+    """
+    if window_length%2 != 1:
+        raise ValueError # window_length should be odd
+    lp_filtered_predictions = signal.savgol_filter(x, window_length=window_length, polyorder=polyorder, **kwargs)
+    if highpass:
+        return predictions - lp_filtered_predictions
+    else:
+        return lp_filtered_predictions
+
+
 def generate_random_legendre_drifts(dimensions=(1000,120), 
                                     amplitude_ranges=[[500,600],[-50,50],[-20,20],[-10,10],[-5,5]]):
     """generate_random_legendre_drifts
