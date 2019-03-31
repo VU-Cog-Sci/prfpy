@@ -41,8 +41,9 @@ def stimulus_through_prf(prfs, stimulus):
     return np.dot(prfs, stimulus)
 
 def generate_arima_noise(ar=(1,0.4), 
-                            ma=(1,0.4), 
-                            dimensions=(1000,120)):
+                        ma=(1,0.4), 
+                        dimensions=(1000,120),
+                        **kwargs):
     """generate_arima_noise
     
     generate_arima_noise creates temporally correlated noise
@@ -60,8 +61,15 @@ def generate_arima_noise(ar=(1,0.4),
         is the timeseries length.
         (the default is (1000,120), a reasonable if brief length for an fMRI run)
     
+    **kwargs are passed on to statsmodels.tsa.arima_process.arma_generate_sample
+
+    Returns
+    -------
+    numpy.ndarray
+        noise of requested dimensions and properties
+
     """
-    return np.array([arma_generate_sample(ar, ma, dimensions[1]) for i in range(dimensions[0])])
+    return np.array([arma_generate_sample(ar, ma, dimensions[1], **kwargs) for i in range(dimensions[0])])
 
 def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, **kwargs):
     """sgfilter_predictions
