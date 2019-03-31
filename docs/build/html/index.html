@@ -1,0 +1,320 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Welcome to pRFpy’s documentation! &#8212; pRFpy 0.1.dev0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="welcome-to-prfpy-s-documentation">
+<h1>Welcome to pRFpy’s documentation!<a class="headerlink" href="#welcome-to-prfpy-s-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+<div class="section" id="prfpy-main">
+<h1>pRFpy main<a class="headerlink" href="#prfpy-main" title="Permalink to this headline">¶</a></h1>
+</div>
+<div class="section" id="prfpy-gaussian-receptive-field-structure">
+<h1>pRFpy gaussian receptive field structure<a class="headerlink" href="#prfpy-gaussian-receptive-field-structure" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-prfpy.gauss"></span><dl class="function">
+<dt id="prfpy.gauss.gauss1D_cart">
+<code class="descclassname">prfpy.gauss.</code><code class="descname">gauss1D_cart</code><span class="sig-paren">(</span><em>x</em>, <em>mu=0.0</em>, <em>sigma=1.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/gauss.html#gauss1D_cart"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.gauss.gauss1D_cart" title="Permalink to this definition">¶</a></dt>
+<dd><p>gauss1D_cart takes a 1D array x, a mean and standard deviation,
+and produces a gaussian with given parameters, with a peak of height 1.</p>
+<dl class="docutils">
+<dt>x <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray (1D)</span></dt>
+<dd>space on which to calculate the gauss</dd>
+<dt>mu <span class="classifier-delimiter">:</span> <span class="classifier">float, optional</span></dt>
+<dd>mean/mode of gaussian (the default is 0.0)</dd>
+<dt>sigma <span class="classifier-delimiter">:</span> <span class="classifier">float, optional</span></dt>
+<dd>standard deviation of gaussian (the default is 1.0)</dd>
+</dl>
+<dl class="docutils">
+<dt>numpy.ndarray</dt>
+<dd>gaussian values at x</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="prfpy.gauss.gauss1D_log">
+<code class="descclassname">prfpy.gauss.</code><code class="descname">gauss1D_log</code><span class="sig-paren">(</span><em>x</em>, <em>mu=0.0</em>, <em>sigma=1.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/gauss.html#gauss1D_log"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.gauss.gauss1D_log" title="Permalink to this definition">¶</a></dt>
+<dd><p>gauss1D_log takes a 1D array x, a mean and standard deviation,
+and produces a pRF with given parameters with the distance between mean and x log-scaled</p>
+<dl class="docutils">
+<dt>x <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray (1D)</span></dt>
+<dd>space on which to calculate the gauss</dd>
+<dt>mu <span class="classifier-delimiter">:</span> <span class="classifier">float, optional</span></dt>
+<dd>mean/mode of gaussian (the default is 0.0)</dd>
+<dt>sigma <span class="classifier-delimiter">:</span> <span class="classifier">float, optional</span></dt>
+<dd>standard deviation of gaussian (the default is 1.0)</dd>
+</dl>
+<dl class="docutils">
+<dt>numpy.ndarray</dt>
+<dd>gaussian values at log(x)</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="prfpy.gauss.gauss2D_iso_cart">
+<code class="descclassname">prfpy.gauss.</code><code class="descname">gauss2D_iso_cart</code><span class="sig-paren">(</span><em>x</em>, <em>y</em>, <em>mu=(0.0</em>, <em>0.0)</em>, <em>sigma=1.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/gauss.html#gauss2D_iso_cart"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.gauss.gauss2D_iso_cart" title="Permalink to this definition">¶</a></dt>
+<dd><p>gauss2D_iso_cart takes two-dimensional arrays x and y, containing
+the x and y coordinates at which to evaluate the 2D isotropic gaussian 
+function, with a given sigma, and returns a 2D array of Z values.</p>
+<dl class="docutils">
+<dt>x <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray, 2D</span></dt>
+<dd>2D, containing x coordinates</dd>
+<dt>y <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray, 2D</span></dt>
+<dd>2D, containing y coordinates</dd>
+<dt>mu <span class="classifier-delimiter">:</span> <span class="classifier">tuple, optional</span></dt>
+<dd>mean, 2D coordinates of mean/mode of gauss (the default is (0.0,0.0))</dd>
+<dt>sigma <span class="classifier-delimiter">:</span> <span class="classifier">float, optional</span></dt>
+<dd>standard deviation of gauss (the default is 1.0</dd>
+</dl>
+<dl class="docutils">
+<dt>numpy.ndarray, 2D</dt>
+<dd>gaussian values evaluated at (x,y)</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="prfpy.gauss.gauss2D_rot_cart">
+<code class="descclassname">prfpy.gauss.</code><code class="descname">gauss2D_rot_cart</code><span class="sig-paren">(</span><em>x</em>, <em>y</em>, <em>mu=(0.0</em>, <em>0.0)</em>, <em>sigma=1.0</em>, <em>theta=0.0</em>, <em>ar=1.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/gauss.html#gauss2D_rot_cart"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.gauss.gauss2D_rot_cart" title="Permalink to this definition">¶</a></dt>
+<dd><p>gauss2D_rot_cart takes two-dimensional arrays x and y, containing
+the x and y coordinates at which to evaluate the 2D non-isotropic gaussian 
+function, with a given sigma, angle of rotation theta, and aspect ratio ar.
+it returns a 2D array of Z values. Default is an isotropic gauss.</p>
+<dl class="docutils">
+<dt>x <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray, 2D</span></dt>
+<dd>2D, containing x coordinates</dd>
+<dt>y <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray, 2D</span></dt>
+<dd>2D, containing y coordinates</dd>
+<dt>mu <span class="classifier-delimiter">:</span> <span class="classifier">tuple, optional</span></dt>
+<dd>mean, 2D coordinates of mean/mode of gauss (the default is (0.0,0.0))</dd>
+<dt>sigma <span class="classifier-delimiter">:</span> <span class="classifier">float, optional</span></dt>
+<dd>standard deviation of gauss (the default is 1.0)</dd>
+<dt>theta <span class="classifier-delimiter">:</span> <span class="classifier">float, optional</span></dt>
+<dd>angle of rotation of gauss (the default is 0.0)</dd>
+<dt>ar <span class="classifier-delimiter">:</span> <span class="classifier">float, optional</span></dt>
+<dd>aspect ratio of gauss, multiplies the rotated y parameters (the default is 1.0)</dd>
+</dl>
+<dl class="docutils">
+<dt>numpy.ndarray, 2D</dt>
+<dd>gaussian values evaluated at (x,y)</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="prfpy-timecourse-manipulation">
+<h1>pRFpy timecourse manipulation<a class="headerlink" href="#prfpy-timecourse-manipulation" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-prfpy.timecourse"></span><dl class="function">
+<dt id="prfpy.timecourse.convolve_stimulus_dm">
+<code class="descclassname">prfpy.timecourse.</code><code class="descname">convolve_stimulus_dm</code><span class="sig-paren">(</span><em>stimulus</em>, <em>hrf</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/timecourse.html#convolve_stimulus_dm"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.timecourse.convolve_stimulus_dm" title="Permalink to this definition">¶</a></dt>
+<dd><p>convolve_stimulus_dm convolves an N-D (N&gt;=2) stimulus array with an hrf</p>
+<dl class="docutils">
+<dt>stimulus <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray, N-D (N&gt;=2) </span></dt>
+<dd>stimulus experimental design, with the final dimension being time</dd>
+<dt>hrf <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray, 1D</span></dt>
+<dd>contains kernel for convolution</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="prfpy.timecourse.generate_arima_noise">
+<code class="descclassname">prfpy.timecourse.</code><code class="descname">generate_arima_noise</code><span class="sig-paren">(</span><em>ar=(1</em>, <em>0.4)</em>, <em>ma=(1</em>, <em>0.4)</em>, <em>dimensions=(1000</em>, <em>120)</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/timecourse.html#generate_arima_noise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.timecourse.generate_arima_noise" title="Permalink to this definition">¶</a></dt>
+<dd><p>generate_arima_noise creates temporally correlated noise</p>
+<dl class="docutils">
+<dt>ar <span class="classifier-delimiter">:</span> <span class="classifier">tuple, optional</span></dt>
+<dd>arima autoregression parameters for statsmodels generation of noise 
+(the default is (1,0.4), which should be a reasonable setting for fMRI noise)</dd>
+<dt>ma <span class="classifier-delimiter">:</span> <span class="classifier">tuple, optional</span></dt>
+<dd>arima moving average parameters for statsmodels generation of noise 
+(the default is (1,0.4), which should be a reasonable setting for fMRI noise)</dd>
+<dt>dimensions <span class="classifier-delimiter">:</span> <span class="classifier">tuple, optional</span></dt>
+<dd>the first dimension is the nr of separate timecourses, the second dimension
+is the timeseries length.
+(the default is (1000,120), a reasonable if brief length for an fMRI run)</dd>
+</dl>
+<p><a href="#id1"><span class="problematic" id="id2">**</span></a>kwargs are passed on to statsmodels.tsa.arima_process.arma_generate_sample</p>
+<dl class="docutils">
+<dt>numpy.ndarray</dt>
+<dd>noise of requested dimensions and properties</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="prfpy.timecourse.generate_random_cosine_drifts">
+<code class="descclassname">prfpy.timecourse.</code><code class="descname">generate_random_cosine_drifts</code><span class="sig-paren">(</span><em>dimensions=(1000, 120), amplitude_ranges=[[500, 600], [-50, 50], [-20, 20], [-10, 10], [-5, 5]]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/timecourse.html#generate_random_cosine_drifts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.timecourse.generate_random_cosine_drifts" title="Permalink to this definition">¶</a></dt>
+<dd><p>generate_random_cosine_drifts generates random slow drifts</p>
+<dl class="docutils">
+<dt>dimensions <span class="classifier-delimiter">:</span> <span class="classifier">tuple, optional</span></dt>
+<dd>[description] (the default is (1000,120), which [default_description])</dd>
+<dt>amplitude_ranges <span class="classifier-delimiter">:</span> <span class="classifier">list, optional</span></dt>
+<dd>[description] (the default is [[500,600],[-50,50],[-20,20],[-10,10],[-5,5]], which [default_description])</dd>
+</dl>
+<dl class="docutils">
+<dt>numpy.ndarray</dt>
+<dd>discrete cosine drifts with dimensions [dimensions]</dd>
+<dt>numpy.ndarray</dt>
+<dd>random multiplication factors that created the drifts</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="prfpy.timecourse.generate_random_legendre_drifts">
+<code class="descclassname">prfpy.timecourse.</code><code class="descname">generate_random_legendre_drifts</code><span class="sig-paren">(</span><em>dimensions=(1000, 120), amplitude_ranges=[[500, 600], [-50, 50], [-20, 20], [-10, 10], [-5, 5]]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/timecourse.html#generate_random_legendre_drifts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.timecourse.generate_random_legendre_drifts" title="Permalink to this definition">¶</a></dt>
+<dd><p>generate_random_legendre_drifts generates random slow drifts</p>
+<dl class="docutils">
+<dt>dimensions <span class="classifier-delimiter">:</span> <span class="classifier">tuple, optional</span></dt>
+<dd>[description] (the default is (1000,120), which [default_description])</dd>
+<dt>amplitude_ranges <span class="classifier-delimiter">:</span> <span class="classifier">list, optional</span></dt>
+<dd>[description] (the default is [[500,600],[-50,50],[-20,20],[-10,10],[-5,5]], which [default_description])</dd>
+</dl>
+<dl class="docutils">
+<dt>numpy.ndarray</dt>
+<dd>legendre poly drifts with dimensions [dimensions]</dd>
+<dt>numpy.ndarray</dt>
+<dd>random multiplication factors that created the drifts</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="prfpy.timecourse.sgfilter_predictions">
+<code class="descclassname">prfpy.timecourse.</code><code class="descname">sgfilter_predictions</code><span class="sig-paren">(</span><em>predictions</em>, <em>window_length=201</em>, <em>polyorder=3</em>, <em>highpass=True</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/timecourse.html#sgfilter_predictions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.timecourse.sgfilter_predictions" title="Permalink to this definition">¶</a></dt>
+<dd><p>savitzky golay filter predictions, to conform to data filtering</p>
+<dl class="docutils">
+<dt>predictions <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray</span></dt>
+<dd>array containing predictions, last dimension is time</dd>
+<dt>window_length <span class="classifier-delimiter">:</span> <span class="classifier">int, optional</span></dt>
+<dd>window length for SG filter (the default is 201, which is ok for prf experiments, and 
+a bit long for event-related experiments)</dd>
+<dt>polyorder <span class="classifier-delimiter">:</span> <span class="classifier">int, optional</span></dt>
+<dd>polynomial order for SG filter (the default is 3, which performs well for fMRI signals
+when the window length is longer than 2 minutes)</dd>
+</dl>
+<p><a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs are passed on to scipy.signal.savgol_filter</p>
+<dl class="docutils">
+<dt>ValueError</dt>
+<dd>when window_length is even</dd>
+</dl>
+<dl class="docutils">
+<dt>numpy.ndarray</dt>
+<dd>filtered version of the array</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="prfpy.timecourse.stimulus_through_prf">
+<code class="descclassname">prfpy.timecourse.</code><code class="descname">stimulus_through_prf</code><span class="sig-paren">(</span><em>prfs</em>, <em>stimulus</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/timecourse.html#stimulus_through_prf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.timecourse.stimulus_through_prf" title="Permalink to this definition">¶</a></dt>
+<dd><p>dot the stimulus and the prfs</p>
+<p>[description]</p>
+<dl class="docutils">
+<dt>prfs <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray</span></dt>
+<dd>the array of prfs.</dd>
+<dt>stimulus <span class="classifier-delimiter">:</span> <span class="classifier">numpy.ndarray</span></dt>
+<dd>the stimulus design matrix, either convolved with hrf or not.</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="prfpy-stimulus-classes">
+<h1>pRFpy stimulus classes<a class="headerlink" href="#prfpy-stimulus-classes" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-prfpy.stimulus"></span><dl class="class">
+<dt id="prfpy.stimulus.PRFStimulus1D">
+<em class="property">class </em><code class="descclassname">prfpy.stimulus.</code><code class="descname">PRFStimulus1D</code><span class="sig-paren">(</span><em>design_matrix</em>, <em>mapping</em>, <em>TR</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/stimulus.html#PRFStimulus1D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.stimulus.PRFStimulus1D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Minimal visual 1-dimensional pRF stimulus class, 
+which takes an input design matrix and sets up its real-world dimensions.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="prfpy.stimulus.PRFStimulus2D">
+<em class="property">class </em><code class="descclassname">prfpy.stimulus.</code><code class="descname">PRFStimulus2D</code><span class="sig-paren">(</span><em>screen_size_cm</em>, <em>screen_distance_cm</em>, <em>design_matrix</em>, <em>TR</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/prfpy/stimulus.html#PRFStimulus2D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#prfpy.stimulus.PRFStimulus2D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Minimal visual 2-dimensional pRF stimulus class, 
+which takes an input design matrix and sets up its real-world dimensions.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Tomas Knapen, Serge Dumoulin, Marco Aqil.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
