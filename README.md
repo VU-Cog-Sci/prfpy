@@ -12,5 +12,5 @@ This software is very much in development, and this development has just started
 - [ ] Documentation with Sphinx
 - [ ] Git-flow for feature additions after first beta 
 - [ ] Full unit test coverage
-- [ ] TravisCI on GitHub
+- [ ] TravisCI on GitHub: [![Build Status](https://travis-ci.org/spinoza-centre/prfpy.svg?branch=master)](https://travis-ci.org/spinoza-centre/prfpy)
 
