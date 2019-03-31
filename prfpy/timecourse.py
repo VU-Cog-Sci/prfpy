@@ -101,7 +101,7 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     """
     if window_length%2 != 1:
         raise ValueError # window_length should be odd
-    lp_filtered_predictions = signal.savgol_filter(x, window_length=window_length, polyorder=polyorder, **kwargs)
+    lp_filtered_predictions = signal.savgol_filter(predictions, window_length=window_length, polyorder=polyorder, **kwargs)
     if highpass:
         return predictions - lp_filtered_predictions
     else:
