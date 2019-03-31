@@ -1,0 +1,34 @@
+language: python
+
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
+
+branches:
+  only:
+  - master
+
+before_install:
+  - sudo apt-get update
+  - bash <(wget -q -O- http://neuro.debian.net/_files/neurodebian-travis.sh)
+  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh; fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
+  - conda config --add channels conda-forge
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION pip scipy numpy pandas scikit-learn statsmodels  
+
+install:
+  - python setup.py install
+
+script:
+  - bash run_tests.sh
+
+after_success:
+    # test coveralls
+    - coveralls
