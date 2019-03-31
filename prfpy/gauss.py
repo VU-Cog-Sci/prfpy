@@ -70,7 +70,7 @@ def gauss2D_iso_cart(x, y, mu=(0.0,0.0), sigma=1.0):
         gaussian values evaluated at (x,y)
     """
     
-    return np.exp(-((x-mu[0])**2 + ar**2 * (x-mu[1])**2)/(2*sigma**2))
+    return np.exp(-((x-mu[0])**2 + (x-mu[1])**2)/(2*sigma**2))
 
 def gauss2D_rot_cart(x, y, mu=(0.0,0.0), sigma=1.0, theta=0.0, ar=1.0):
     """gauss2D_rot_cart
