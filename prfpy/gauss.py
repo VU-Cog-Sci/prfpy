@@ -1,4 +1,3 @@
-
 import numpy as np
 
 def gauss1D_cart(x, mu=0.0, sigma=1.0):
@@ -52,8 +51,7 @@ def gauss2D_iso_cart(x, y, mu=(0.0,0.0), sigma=1.0):
     
     gauss2D_iso_cart takes two-dimensional arrays x and y, containing
     the x and y coordinates at which to evaluate the 2D isotropic gaussian 
-    function, with a given sigma, and returns a 2D array of Z values, 
-    the 
+    function, with a given sigma, and returns a 2D array of Z values.
         
     Parameters
     ----------
