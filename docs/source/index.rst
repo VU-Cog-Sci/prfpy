@@ -10,11 +10,6 @@ Welcome to pRFpy's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-pRFpy main
-===================
-.. automodule:: app
-   :members:
-
 pRFpy gaussian receptive field structure
 ===================
 .. automodule:: prfpy.gauss
