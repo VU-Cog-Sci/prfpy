@@ -1,9 +1,10 @@
 import numpy as np
 
-class PRFStimulus(object):
-    """PRFStimulus
+class PRFStimulus2D(object):
+    """PRFStimulus2D
     
-    Minimal pRF stimulus class, which takes an input design matrix, and sets up its real-world dimensions.
+    Minimal visual 2-dimensional pRF stimulus class, 
+    which takes an input design matrix and sets up its real-world dimensions.
     
     """
     def __init__(self, 
@@ -29,7 +30,7 @@ class PRFStimulus(object):
         self.screen_size_cm = screen_size_cm
         self.screen_distance_cm = screen_distance_cm
         self.design_matrix = design_matrix
-        if self.design_matrix.shape[0] != self.design_matrix.shape[1]:
+        if len(self.design_matrix.shape) >= 3 and self.design_matrix.shape[0] != self.design_matrix.shape[1]:
             raise ValueError # need the screen to be square
         self.TR = TR
 
@@ -41,5 +42,35 @@ class PRFStimulus(object):
                                 endpoint=True)
         self.x_coordinates, self.y_coordinates = np.meshgrid(oneD_grid, oneD_grid)
 
+class PRFStimulus1D(object):
+    """PRFStimulus1D
+    
+    Minimal visual 1-dimensional pRF stimulus class, 
+    which takes an input design matrix and sets up its real-world dimensions.
+
+    """
+    def __init__(self, 
+                design_matrix,
+                mapping,
+                TR,
+                *args, **kwargs):
+        """__init__
+        
+        
+        Parameters
+        ----------
+        design_matrix : numpy.ndarray
+            a 2D matrix (M by t). 
+            represents inputs in an encoding space evolving over time (time is last dimension)
+        mapping : numpy.ndarray, np.float
+            for each of the columns in design_matrix, the value in the encoding dimension
+            for example, in a numerosity experiment these would be the numerosity of presented stimuli
+        TR : float
+            repetition time of the design matrix
+        
+        """
+        self.design_matrix = design_matrix
+        self.mapping = mapping
+        self.TR = TR
 
         

@@ -23,7 +23,7 @@ def gauss1D_cart(x, mu=0.0, sigma=1.0):
 
     return np.exp(-((x-mu)**2)/(2*sigma**2))
 
-def gauss1D_log(x, mu=0, sigma=1):
+def gauss1D_log(x, mu=0.0, sigma=1.0):
     """gauss1D_log
     
     gauss1D_log takes a 1D array x, a mean and standard deviation,
