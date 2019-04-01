@@ -1,5 +1,6 @@
-from .gauss import gauss1D_cart, \
+from .rf import gauss1D_cart, \
                 gauss1D_log, \
+                vonMises1D, \
                 gauss2D_iso_cart, \
                 gauss2D_rot_cart
 from .timecourse import convolve_stimulus_dm, \
