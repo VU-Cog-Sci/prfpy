@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.stats as stats
 
 def gauss1D_cart(x, mu=0.0, sigma=1.0):
     """gauss1D_cart
@@ -45,6 +46,33 @@ def gauss1D_log(x, mu=0.0, sigma=1.0):
     """
 
     return np.exp(-(np.log(x-mu)**2)/(2*sigma**2))
+
+def vonMises1D(x, mu=0.0, kappa=1.0):
+    """vonMises1D
+    
+    vonMises1D takes a 1D array x, a mean and kappa (inverse of standard deviation),
+    and produces a von Mises pRF with given parameters. This shape can be thought of 
+    as a circular gaussian shape. Used for orientation or motion direction pRFs, 
+    for instance.
+
+    Parameters
+    ----------
+    x : numpy.ndarray (1D)
+        space on which to calculate the von Mises. 
+        Assumed to be in the range (0, 2*np.pi)
+    mu : float, optional
+        mean/mode of von Mises (the default is 0.0)
+    kappa : float, optional
+        dispersion coefficient of the von Mises, 
+        akin to invers of standard deviation of gaussian (the default is 1.0)
+    
+    Returns
+    -------
+    numpy.ndarray
+        von Mises values at x
+    """
+
+    return stats.vonmises.pdf(x-mu,kappa)
 
 def gauss2D_iso_cart(x, y, mu=(0.0,0.0), sigma=1.0):
     """gauss2D_iso_cart
