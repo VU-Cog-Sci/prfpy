@@ -72,6 +72,7 @@ def vonMises1D(x, mu=0.0, kappa=1.0):
         von Mises values at x, peak has y-value of 1
     """
     vm = stats.vonmises.pdf(x-mu,kappa)
+    
     return vm / np.max(vm)
 
 def gauss2D_iso_cart(x, y, mu=(0.0,0.0), sigma=1.0):
@@ -130,10 +131,10 @@ def gauss2D_rot_cart(x, y, mu=(0.0,0.0), sigma=1.0, theta=0.0, ar=1.0):
     """
     xr = (x-mu[0]) * np.cos(theta) + (y-mu[1]) * np.sin(theta)
     yr = -(x-mu[0]) * np.sin(theta) + (y-mu[1]) * np.cos(theta)
+
     return np.exp(-(xr**2 + ar**2 * yr**2)/(2*sigma**2))
 
-
-def gauss2D_logpolar(ecc, polar, mu=(0.0,0.0), sigma=1.0, kappa=1.0):
+def gauss2D_logpolar(ecc, polar, mu=(1.0,0.0), sigma=1.0, kappa=1.0):
     """gauss2D_logpolar
     
     gauss2D_logpolar takes two-dimensional arrays ecc and polar, containing
@@ -166,6 +167,6 @@ def gauss2D_logpolar(ecc, polar, mu=(0.0,0.0), sigma=1.0, kappa=1.0):
     polar_von_mises = stats.vonmises.pdf(polar-mu[1],kappa)
     polar_von_mises /= np.max(polar_von_mises)
     logpolar_Z = ecc_gauss * polar_von_mises
-    
+
     return logpolar_Z / np.max(logpolar_Z)
 
