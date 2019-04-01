@@ -12,7 +12,7 @@ Welcome to pRFpy's documentation!
 
 pRFpy gaussian receptive field structure
 ===================
-.. automodule:: prfpy.gauss
+.. automodule:: prfpy.rf
    :members:
 
 pRFpy timecourse manipulation
