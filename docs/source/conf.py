@@ -33,13 +33,13 @@ sys.setrecursionlimit(1500)
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['sphinx.ext.autodoc',
-    'sphinx.ext.doctest',
-    'sphinx.ext.todo',
-    'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.ifconfig',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages']
+              'sphinx.ext.doctest',
+              'sphinx.ext.todo',
+              'sphinx.ext.coverage',
+              'sphinx.ext.mathjax',
+              'sphinx.ext.ifconfig',
+              'sphinx.ext.viewcode',
+              'sphinx.ext.githubpages']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -47,8 +47,8 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = ['.rst', '.md']
+# source_suffix = '.rst'
 
 # The master toctree document.
 master_doc = 'index'
@@ -91,7 +91,7 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'haiku'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -100,13 +100,11 @@ html_theme = 'alabaster'
 html_theme_options = {
     'github_banner': True,
     'github_user': 'spinoza-centre',
-    'github_repo': 'prfpy',    
+    'github_repo': 'prfpy',
     'github_banner': 'true',
     'github_button': 'true',
-    'description': 'a population receptive field (pRF) simulation and fitting package',
-    'font_size': 'small',
-    'code_font_size': 'small'
-    }
+    'description': 'a population receptive field (pRF) simulation and fitting package'
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -181,6 +179,3 @@ texinfo_documents = [
      author, 'pRFpy', 'One line description of project.',
      'Miscellaneous'),
 ]
-
-
-
