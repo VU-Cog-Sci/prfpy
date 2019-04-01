@@ -24,9 +24,7 @@ def stimulus_through_prf(prfs, stimulus):
     """stimulus_through_prf
     
     dot the stimulus and the prfs
-    
-    [description]
-    
+        
     Parameters
     ----------
     prfs : numpy.ndarray
