@@ -16,4 +16,8 @@ Documentation for this package can be found at [readthedocs](https://prfpy.readt
 - [x] Documentation with Sphinx
 - [ ] Git-flow for feature additions after first beta 
 - [ ] Full unit test coverage
-- [ ] TravisCI on GitHub: [![Build Status](https://travis-ci.org/spinoza-centre/prfpy.svg?branch=master)](https://travis-ci.org/spinoza-centre/prfpy)
+- [ ] TravisCI on GitHub:
+
+[![Build Status](https://travis-ci.org/spinoza-centre/prfpy.svg?branch=master)](https://travis-ci.org/spinoza-centre/prfpy)
+
+![alt text](docs/imgs/rf_shapes.png "Example receptive fields")
