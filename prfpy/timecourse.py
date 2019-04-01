@@ -17,6 +17,7 @@ def convolve_stimulus_dm(stimulus, hrf):
     """
     hrf_shape = np.ones(len(stimulus.shape))
     hrf_shape[-1] = hrf.shape[0]
+
     return signal.fftconvolve(stimulus, hrf.reshape(hrf_shape), mode='full', axes=(-1))[...,:stimulus.shape[-1]]
 
 def stimulus_through_prf(prfs, stimulus):
@@ -38,7 +39,9 @@ def stimulus_through_prf(prfs, stimulus):
         'prf array dimensions {prfdim} and input stimulus array dimensions {stimdim} must have same dimensions'.format(
             prfdim=prfs.shape[1:], 
             stimdim=stimulus.shape[:-1])
-    return np.dot(prfs, stimulus)
+    prf_r = prfs.reshape((prfs.shape[0], -1))
+    stim_r = stimulus.reshape((-1, stimulus.shape[-1]))
+    return prf_r @ stim_r
 
 def generate_arima_noise(ar=(1,0.4), 
                         ma=(1,0.4), 
@@ -117,9 +120,11 @@ def generate_random_legendre_drifts(dimensions=(1000,120),
     Parameters
     ----------
     dimensions : tuple, optional
-        [description] (the default is (1000,120), which [default_description])
+        shape of the desired data, latter dimension = timepoints 
+        the default is (1000,120), which creates 1000 timecourses for a brief fMRI run
     amplitude_ranges : list, optional
-        [description] (the default is [[500,600],[-50,50],[-20,20],[-10,10],[-5,5]], which [default_description])
+        Amplitudes of each of the components. Ideally, this should follow something like 1/f. 
+        the default is [[500,600],[-50,50],[-20,20],[-10,10],[-5,5]]
 
     Returns
     -------
@@ -145,9 +150,11 @@ def generate_random_cosine_drifts(dimensions=(1000,120),
     Parameters
     ----------
     dimensions : tuple, optional
-        [description] (the default is (1000,120), which [default_description])
+        shape of the desired data, latter dimension = timepoints 
+        the default is (1000,120), which creates 1000 timecourses for a brief fMRI run
     amplitude_ranges : list, optional
-        [description] (the default is [[500,600],[-50,50],[-20,20],[-10,10],[-5,5]], which [default_description])
+        Amplitudes of each of the components. Ideally, this should follow something like 1/f. 
+        the default is [[500,600],[-50,50],[-20,20],[-10,10],[-5,5]]
 
     Returns
     -------
