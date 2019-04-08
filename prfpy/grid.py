@@ -1,6 +1,7 @@
 import numpy as np
-from .rf import *   # import all possible RF shapes
-from .timecourse import *
+from .rf import gauss2D_iso_cart   # import all required RF shapes
+from .timecourse import stimulus_through_prf, convolve_stimulus_dm
+from .stimulus import PRFStimulus2D
 from hrf_estimation import hrf
 
 
@@ -31,11 +32,29 @@ class Iso2DGaussianGridder(Gridder):
     rf_function = gauss2D_iso_cart
 
     def __init__(self, stimulus, hrf=None, **kwargs):
+        """__init__ for Iso2DGaussianGridder
+
+        constructor, sets up stimulus and hrf for this gridder
+
+        Parameters
+        ----------
+        stimulus : PRFStimulus2D
+            Stimulus object specifying the information about the stimulus, 
+            and the space in which it lives.
+        hrf : [type], optional
+            HRF shape for this gridder. 
+            Can be 'direct', which implements nothing,
+            a list or array of 3, which are multiplied with the three spm HRF basis functions,
+            and an array already sampled on the TR by the user.
+            (the default is None, which implements standard spm HRF)
+
+        """
         super(Iso2DGaussianGridder, Gridder).__init__(stimulus)
         self.__dict__.update(kwargs)
 
         if hrf == None:  # for use with standard fMRI
-            self.hrf = hrf.spmt
+            hrf_times = np.linspace(0, 40, 40/self.stimulus.TR, endpoint=False)
+            self.hrf = hrf.spmt(hrf_times)
         elif hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
             self.hrf = np.array([1])
         # some specific hrf with spm basis set
