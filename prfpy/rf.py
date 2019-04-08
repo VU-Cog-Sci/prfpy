@@ -95,7 +95,7 @@ def gauss2D_iso_cart(x, y, mu=(0.0, 0.0), sigma=1.0):
     mu : tuple, optional
         mean, 2D coordinates of mean/mode of gauss (the default is (0.0,0.0))
     sigma : float, optional
-        standard deviation of gauss (the default is 1.0
+        standard deviation of gauss (the default is 1.0)
 
     Returns 
     -------
