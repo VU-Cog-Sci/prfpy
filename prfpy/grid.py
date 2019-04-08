@@ -54,7 +54,8 @@ class Iso2DGaussianGridder(Gridder):
     def setup_grid(self, ecc_grid=None, polar_grid=None, size_grid=None, n_grid=[1]):
         """setup_grid
 
-        setup_grid sets up the parameters that span the grid
+        setup_grid sets up the parameters that span the grid. this assumes both baseline 
+        and betas (amplitudes) are not part of this grid and will fall out of the GLM
 
         Parameters
         ----------

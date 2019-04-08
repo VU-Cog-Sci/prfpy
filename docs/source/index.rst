@@ -21,7 +21,7 @@ pRFpy gaussian receptive field structure
 .. automodule:: prfpy.rf
    :members:
 
-pRFpy timecourse manipulation
+pRFpy timecourse manipulation functionality
 ===================
 .. automodule:: prfpy.timecourse
    :members:
@@ -29,6 +29,11 @@ pRFpy timecourse manipulation
 pRFpy stimulus classes
 ===================
 .. automodule:: prfpy.stimulus
+   :members:
+
+pRFpy grid classes
+===================
+.. automodule:: prfpy.grid
    :members:
 
 
