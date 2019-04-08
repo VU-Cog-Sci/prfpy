@@ -101,7 +101,6 @@ html_theme_options = {
     'github_banner': True,
     'github_user': 'spinoza-centre',
     'github_repo': 'prfpy',
-    'github_banner': 'true',
     'github_button': 'true',
     'description': 'a population receptive field (pRF) simulation and fitting package'
 }
