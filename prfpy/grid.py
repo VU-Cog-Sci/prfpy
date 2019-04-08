@@ -2,7 +2,7 @@ import numpy as np
 from .rf import gauss2D_iso_cart   # import all required RF shapes
 from .timecourse import stimulus_through_prf, convolve_stimulus_dm
 from .stimulus import PRFStimulus2D
-from hrf_estimation import hrf
+from hrf_estimation.hrf import spmt, dspmt, ddspmt
 
 
 class Gridder(object):
@@ -54,15 +54,15 @@ class Iso2DGaussianGridder(Gridder):
 
         if hrf == None:  # for use with standard fMRI
             hrf_times = np.linspace(0, 40, 40/self.stimulus.TR, endpoint=False)
-            self.hrf = hrf.spmt(hrf_times)
+            self.hrf = spmt(hrf_times)
         elif hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
             self.hrf = np.array([1])
         # some specific hrf with spm basis set
         elif ((type(hrf) == list) or (type(hrf) == np.ndarray)) and len(hrf) == 3:
             hrf_times = np.linspace(0, 40, 40/self.stimulus.TR, endpoint=False)
-            self.hrf = np.array([hrf[0] * hrf.spmt(hrf_times),
-                                 hrf[1] * hrf.dspmt(hrf_times),
-                                 hrf[2] * hrf.ddspmt(hrf_times)]).sum(axis=0)
+            self.hrf = np.array([hrf[0] * spmt(hrf_times),
+                                 hrf[1] * dspmt(hrf_times),
+                                 hrf[2] * ddspmt(hrf_times)]).sum(axis=0)
         # some specific hrf already defined at the TR (!)
         elif type(hrf) == np.ndarray and len(hrf) > 3:
             self.hrf = hrf
