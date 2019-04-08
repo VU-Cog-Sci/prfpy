@@ -4,3 +4,4 @@ matplotlib>=2.2
 pandas>=0.24
 statsmodels>=0.8
 sklearn
+hrf_estimation
