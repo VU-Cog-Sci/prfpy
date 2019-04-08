@@ -22,7 +22,7 @@ def convolve_stimulus_dm(stimulus, hrf):
     return signal.fftconvolve(stimulus, hrf.reshape(hrf_shape), mode='full', axes=(-1))[..., :stimulus.shape[-1]]
 
 
-def stimulus_through_prf(prfs, stimulus):
+def stimulus_through_prf(prfs, stimulus, mask=None):
     """stimulus_through_prf
 
     dot the stimulus and the prfs
@@ -39,8 +39,17 @@ def stimulus_through_prf(prfs, stimulus):
         'prf array dimensions {prfdim} and input stimulus array dimensions {stimdim} must have same dimensions'.format(
             prfdim=prfs.shape[1:],
             stimdim=stimulus.shape[:-1])
-    prf_r = prfs.reshape((prfs.shape[0], -1))
-    stim_r = stimulus.reshape((-1, stimulus.shape[-1]))
+    if mask == None:
+        prf_r = prfs.reshape((prfs.shape[0], -1))
+        stim_r = stimulus.reshape((-1, stimulus.shape[-1]))
+    else:
+        assert prfs.shape[1:] == mask.shape and mask.shape == stimulus.shape[:-1], \
+            'mask dimensions {maskdim}, prf array dimensions {prfdim}, and input stimulus array dimensions {stimdim} must have same dimensions'.format(
+                maskdim=mask.shape,
+                prfdim=prfs.shape[1:],
+                stimdim=stimulus.shape[:-1])
+        prf_r = prfs[:, mask]
+        stim_r = stimulus[mask, :]
     return prf_r @ stim_r
 
 

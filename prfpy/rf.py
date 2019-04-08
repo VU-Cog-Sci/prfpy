@@ -88,9 +88,9 @@ def gauss2D_iso_cart(x, y, mu=(0.0, 0.0), sigma=1.0):
 
     Parameters
     ----------
-    x : numpy.ndarray, 2D
+    x : numpy.ndarray, 2D or flattened by masking
         2D, containing x coordinates
-    y : numpy.ndarray, 2D
+    y : numpy.ndarray, 2D or flattened by masking
         2D, containing y coordinates
     mu : tuple, optional
         mean, 2D coordinates of mean/mode of gauss (the default is (0.0,0.0))
@@ -99,7 +99,7 @@ def gauss2D_iso_cart(x, y, mu=(0.0, 0.0), sigma=1.0):
 
     Returns 
     -------
-    numpy.ndarray, 2D
+    numpy.ndarray, 2D or flattened by masking
         gaussian values evaluated at (x,y)
     """
 
@@ -117,9 +117,9 @@ def gauss2D_rot_cart(x, y, mu=(0.0, 0.0), sigma=1.0, theta=0.0, ar=1.0):
     Parameters
     ----------
     x : numpy.ndarray, 2D
-        2D, containing x coordinates
+        2D, containing x coordinates or flattened by masking
     y : numpy.ndarray, 2D
-        2D, containing y coordinates
+        2D, containing y coordinates or flattened by masking
     mu : tuple, optional
         mean, 2D coordinates of mean/mode of gauss (the default is (0.0,0.0))
     sigma : float, optional
@@ -131,8 +131,8 @@ def gauss2D_rot_cart(x, y, mu=(0.0, 0.0), sigma=1.0, theta=0.0, ar=1.0):
 
     Returns
     -------
-    numpy.ndarray, 2D
-        gaussian values evaluated at (x,y)
+    numpy.ndarray, 2D or flattened by masking
+        gaussian values evaluated at (x,y) 
     """
     xr = (x-mu[0]) * np.cos(theta) + (y-mu[1]) * np.sin(theta)
     yr = -(x-mu[0]) * np.sin(theta) + (y-mu[1]) * np.cos(theta)
@@ -152,9 +152,9 @@ def gauss2D_logpolar(ecc, polar, mu=(1.0, 0.0), sigma=1.0, kappa=1.0):
 
     Parameters
     ----------
-    ecc : numpy.ndarray, 2D
+    ecc : numpy.ndarray, 2D or flattened by masking
         2D, containing eccentricity
-    polar : numpy.ndarray, 2D
+    polar : numpy.ndarray, 2D or flattened by masking
         2D, containing polar angle coordinates (0, 2*np.pi)
     mu : tuple, optional
         mean, 2D coordinates of mean/mode of gauss (ecc) and von Mises (polar) (the default is (0.0,0.0))
@@ -166,7 +166,7 @@ def gauss2D_logpolar(ecc, polar, mu=(1.0, 0.0), sigma=1.0, kappa=1.0):
 
     Returns
     -------
-    numpy.ndarray, 2D
+    numpy.ndarray, 2D or flattened by masking
         values evaluated at (ecc, polar), peak has y-value of 1.
     """
     ecc_gauss = np.exp(-(np.log(ecc/mu[0])**2)/(2*sigma**2))

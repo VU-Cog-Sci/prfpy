@@ -1,6 +1,6 @@
-numpy
-scipy
-matplotlib
-pandas
-sklearn
-statsmodels
+numpy>=1.16
+scipy>=1.2
+matplotlib>=2.2
+pandas>=0.24
+sklearn>=0.20
+statsmodels>=0.8
