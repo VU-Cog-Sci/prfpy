@@ -12,7 +12,7 @@ Documentation for this package can be found at [readthedocs](https://prfpy.readt
 
 - [x] install using `python setup.py develop`
 - [x] Docstrings in numpy format. 
-- [ ] PEP8 !
+- [ ] PEP8 - please set your editor to autopep8 on save!
 - [x] Documentation with Sphinx
 - [ ] Git-flow for feature additions after first beta 
 - [ ] Full unit test coverage
