@@ -1,6 +1,6 @@
 import numpy as np
 from .rf import gauss2D_iso_cart   # import all required RF shapes
-from .timecourse import stimulus_through_prf, convolve_stimulus_dm
+from .timecourse import stimulus_through_prf, convolve_stimulus_dm, generate_random_cosine_drifts, generate_arima_noise
 from .stimulus import PRFStimulus2D
 from hrf_estimation.hrf import spmt, dspmt, ddspmt
 
@@ -27,7 +27,10 @@ class Gridder(object):
 
 
 class Iso2DGaussianGridder(Gridder):
-
+    """Iso2DGaussianGridder
+    To extend please create a setup_XXX_grid function for any new way of 
+    defining grids.
+    """
     # define the prerequisite rf structure
     rf_function = gauss2D_iso_cart
 
@@ -43,7 +46,7 @@ class Iso2DGaussianGridder(Gridder):
             and the space in which it lives.
         hrf : [type], optional
             HRF shape for this gridder. 
-            Can be 'direct', which implements nothing,
+            Can be 'direct', which implements nothing (for eCoG or later convolution),
             a list or array of 3, which are multiplied with the three spm HRF basis functions,
             and an array already sampled on the TR by the user.
             (the default is None, which implements standard spm HRF)
@@ -70,10 +73,10 @@ class Iso2DGaussianGridder(Gridder):
         self.convolved_design_matrix = convolve_stimulus_dm(
             stimulus.design_matrix, hrf=self.hrf)
 
-    def setup_grid(self, ecc_grid=None, polar_grid=None, size_grid=None, n_grid=[1]):
-        """setup_grid
+    def setup_ecc_polar_grid(self, ecc_grid=None, polar_grid=None, size_grid=None, n_grid=[1]):
+        """setup_ecc_polar_grid
 
-        setup_grid sets up the parameters that span the grid. this assumes both baseline 
+        setup_ecc_polar_grid sets up the parameters that span the grid. this assumes both baseline 
         and betas (amplitudes) are not part of this grid and will fall out of the GLM
 
         Parameters
@@ -88,7 +91,7 @@ class Iso2DGaussianGridder(Gridder):
             contains all the settings for the normalization dimension of the grid
 
         """
-        assert ecc_grid != None and polar_grid != None and size_grid != None, \
+        assert ecc_grid is not None and polar_grid is not None and size_grid is not None, \
             "please fill in all spatial grids"
 
         self.eccs, self.polars, self.sizes, self.ns = np.meshgrid(
@@ -109,7 +112,7 @@ class Iso2DGaussianGridder(Gridder):
             mu=np.array([self.xs, self.ys]).reshape((-1, 2)).T,
             sigma=self.sizes.ravel())
         # won't have to perform exponentiation of all ns are 1
-        if np.unique(self.ns) == 1:
+        if np.unique(self.ns) != 1:
             self.grid_rfs **= self.ns.ravel()
 
     def stimulus_times_prfs(self):
@@ -121,3 +124,73 @@ class Iso2DGaussianGridder(Gridder):
         assert hasattr(self, 'grid_rfs'), "please create the rfs first"
         self.predictions = stimulus_through_prf(
             self.grid_rfs, self.convolved_design_matrix)
+
+
+class RandomIso2DGaussianGridder(Iso2DGaussianGridder):
+    """RandomIso2DGaussianGridder
+
+    implements a random gridding scheme for CNN training on timecourses
+
+    """
+
+    def create_timecourses(self,
+                           ecc_lsp,
+                           polar_lsp,
+                           size_lsp,
+                           n_lsp=[1, 1, 1]):
+        """create_timecourses
+
+        creates timecourses for a given set of parameters
+
+        [description]
+
+        Parameters
+        ----------
+        ecc_lsp : list
+            to be filled into np.linspace
+        polar_lsp : list
+            to be filled into np.linspace
+        size_lsp : list
+            to be filled into np.linspace
+        n_lsp : list, optional
+            to be filled into np.linspace 
+            (the default is [1, 1, 1], which returns [1] as array)
+
+        """
+        self.setup_ecc_polar_grid(ecc_grid=np.linspace(*ecc_lsp),
+                                  polar_grid=np.linspace(*polar_lsp),
+                                  size_grid=np.linspace(*size_lsp),
+                                  n_grid=np.linspace(*n_lsp)
+                                  )
+        self.create_rfs()
+        self.stimulus_times_prfs()
+
+    def create_drifs_and_noise(self,
+                               drift_ranges=[[0, 0]],
+                               noise_ar=None,
+                               noise_amplitude=1.0):
+        """add_drifs_and_noise
+
+        creates noise and drifts of size equal to the predictions
+
+        Parameters
+        ----------
+        drift_ranges : list of 2-lists of floats, optional
+            specifies the lower- and upper bounds of the  ranges 
+            of each of the discrete cosine low-pass components
+            to be generated
+        noise_ar : 2x2 list.
+            argument passed to timecourse.generate_arima_noise
+            (the default is None, for no noise)
+        noise_amplitude : float, optional
+
+        """
+        assert hasattr(
+            self, 'predictions'), "please first create the grid to which to add noise"
+        self.random_drifts = generate_random_cosine_drifts(
+            dimensions=self.predictions.shape, amplitude_ranges=drift_ranges)
+        if noise_ar is None:
+            self.random_noise = generate_arima_noise(
+                ar=noise_ar[0], ma=noise_ar[1], dimensions=self.predictions.shape) * noise_amplitude
+        else:
+            self.random_noise = np.zeros_like(self.predictions)
