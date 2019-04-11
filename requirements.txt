@@ -6,3 +6,4 @@ statsmodels>=0.8
 sklearn
 joblib
 hrf_estimation
+numba
