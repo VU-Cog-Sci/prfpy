@@ -1,6 +1,10 @@
 import numpy as np
-from .rf import gauss2D_iso_cart   # import all required RF shapes
-from .timecourse import stimulus_through_prf, convolve_stimulus_dm, generate_random_cosine_drifts, generate_arima_noise
+from .rf import gauss2D_iso_cart   # import required RF shapes
+from .timecourse import stimulus_through_prf, \
+    convolve_stimulus_dm, \
+    generate_random_cosine_drifts, \
+    generate_arima_noise, \
+    sgfilter_predictions
 from .stimulus import PRFStimulus2D
 from hrf_estimation.hrf import spmt, dspmt, ddspmt
 
@@ -52,7 +56,7 @@ class Iso2DGaussianGridder(Gridder):
             (the default is None, which implements standard spm HRF)
 
         """
-        super(Iso2DGaussianGridder, Gridder).__init__(stimulus)
+        super(Iso2DGaussianGridder, self).__init__(stimulus)
         self.__dict__.update(kwargs)
 
         if hrf == None:  # for use with standard fMRI
@@ -106,14 +110,15 @@ class Iso2DGaussianGridder(Gridder):
 
         """
         assert hasattr(self, 'xs'), "please set up the grid first"
-        self.grid_rfs = Iso2DGaussianGridder.rf_function(
+        self.grid_rfs = self.rf_function(
             x=self.stimulus.x_coordinates[..., np.newaxis],
             y=self.stimulus.y_coordinates[..., np.newaxis],
             mu=np.array([self.xs, self.ys]).reshape((-1, 2)).T,
             sigma=self.sizes.ravel())
-        # won't have to perform exponentiation of all ns are 1
-        if np.unique(self.ns) != 1:
+        # won't have to perform exponentiation of all ns are equal
+        if len(np.unique(self.ns)) != 1:
             self.grid_rfs **= self.ns.ravel()
+        self.grid_rfs = self.grid_rfs.T
 
     def stimulus_times_prfs(self):
         """stimulus_times_prfs
@@ -125,19 +130,19 @@ class Iso2DGaussianGridder(Gridder):
         self.predictions = stimulus_through_prf(
             self.grid_rfs, self.convolved_design_matrix)
 
-
-class RandomIso2DGaussianGridder(Iso2DGaussianGridder):
-    """RandomIso2DGaussianGridder
-
-    implements a random gridding scheme for CNN training on timecourses
-
-    """
+        # normalize the resulting predictions to peak value of 1
+        self.predictions /= self.predictions.max(axis=-1)[:, np.newaxis]
 
     def create_timecourses(self,
-                           ecc_lsp,
-                           polar_lsp,
-                           size_lsp,
-                           n_lsp=[1, 1, 1]):
+                           ecc_grid,
+                           polar_grid,
+                           size_grid,
+                           n_grid=[1],
+                           filter_predictions=False,
+                           window_length=201, 
+                           polyorder=3, 
+                           highpass=True, 
+                           **kwargs):
         """create_timecourses
 
         creates timecourses for a given set of parameters
@@ -146,29 +151,109 @@ class RandomIso2DGaussianGridder(Iso2DGaussianGridder):
 
         Parameters
         ----------
-        ecc_lsp : list
-            to be filled into np.linspace
-        polar_lsp : list
-            to be filled into np.linspace
-        size_lsp : list
-            to be filled into np.linspace
-        n_lsp : list, optional
-            to be filled into np.linspace 
+        ecc_grid : list
+            to be filled in by user
+        polar_grid : list
+            to be filled in by user
+        size_grid : list
+            to be filled in by user
+        n_grid : list, optional
+            to be filled in by user 
             (the default is [1, 1, 1], which returns [1] as array)
-
+        filter_predictions : boolean, optional 
+            whether to high-pass filter the predictions, default False
+        window_length : int, odd number, optional 
+            length of savgol filter, default 201 TRs 
+        polyorder : int, optional  
+            polynomial order of savgol filter, default 3
+        highpass : boolean, optional
+            whether to filter highpass or lowpass, default True
         """
-        self.setup_ecc_polar_grid(ecc_grid=np.linspace(*ecc_lsp),
-                                  polar_grid=np.linspace(*polar_lsp),
-                                  size_grid=np.linspace(*size_lsp),
-                                  n_grid=np.linspace(*n_lsp)
+        self.setup_ecc_polar_grid(ecc_grid=ecc_grid,
+                                  polar_grid=polar_grid,
+                                  size_grid=size_grid,
+                                  n_grid=n_grid
                                   )
         self.create_rfs()
         self.stimulus_times_prfs()
 
-    def create_drifs_and_noise(self,
-                               drift_ranges=[[0, 0]],
-                               noise_ar=None,
-                               noise_amplitude=1.0):
+        if filter_predictions:
+            self.predictions = sgfilter_predictions(self.predictions.T,
+                            window_length=window_length, 
+                            polyorder=polyorder, 
+                            highpass=highpass, 
+                            **kwargs).T
+            self.filtered_predictions = True
+        else:
+            self.filtered_predictions = False
+
+    def return_single_timecourse(self, 
+                            mu_x,
+                            mu_y,
+                            size, 
+                            n=1.0,
+                            filter_predictions=False,
+                            window_length=201, 
+                            polyorder=3, 
+                            highpass=True, 
+                            **kwargs):
+        """return_single_timecourse
+
+        returns the timecourse for a single set of parameters.
+
+        To be used during, for example, in iterative search.
+
+        Parameters
+        ----------
+        mu_x : float
+            x-position of pRF
+        mu_y : float
+            y-position of pRF
+        size : float
+            size of pRF
+        n : float, optional
+            exponent of pRF (the default is 1, which is a linear Gaussian)
+        filter_predictions : bool, optional
+            whether to filter the resulting timecourse
+            (the default is False, which performs no filtering)
+        window_length : int, odd number, optional 
+            length of savgol filter, default 201 TRs 
+        polyorder : int, optional  
+            polynomial order of savgol filter, default 3
+        highpass : boolean, optional
+            whether to filter highpass or lowpass, default True
+
+        Returns
+        -------
+        numpy.ndarray
+            single predicted timecourse given the model
+        """
+        # create the single rf
+        rf = Iso2DGaussianGridder.rf_function(
+                        x=self.stimulus.x_coordinates[..., np.newaxis],
+                        y=self.stimulus.y_coordinates[..., np.newaxis],
+                        mu=np.array([mu_x, mu_y]).T,
+                        sigma=np.array([size]))
+        # won't have to perform exponentiation if n == 1
+        if n != 1:
+            rf **= n
+        rf = rf.T
+        # create timecourse
+        tc = stimulus_through_prf(rf, self.convolved_design_matrix)
+        tc /= tc.max
+        if not filter_predictions:
+            return tc
+        else:
+            return sgfilter_predictions(tc.T,
+                            window_length=window_length, 
+                            polyorder=polyorder, 
+                            highpass=highpass, 
+                            **kwargs).T
+
+    def create_drifts_and_noise(self,
+                                drift_ranges=[[0, 0]],
+                                noise_ar=None,
+                                noise_amplitude=1.0):
         """add_drifs_and_noise
 
         creates noise and drifts of size equal to the predictions
@@ -189,7 +274,7 @@ class RandomIso2DGaussianGridder(Iso2DGaussianGridder):
             self, 'predictions'), "please first create the grid to which to add noise"
         self.random_drifts = generate_random_cosine_drifts(
             dimensions=self.predictions.shape, amplitude_ranges=drift_ranges)
-        if noise_ar is None:
+        if noise_ar is not None:
             self.random_noise = generate_arima_noise(
                 ar=noise_ar[0], ma=noise_ar[1], dimensions=self.predictions.shape) * noise_amplitude
         else:
