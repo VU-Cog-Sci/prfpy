@@ -46,9 +46,10 @@ class PRFStimulus2D(object):
                                 endpoint=True)
         self.x_coordinates, self.y_coordinates = np.meshgrid(
             oneD_grid, oneD_grid)
-
-        self.max_ecc = np.max(
-            np.sqrt(self.x_coordinates**2 + self.y_coordinates**2))
+        self.complex_coordinates = self.x_coordinates + self.j_coordinates * 1j
+        self.ecc_coordinates = np.abs(self.complex_coordinates)
+        self.polar_coordinates = np.angle(self.complex_coordinates)
+        self.max_ecc = np.max(self.ecc_coordinates)
 
 
 class PRFStimulus1D(object):

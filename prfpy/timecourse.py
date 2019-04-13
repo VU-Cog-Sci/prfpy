@@ -82,7 +82,7 @@ def generate_arima_noise(ar=(1, 0.4),
         noise of requested dimensions and properties
 
     """
-    return np.array([arma_generate_sample(ar, ma, dimensions[1], **kwargs) for i in range(dimensions[0])])
+    return np.array([arma_generate_sample(ar, ma, dimensions[1], **kwargs) for _ in range(dimensions[0])])
 
 
 def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, **kwargs):
