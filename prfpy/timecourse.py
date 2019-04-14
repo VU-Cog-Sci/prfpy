@@ -53,38 +53,6 @@ def stimulus_through_prf(prfs, stimulus, mask=None):
     return prf_r @ stim_r
 
 
-def generate_arima_noise(ar=(1, 0.4),
-                         ma=(1, 0.4),
-                         dimensions=(1000, 120),
-                         **kwargs):
-    """generate_arima_noise
-
-    generate_arima_noise creates temporally correlated noise
-
-    Parameters
-    ----------
-    ar : tuple, optional
-        arima autoregression parameters for statsmodels generation of noise 
-        (the default is (1,0.4), which should be a reasonable setting for fMRI noise)
-    ma : tuple, optional
-        arima moving average parameters for statsmodels generation of noise 
-        (the default is (1,0.4), which should be a reasonable setting for fMRI noise)        
-    dimensions : tuple, optional
-        the first dimension is the nr of separate timecourses, the second dimension
-        is the timeseries length.
-        (the default is (1000,120), a reasonable if brief length for an fMRI run)
-
-    **kwargs are passed on to statsmodels.tsa.arima_process.arma_generate_sample
-
-    Returns 
-    -------
-    numpy.ndarray
-        noise of requested dimensions and properties
-
-    """
-    return np.array([arma_generate_sample(ar, ma, dimensions[1], **kwargs) for _ in range(dimensions[0])])
-
-
 def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, **kwargs):
     """sgfilter_predictions
 
@@ -183,3 +151,35 @@ def generate_random_cosine_drifts(dimensions=(1000, 120),
     random_factors = np.array([ar[0] + (ar[1]-ar[0])/2.0 + (np.random.rand(dimensions[0])-0.5) * (ar[1]-ar[0])
                                for ar in amplitude_ranges])
     return np.dot(drifts, random_factors), random_factors
+
+
+def generate_arima_noise(ar=(1, 0.4),
+                         ma=(1, 0.4),
+                         dimensions=(1000, 120),
+                         **kwargs):
+    """generate_arima_noise
+
+    generate_arima_noise creates temporally correlated noise
+
+    Parameters
+    ----------
+    ar : tuple, optional
+        arima autoregression parameters for statsmodels generation of noise 
+        (the default is (1,0.4), which should be a reasonable setting for fMRI noise)
+    ma : tuple, optional
+        arima moving average parameters for statsmodels generation of noise 
+        (the default is (1,0.4), which should be a reasonable setting for fMRI noise)        
+    dimensions : tuple, optional
+        the first dimension is the nr of separate timecourses, the second dimension
+        is the timeseries length.
+        (the default is (1000,120), a reasonable if brief length for an fMRI run)
+
+    **kwargs are passed on to statsmodels.tsa.arima_process.arma_generate_sample
+
+    Returns 
+    -------
+    numpy.ndarray
+        noise of requested dimensions and properties
+
+    """
+    return np.array([arma_generate_sample(ar, ma, dimensions[1], **kwargs) for _ in range(dimensions[0])])
