@@ -35,8 +35,6 @@ class Iso2DGaussianGridder(Gridder):
     To extend please create a setup_XXX_grid function for any new way of 
     defining grids.
     """
-    # define the prerequisite rf structure
-    rf_function = gauss2D_iso_cart
 
     def __init__(self, 
                 stimulus, 
@@ -70,7 +68,7 @@ class Iso2DGaussianGridder(Gridder):
         highpass : boolean, optional
             whether to filter highpass or lowpass, default True
         """
-        super(Iso2DGaussianGridder, self).__init__(stimulus)
+        super().__init__(stimulus)
         self.__dict__.update(kwargs)
 
         # HRF stuff
@@ -97,33 +95,6 @@ class Iso2DGaussianGridder(Gridder):
         self.window_length = window_length
         self.polyorder = polyorder
         self.highpass = highpass
-        
-                        
-    def setup_ecc_polar_grid(self, ecc_grid=None, polar_grid=None, size_grid=None, n_grid=[1]):
-        """setup_ecc_polar_grid
-
-        setup_ecc_polar_grid sets up the parameters that span the grid. this assumes both baseline 
-        and betas (amplitudes) are not part of this grid and will fall out of the GLM
-
-        Parameters
-        ----------
-        ecc_grid : list or numpy.ndarray
-            contains all the settings for the ecc dimension of the grid
-        polar_grid : list or numpy.ndarray
-            contains all the settings for the polar dimension of the grid
-        size_grid : list or numpy.ndarray
-            contains all the settings for the size dimension of the grid
-        n_grid : list or numpy.ndarray
-            contains all the settings for the normalization dimension of the grid
-
-        """
-        assert ecc_grid is not None and polar_grid is not None and size_grid is not None, \
-            "please fill in all spatial grids"
-
-        self.eccs, self.polars, self.sizes, self.ns = np.meshgrid(
-            ecc_grid, polar_grid, size_grid, n_grid)
-        self.xs, self.ys = np.sin(self.polars) * \
-            self.eccs, np.cos(self.polars) * self.eccs
 
     def create_rfs(self):
         """create_rfs
@@ -132,7 +103,7 @@ class Iso2DGaussianGridder(Gridder):
 
         """
         assert hasattr(self, 'xs'), "please set up the grid first"
-        self.grid_rfs = self.rf_function(
+        self.grid_rfs = gauss2D_iso_cart(
             x=self.stimulus.x_coordinates[..., np.newaxis],
             y=self.stimulus.y_coordinates[..., np.newaxis],
             mu=np.array([self.xs, self.ys]).reshape((-1, 2)).T,
@@ -153,16 +124,16 @@ class Iso2DGaussianGridder(Gridder):
             self.grid_rfs, self.convolved_design_matrix)
 
         # normalize the resulting predictions to peak value of 1
-        self.predictions /= self.predictions.max(axis=-1)[:, np.newaxis]
+        # self.predictions /= self.predictions.max(axis=-1)[:, np.newaxis]
 
-    def create_grid_timecourses(self,
+    def create_grid_predictions(self,
                            ecc_grid,
                            polar_grid,
                            size_grid,
                            n_grid=[1]):
-        """create_timecourses
+        """create_predictions
 
-        creates timecourses for a given set of parameters
+        creates predictions for a given set of parameters
 
         [description]
 
@@ -178,11 +149,14 @@ class Iso2DGaussianGridder(Gridder):
             to be filled in by user 
             (the default is [1])
         """
-        self.setup_ecc_polar_grid(ecc_grid=ecc_grid,
-                                  polar_grid=polar_grid,
-                                  size_grid=size_grid,
-                                  n_grid=n_grid
-                                  )
+        assert ecc_grid is not None and polar_grid is not None and size_grid is not None, \
+            "please fill in all spatial grids"
+
+        self.eccs, self.polars, self.sizes, self.ns = np.meshgrid(
+            ecc_grid, polar_grid, size_grid, n_grid)
+        self.xs, self.ys = np.sin(self.polars) * \
+            self.eccs, np.cos(self.polars) * self.eccs
+
         self.create_rfs()
         self.stimulus_times_prfs()
 
@@ -196,16 +170,16 @@ class Iso2DGaussianGridder(Gridder):
         else:
             self.filtered_predictions = False
 
-    def return_single_timecourse(self, 
+    def return_single_prediction(self, 
                             mu_x,
                             mu_y,
                             size, 
                             n=1.0,
                             beta=1.0,
                             baseline=0.0):
-        """return_single_timecourse
+        """return_single_prediction
 
-        returns the timecourse for a single set of parameters.
+        returns the prediction for a single set of parameters.
         As this is to be used during iterative search, it also 
         has arguments beta and baseline. 
 
@@ -227,21 +201,20 @@ class Iso2DGaussianGridder(Gridder):
         Returns
         -------
         numpy.ndarray
-            single predicted timecourse given the model
+            single prediction given the model
         """
         # create the single rf
-        rf = self.rf_function(
-                        x=self.stimulus.x_coordinates[..., np.newaxis],
-                        y=self.stimulus.y_coordinates[..., np.newaxis],
-                        mu=np.array([mu_x, mu_y]).T,
-                        sigma=np.array([size]))
+        rf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+                            y=self.stimulus.y_coordinates[..., np.newaxis],
+                            mu=(mu_x, mu_y),
+                            sigma=size)
         # won't have to perform exponentiation if n == 1
         if n != 1:
             rf **= n
         rf = rf.T
         # create timecourse
         tc = stimulus_through_prf(rf, self.convolved_design_matrix)
-        tc /= tc.max
+        tc /= tc.max()
         if not self.filter_predictions:
             return baseline + beta * tc
         else:
