@@ -46,10 +46,13 @@ class PRFStimulus2D(object):
                                 endpoint=True)
         self.x_coordinates, self.y_coordinates = np.meshgrid(
             oneD_grid, oneD_grid)
-        self.complex_coordinates = self.x_coordinates + self.j_coordinates * 1j
+        self.complex_coordinates = self.x_coordinates + self.y_coordinates * 1j
         self.ecc_coordinates = np.abs(self.complex_coordinates)
         self.polar_coordinates = np.angle(self.complex_coordinates)
         self.max_ecc = np.max(self.ecc_coordinates)
+
+        # construct a standard mask based on standard deviation over time
+        self.mask = np.std(design_matrix, axis=-1) != 0
 
 
 class PRFStimulus1D(object):

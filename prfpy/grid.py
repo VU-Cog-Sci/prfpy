@@ -229,7 +229,7 @@ class Iso2DGaussianGridder(Gridder):
             single predicted timecourse given the model
         """
         # create the single rf
-        rf = Iso2DGaussianGridder.rf_function(
+        rf = self.rf_function(
                         x=self.stimulus.x_coordinates[..., np.newaxis],
                         y=self.stimulus.y_coordinates[..., np.newaxis],
                         mu=np.array([mu_x, mu_y]).T,
