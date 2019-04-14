@@ -4,6 +4,8 @@ from scipy.optimize import fminpowell
 import bottleneck as bn
 from tqdm import tqdm
 
+from joblib import Parallel, delayed
+
 from .grid import Iso2DGaussianGridder
 
 def error_function(parameters, args, data, objective_function, verbose):
@@ -79,15 +81,10 @@ class Iso2DGaussianFitter(Fitter):
     """
 
     def grid_fit(self,
-                           ecc_grid,
-                           polar_grid,
-                           size_grid,
-                           n_grid=[1],
-                           filter_predictions=False,
-                           window_length=201, 
-                           polyorder=3, 
-                           highpass=True, 
-                           **kwargs):
+                ecc_grid,
+                polar_grid,
+                size_grid,
+                n_grid=[1]):
         """setup_grid_specs
         
         performs grid fit using provided grids and predictor definitions
@@ -105,24 +102,12 @@ class Iso2DGaussianFitter(Fitter):
         n_grid : list, optional
             to be filled in by user 
             (the default is [1, 1, 1], which returns [1] as array)
-        filter_predictions : boolean, optional 
-            whether to high-pass filter the predictions, default False
-        window_length : int, odd number, optional 
-            length of savgol filter, default 201 TRs 
-        polyorder : int, optional  
-            polynomial order of savgol filter, default 3
-        highpass : boolean, optional
-            whether to filter highpass or lowpass, default True
         """
         # let the gridder create the timecourses
         self.gridder.create_timecourses(ecc_grid=ecc_grid,
                            polar_grid=polar_grid,
                            size_grid=size_grid,
-                           n_grid=n_grid,
-                           filter_predictions=filter_predictions,
-                           window_length=window_length, 
-                           polyorder=polyorder, 
-                           highpass=highpass)
+                           n_grid=n_grid)
         
         # set up book-keeping to minimize memory usage.
         self.gridsearch_r2 = np.zeros(self.n_units)
@@ -157,18 +142,15 @@ class Iso2DGaussianFitter(Fitter):
                                                     self.best_fitting_baseline_thus_far
                                                 ])
 
-    def iterative_fit(self, rsq_threshold, filter_predictions, verbose):
-        if self.gridsearch_params is None:
-            raise Exception('First use self.fit_grid!')
+    def iterative_fit(self, 
+                    rsq_threshold,
+                    verbose=True, 
+                    args={}):
+        assert hasattr(self, 'gridsearch_params'), 'First use self.fit_grid!'
         
         self.iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(delayed(iterative_search)(self.gridder, 
                                                                                     data, 
                                                                                     grid_pars, 
-                                                                                    args={
-                                                                                        'filter_predictions':False,
-                                                                                        'window_length':201, 
-                                                                                        'polyorder':3, 
-                                                                                        'highpass':True
-                                                                                        })
+                                                                                    args=args)
                                        for (data,grid_pars) in zip(self.data, self.gridsearch_params))
         self.iterative_search_params = np.array(self.iterative_search_params)

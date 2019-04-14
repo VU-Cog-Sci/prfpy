@@ -38,7 +38,14 @@ class Iso2DGaussianGridder(Gridder):
     # define the prerequisite rf structure
     rf_function = gauss2D_iso_cart
 
-    def __init__(self, stimulus, hrf=None, **kwargs):
+    def __init__(self, 
+                stimulus, 
+                hrf=None,
+                filter_predictions=False,
+                window_length=201, 
+                polyorder=3, 
+                highpass=True,
+                **kwargs):
         """__init__ for Iso2DGaussianGridder
 
         constructor, sets up stimulus and hrf for this gridder
@@ -48,17 +55,25 @@ class Iso2DGaussianGridder(Gridder):
         stimulus : PRFStimulus2D
             Stimulus object specifying the information about the stimulus, 
             and the space in which it lives.
-        hrf : [type], optional
+        hrf : string, list or numpy.ndarray, optional
             HRF shape for this gridder. 
             Can be 'direct', which implements nothing (for eCoG or later convolution),
             a list or array of 3, which are multiplied with the three spm HRF basis functions,
             and an array already sampled on the TR by the user.
             (the default is None, which implements standard spm HRF)
-
+        filter_predictions : boolean, optional 
+            whether to high-pass filter the predictions, default False
+        window_length : int, odd number, optional 
+            length of savgol filter, default 201 TRs 
+        polyorder : int, optional  
+            polynomial order of savgol filter, default 3
+        highpass : boolean, optional
+            whether to filter highpass or lowpass, default True
         """
         super(Iso2DGaussianGridder, self).__init__(stimulus)
         self.__dict__.update(kwargs)
 
+        # HRF stuff
         if hrf == None:  # for use with standard fMRI
             hrf_times = np.linspace(0, 40, 40/self.stimulus.TR, endpoint=False)
             self.hrf = spmt(hrf_times)
@@ -77,6 +92,13 @@ class Iso2DGaussianGridder(Gridder):
         self.convolved_design_matrix = convolve_stimulus_dm(
             stimulus.design_matrix, hrf=self.hrf)
 
+        # filtering stuff
+        self.filter_predictions = filter_predictions
+        self.window_length = window_length
+        self.polyorder = polyorder
+        self.highpass = highpass
+        
+                        
     def setup_ecc_polar_grid(self, ecc_grid=None, polar_grid=None, size_grid=None, n_grid=[1]):
         """setup_ecc_polar_grid
 
@@ -115,7 +137,7 @@ class Iso2DGaussianGridder(Gridder):
             y=self.stimulus.y_coordinates[..., np.newaxis],
             mu=np.array([self.xs, self.ys]).reshape((-1, 2)).T,
             sigma=self.sizes.ravel())
-        # won't have to perform exponentiation of all ns are equal
+        # won't have to perform exponentiation if all ns are one (the default value)
         if len(np.unique(self.ns)) != 1:
             self.grid_rfs **= self.ns.ravel()
         self.grid_rfs = self.grid_rfs.T
@@ -133,16 +155,11 @@ class Iso2DGaussianGridder(Gridder):
         # normalize the resulting predictions to peak value of 1
         self.predictions /= self.predictions.max(axis=-1)[:, np.newaxis]
 
-    def create_timecourses(self,
+    def create_grid_timecourses(self,
                            ecc_grid,
                            polar_grid,
                            size_grid,
-                           n_grid=[1],
-                           filter_predictions=False,
-                           window_length=201, 
-                           polyorder=3, 
-                           highpass=True, 
-                           **kwargs):
+                           n_grid=[1]):
         """create_timecourses
 
         creates timecourses for a given set of parameters
@@ -159,15 +176,7 @@ class Iso2DGaussianGridder(Gridder):
             to be filled in by user
         n_grid : list, optional
             to be filled in by user 
-            (the default is [1, 1, 1], which returns [1] as array)
-        filter_predictions : boolean, optional 
-            whether to high-pass filter the predictions, default False
-        window_length : int, odd number, optional 
-            length of savgol filter, default 201 TRs 
-        polyorder : int, optional  
-            polynomial order of savgol filter, default 3
-        highpass : boolean, optional
-            whether to filter highpass or lowpass, default True
+            (the default is [1])
         """
         self.setup_ecc_polar_grid(ecc_grid=ecc_grid,
                                   polar_grid=polar_grid,
@@ -177,7 +186,7 @@ class Iso2DGaussianGridder(Gridder):
         self.create_rfs()
         self.stimulus_times_prfs()
 
-        if filter_predictions:
+        if self.filter_predictions:
             self.predictions = sgfilter_predictions(self.predictions.T,
                             window_length=window_length, 
                             polyorder=polyorder, 
@@ -192,16 +201,13 @@ class Iso2DGaussianGridder(Gridder):
                             mu_y,
                             size, 
                             n=1.0,
-                            filter_predictions=False,
-                            window_length=201, 
-                            polyorder=3, 
-                            highpass=True, 
-                            **kwargs):
+                            beta=1.0,
+                            baseline=0.0):
         """return_single_timecourse
 
         returns the timecourse for a single set of parameters.
-
-        To be used during, for example, in iterative search.
+        As this is to be used during iterative search, it also 
+        has arguments beta and baseline. 
 
         Parameters
         ----------
@@ -212,16 +218,11 @@ class Iso2DGaussianGridder(Gridder):
         size : float
             size of pRF
         n : float, optional
-            exponent of pRF (the default is 1, which is a linear Gaussian)
-        filter_predictions : bool, optional
-            whether to filter the resulting timecourse
-            (the default is False, which performs no filtering)
-        window_length : int, odd number, optional 
-            length of savgol filter, default 201 TRs 
-        polyorder : int, optional  
-            polynomial order of savgol filter, default 3
-        highpass : boolean, optional
-            whether to filter highpass or lowpass, default True
+            exponent of pRF (the default is 1, which is a linear Gaussian)        
+        beta : float, optional
+            amplitude of pRF (the default is 1)        
+        baseline : float, optional
+            baseline of pRF (the default is 0)
 
         Returns
         -------
@@ -241,10 +242,10 @@ class Iso2DGaussianGridder(Gridder):
         # create timecourse
         tc = stimulus_through_prf(rf, self.convolved_design_matrix)
         tc /= tc.max
-        if not filter_predictions:
-            return tc
+        if not self.filter_predictions:
+            return baseline + beta * tc
         else:
-            return sgfilter_predictions(tc.T,
+            return baseline + beta * sgfilter_predictions(tc.T,
                             window_length=window_length, 
                             polyorder=polyorder, 
                             highpass=highpass, 
