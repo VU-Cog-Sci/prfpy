@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 from .grid import Iso2DGaussianGridder
 
 
-def error_function(parameters, args, data, objective_function, verbose):
+def error_function(parameters, args, data, objective_function):
     """Generic error function.
     Parameters
     ----------
@@ -27,8 +27,6 @@ def error_function(parameters, args, data, objective_function, verbose):
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    print(parameters)
-    print(objective_function(*list(parameters), **args))
     return bn.nansum((data-objective_function(*list(parameters), **args))**2)
 
 
@@ -61,7 +59,7 @@ def iterative_search(gridder, data, grid_params, args, verbose=True):
         second element: rsq value
     """
     output = fmin_powell(error_function, grid_params,
-                         args=(args, data, gridder.return_single_prediction, verbose),
+                         args=(args, data, gridder.return_single_prediction),
                          full_output=True, disp=verbose)
     return np.r_[output[0],  1 - (output[1]/(len(data)*data.var()))]
 
@@ -120,10 +118,10 @@ class Iso2DGaussianFitter(Fitter):
 
         # set up book-keeping to minimize memory usage.
         self.gridsearch_r2 = np.zeros(self.n_units)
-        self.best_fitting_prediction_thus_far = np.zeros(
+        self.best_fitting_prediction = np.zeros(
             self.n_units, dtype=int)
-        self.best_fitting_beta_thus_far = np.zeros(self.n_units, dtype=float)
-        self.best_fitting_baseline_thus_far = np.zeros(
+        self.best_fitting_beta = np.zeros(self.n_units, dtype=float)
+        self.best_fitting_baseline = np.zeros(
             self.n_units, dtype=float)
 
         for prediction_num in tqdm(range(self.gridder.predictions.shape[0])):
@@ -139,31 +137,41 @@ class Iso2DGaussianFitter(Fitter):
 
             improved_fits = rsqs > self.gridsearch_r2
             # fill in the improvements
-            self.best_fitting_prediction_thus_far[improved_fits] = prediction_num
+            self.best_fitting_prediction[improved_fits] = prediction_num
             self.gridsearch_r2[improved_fits] = rsqs[improved_fits]
-            self.best_fitting_baseline_thus_far[improved_fits] = intercept[improved_fits]
-            self.best_fitting_beta_thus_far[improved_fits] = slope[improved_fits]
+            self.best_fitting_baseline[improved_fits] = intercept[improved_fits]
+            self.best_fitting_beta[improved_fits] = slope[improved_fits]
 
-            self.gridsearch_params = np.array([self.gridder.xs.ravel()[self.best_fitting_prediction_thus_far],
-                                               self.gridder.ys.ravel()[
-                self.best_fitting_prediction_thus_far],
-                self.gridder.sizes.ravel(
-            )[self.best_fitting_prediction_thus_far],
-                self.gridder.ns.ravel()[
-                self.best_fitting_prediction_thus_far],
-                self.best_fitting_beta_thus_far,
-                self.best_fitting_baseline_thus_far
-            ])
+            self.gridsearch_params = np.array([
+                self.gridder.xs.ravel()[self.best_fitting_prediction],
+                self.gridder.ys.ravel()[self.best_fitting_prediction],
+                self.gridder.sizes.ravel()[self.best_fitting_prediction],
+                self.best_fitting_beta,
+                self.best_fitting_baseline,
+                self.gridder.ns.ravel()[self.best_fitting_prediction]
+            ]).T
 
     def iterative_fit(self,
                       rsq_threshold,
-                      verbose=True,
+                      verbose=False,
                       args={}):
         assert hasattr(self, 'gridsearch_params'), 'First use self.fit_grid!'
 
-        self.iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(delayed(iterative_search)(self.gridder,
-                                                                                                        data,
-                                                                                                        grid_pars,
-                                                                                                        args=args)
-                                                                              for (data, grid_pars) in zip(self.data, self.gridsearch_params))
-        self.iterative_search_params = np.array(self.iterative_search_params)
+        if not self.fit_css:  # if we don't want to fit the n, we take it out of the parameters
+            parameter_mask = np.arange(self.gridsearch_params.shape[-1]-1)
+        else:
+            parameter_mask = np.arange(self.gridsearch_params.shape[-1])
+
+        self.rsq_mask = self.gridsearch_r2 > rsq_threshold
+
+        # create output array, knowing that iterative search adds rsq (+1)
+        self.iterative_search_params = np.zeros(
+            (self.n_units, len(parameter_mask)+1))
+        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
+            delayed(iterative_search)(self.gridder,
+                                      data,
+                                      grid_pars,
+                                      args=args, verbose=verbose)
+            for (data, grid_pars) in zip(self.data[self.rsq_mask], self.gridsearch_params[self.rsq_mask][:, parameter_mask]))
+        self.iterative_search_params[self.rsq_mask] = np.array(
+            iterative_search_params)

@@ -36,14 +36,14 @@ class Iso2DGaussianGridder(Gridder):
     defining grids.
     """
 
-    def __init__(self, 
-                stimulus, 
-                hrf=None,
-                filter_predictions=False,
-                window_length=201, 
-                polyorder=3, 
-                highpass=True,
-                **kwargs):
+    def __init__(self,
+                 stimulus,
+                 hrf=None,
+                 filter_predictions=False,
+                 window_length=201,
+                 polyorder=3,
+                 highpass=True,
+                 **kwargs):
         """__init__ for Iso2DGaussianGridder
 
         constructor, sets up stimulus and hrf for this gridder
@@ -127,10 +127,10 @@ class Iso2DGaussianGridder(Gridder):
         # self.predictions /= self.predictions.max(axis=-1)[:, np.newaxis]
 
     def create_grid_predictions(self,
-                           ecc_grid,
-                           polar_grid,
-                           size_grid,
-                           n_grid=[1]):
+                                ecc_grid,
+                                polar_grid,
+                                size_grid,
+                                n_grid=[1]):
         """create_predictions
 
         creates predictions for a given set of parameters
@@ -162,21 +162,21 @@ class Iso2DGaussianGridder(Gridder):
 
         if self.filter_predictions:
             self.predictions = sgfilter_predictions(self.predictions.T,
-                            window_length=window_length, 
-                            polyorder=polyorder, 
-                            highpass=highpass, 
-                            **kwargs).T
+                                                    window_length=window_length,
+                                                    polyorder=polyorder,
+                                                    highpass=highpass,
+                                                    **kwargs).T
             self.filtered_predictions = True
         else:
             self.filtered_predictions = False
 
-    def return_single_prediction(self, 
-                            mu_x,
-                            mu_y,
-                            size, 
-                            n=1.0,
-                            beta=1.0,
-                            baseline=0.0):
+    def return_single_prediction(self,
+                                 mu_x,
+                                 mu_y,
+                                 size,
+                                 beta=1.0,
+                                 baseline=0.0,
+                                 n=1.0):
         """return_single_prediction
 
         returns the prediction for a single set of parameters.
@@ -191,12 +191,12 @@ class Iso2DGaussianGridder(Gridder):
             y-position of pRF
         size : float
             size of pRF
-        n : float, optional
-            exponent of pRF (the default is 1, which is a linear Gaussian)        
         beta : float, optional
             amplitude of pRF (the default is 1)        
         baseline : float, optional
             baseline of pRF (the default is 0)
+        n : float, optional
+            exponent of pRF (the default is 1, which is a linear Gaussian)        
 
         Returns
         -------
@@ -205,24 +205,24 @@ class Iso2DGaussianGridder(Gridder):
         """
         # create the single rf
         rf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                            y=self.stimulus.y_coordinates[..., np.newaxis],
-                            mu=(mu_x, mu_y),
-                            sigma=size)
+                              y=self.stimulus.y_coordinates[..., np.newaxis],
+                              mu=(mu_x, mu_y),
+                              sigma=size)
         # won't have to perform exponentiation if n == 1
         if n != 1:
             rf **= n
         rf = rf.T
         # create timecourse
         tc = stimulus_through_prf(rf, self.convolved_design_matrix)
-        tc /= tc.max()
+        # tc /= tc.max()
         if not self.filter_predictions:
             return baseline + beta * tc
         else:
             return baseline + beta * sgfilter_predictions(tc.T,
-                            window_length=window_length, 
-                            polyorder=polyorder, 
-                            highpass=highpass, 
-                            **kwargs).T
+                                                          window_length=window_length,
+                                                          polyorder=polyorder,
+                                                          highpass=highpass,
+                                                          **kwargs).T
 
     def create_drifts_and_noise(self,
                                 drift_ranges=[[0, 0]],
