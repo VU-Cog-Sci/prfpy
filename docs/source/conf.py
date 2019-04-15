@@ -102,7 +102,9 @@ html_theme_options = {
     'github_user': 'spinoza-centre',
     'github_repo': 'prfpy',
     'github_button': 'true',
-    'description': 'a population receptive field (pRF) simulation and fitting package'
+    'description': 'a population receptive field (pRF) simulation and fitting package',
+    'font_size': 9,
+    'font_family': 'roboto, helvetica'
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -118,6 +120,7 @@ html_static_path = ['_static']
 html_sidebars = {
     '**': [
         'relations.html',  # needs 'show_related': True theme option to display
+        'navigation.html',
         'searchbox.html',
     ]
 }
