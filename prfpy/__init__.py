@@ -16,3 +16,4 @@ from .stimulus import PRFStimulus2D, PRFStimulus1D
 
 from .grid import Iso2DGaussianGridder
 from .fit import Iso2DGaussianFitter
+from .cnn import Gaussian2D_isoCart_pRF_Sequence, create_cnn

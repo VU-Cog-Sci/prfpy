@@ -140,7 +140,7 @@ class Iso2DGaussianFitter(Fitter):
             dm = np.vstack([np.ones_like(self.gridder.predictions[prediction_num]),
                             self.gridder.predictions[prediction_num]]).T
             (intercept, slope), residual, _, _ = sp.linalg.lstsq(
-                dm, self.data.T, check_finite=False)
+                dm, self.data.T)
             rsqs = ((1 - residual / (self.n_timepoints * self.data_var)))
 
             improved_fits = rsqs > self.gridsearch_r2
@@ -150,14 +150,14 @@ class Iso2DGaussianFitter(Fitter):
             self.best_fitting_baseline[improved_fits] = intercept[improved_fits]
             self.best_fitting_beta[improved_fits] = slope[improved_fits]
 
-            self.gridsearch_params = np.array([
-                self.gridder.xs.ravel()[self.best_fitting_prediction],
-                self.gridder.ys.ravel()[self.best_fitting_prediction],
-                self.gridder.sizes.ravel()[self.best_fitting_prediction],
-                self.best_fitting_beta,
-                self.best_fitting_baseline,
-                self.gridder.ns.ravel()[self.best_fitting_prediction]
-            ]).T
+        self.gridsearch_params = np.array([
+            self.gridder.xs.ravel()[self.best_fitting_prediction],
+            self.gridder.ys.ravel()[self.best_fitting_prediction],
+            self.gridder.sizes.ravel()[self.best_fitting_prediction],
+            self.best_fitting_beta,
+            self.best_fitting_baseline,
+            self.gridder.ns.ravel()[self.best_fitting_prediction]
+        ]).T
 
     def iterative_fit(self,
                       rsq_threshold,
