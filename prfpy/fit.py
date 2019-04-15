@@ -10,7 +10,12 @@ from .grid import Iso2DGaussianGridder
 
 
 def error_function(parameters, args, data, objective_function):
-    """Generic error function.
+    """error_function
+
+    Generic error function.
+
+    [description]
+
     Parameters
     ----------
     parameters : tuple
@@ -88,8 +93,8 @@ class Iso2DGaussianFitter(Fitter):
     """
 
     def __init__(self, data, gridder, n_jobs=1, fit_css=False, **kwargs):
-        super().__init__(self, data, gridder, n_jobs=1, **kwargs)
         self.fit_css = fit_css
+        super().__init__(data=data, gridder=gridder, n_jobs=n_jobs, **kwargs)
 
     def grid_fit(self,
                  ecc_grid,
