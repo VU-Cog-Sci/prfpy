@@ -8,4 +8,4 @@ joblib
 numba
 bottleneck 
 tqdm
-hrf_estimation
+nistats

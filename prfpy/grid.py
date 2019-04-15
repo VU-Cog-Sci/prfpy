@@ -1,4 +1,6 @@
 import numpy as np
+from nistats.hemodynamic_models import spm_hrf, spm_time_derivative, spm_dispersion_derivative
+
 from .rf import gauss2D_iso_cart   # import required RF shapes
 from .timecourse import stimulus_through_prf, \
     convolve_stimulus_dm, \
@@ -6,7 +8,6 @@ from .timecourse import stimulus_through_prf, \
     generate_arima_noise, \
     sgfilter_predictions
 from .stimulus import PRFStimulus2D
-from hrf_estimation.hrf import spmt, dspmt, ddspmt
 
 
 class Gridder(object):
@@ -73,16 +74,18 @@ class Iso2DGaussianGridder(Gridder):
 
         # HRF stuff
         if hrf == None:  # for use with standard fMRI
-            hrf_times = np.linspace(0, 40, 40/self.stimulus.TR, endpoint=False)
-            self.hrf = spmt(hrf_times)
+            self.hrf = spm_hrf(tr=self.stimulus.TR,
+                               oversampling=1, time_length=40)
         elif hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
             self.hrf = np.array([1])
         # some specific hrf with spm basis set
         elif ((type(hrf) == list) or (type(hrf) == np.ndarray)) and len(hrf) == 3:
-            hrf_times = np.linspace(0, 40, 40/self.stimulus.TR, endpoint=False)
-            self.hrf = np.array([hrf[0] * spmt(hrf_times),
-                                 hrf[1] * dspmt(hrf_times),
-                                 hrf[2] * ddspmt(hrf_times)]).sum(axis=0)
+            self.hrf = np.array([hrf[0] * spm_hrf(tr=self.stimulus.TR,
+                                                  oversampling=1, time_length=40),
+                                 hrf[1] * spm_time_derivative(tr=self.stimulus.TR,
+                                                              oversampling=1, time_length=40),
+                                 hrf[2] * spm_dispersion_derivative(tr=self.stimulus.TR,
+                                                                    oversampling=1, time_length=40)]).sum(axis=0)
         # some specific hrf already defined at the TR (!)
         elif type(hrf) == np.ndarray and len(hrf) > 3:
             self.hrf = hrf
