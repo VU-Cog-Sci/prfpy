@@ -16,16 +16,6 @@ We have big plans for pRFpy, and will be developing intensely in the coming mont
    :maxdepth: 2
    :caption: Contents:
 
-pRFpy gaussian receptive field structure
-===================
-.. automodule:: prfpy.rf
-   :members:
-
-pRFpy timecourse manipulation functionality
-===================
-.. automodule:: prfpy.timecourse
-   :members:
-
 pRFpy stimulus classes
 ===================
 .. automodule:: prfpy.stimulus
@@ -36,8 +26,21 @@ pRFpy grid classes
 .. automodule:: prfpy.grid
    :members:
 
+pRFpy fit classes
+===================
+.. automodule:: prfpy.fit
+   :members:
 
+pRFpy gaussian receptive field structure
+===================
+.. automodule:: prfpy.rf
+   :members:
 
+pRFpy timecourse manipulation functionality
+===================
+.. automodule:: prfpy.timecourse
+   :members:
+   
 Indices and tables
 ==================
 
