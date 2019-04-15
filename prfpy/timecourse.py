@@ -154,7 +154,7 @@ def generate_random_cosine_drifts(dimensions=(1000, 120),
 
 
 def generate_arima_noise(ar=(1, 0.4),
-                         ma=(1, 0.4),
+                         ma=(1, 0.0),
                          dimensions=(1000, 120),
                          **kwargs):
     """generate_arima_noise
@@ -168,7 +168,7 @@ def generate_arima_noise(ar=(1, 0.4),
         (the default is (1,0.4), which should be a reasonable setting for fMRI noise)
     ma : tuple, optional
         arima moving average parameters for statsmodels generation of noise 
-        (the default is (1,0.4), which should be a reasonable setting for fMRI noise)        
+        (the default is (1,0.0), which should be a reasonable setting for fMRI noise)        
     dimensions : tuple, optional
         the first dimension is the nr of separate timecourses, the second dimension
         is the timeseries length.
