@@ -5,7 +5,7 @@ pandas>=0.24
 statsmodels>=0.8
 sklearn
 joblib
-hrf_estimation
 numba
 bottleneck 
 tqdm
+hrf_estimation
