@@ -165,10 +165,9 @@ class Iso2DGaussianGridder(Gridder):
 
         if self.filter_predictions:
             self.predictions = sgfilter_predictions(self.predictions.T,
-                                                    window_length=window_length,
-                                                    polyorder=polyorder,
-                                                    highpass=highpass,
-                                                    **kwargs).T
+                                                    window_length=self.window_length,
+                                                    polyorder=self.polyorder,
+                                                    highpass=self.highpass).T
             self.filtered_predictions = True
         else:
             self.filtered_predictions = False
@@ -222,10 +221,9 @@ class Iso2DGaussianGridder(Gridder):
             return baseline + beta * tc
         else:
             return baseline + beta * sgfilter_predictions(tc.T,
-                                                          window_length=window_length,
-                                                          polyorder=polyorder,
-                                                          highpass=highpass,
-                                                          **kwargs).T
+                                                          window_length=self.window_length,
+                                                          polyorder=self.polyorder,
+                                                          highpass=self.highpass).T
 
     def create_drifts_and_noise(self,
                                 drift_ranges=[[0, 0]],

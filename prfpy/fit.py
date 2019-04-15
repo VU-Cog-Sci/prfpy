@@ -87,6 +87,10 @@ class Iso2DGaussianFitter(Fitter):
 
     """
 
+    def __init__(self, data, gridder, n_jobs=1, fit_css=False, **kwargs):
+        super().__init__(self, data, gridder, n_jobs=1, **kwargs)
+        self.fit_css = fit_css
+
     def grid_fit(self,
                  ecc_grid,
                  polar_grid,
