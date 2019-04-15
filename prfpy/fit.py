@@ -107,8 +107,7 @@ class Iso2DGaussianFitter(Fitter):
         size_grid : list
             to be filled in by user
         n_grid : list, optional
-            to be filled in by user 
-            (the default is [1, 1, 1], which returns [1] as array)
+            the default is [1]
         """
         # let the gridder create the timecourses
         self.gridder.create_grid_predictions(ecc_grid=ecc_grid,
