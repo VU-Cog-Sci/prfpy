@@ -156,21 +156,27 @@ class Iso2DGaussianFitter(Fitter):
             self.gridder.sizes.ravel()[self.best_fitting_prediction],
             self.best_fitting_beta,
             self.best_fitting_baseline,
-            self.gridder.ns.ravel()[self.best_fitting_prediction]
+            self.gridder.ns.ravel()[self.best_fitting_prediction],
+            self.gridsearch_r2
         ]).T
 
     def iterative_fit(self,
                       rsq_threshold,
                       verbose=False,
+                      gridsearch_params=None,
                       args={}):
-        assert hasattr(self, 'gridsearch_params'), 'First use self.fit_grid!'
+        if gridsearch_params is None:
+            assert hasattr(
+                self, 'gridsearch_params'), 'First use self.grid_fit!'
+        else:
+            self.gridsearch_params = gridsearch_params
 
         if not self.fit_css:  # if we don't want to fit the n, we take it out of the parameters
-            parameter_mask = np.arange(self.gridsearch_params.shape[-1]-1)
+            parameter_mask = np.arange(self.gridsearch_params.shape[-1]-2)
         else:
-            parameter_mask = np.arange(self.gridsearch_params.shape[-1])
+            parameter_mask = np.arange(self.gridsearch_params.shape[-1]-1)
 
-        self.rsq_mask = self.gridsearch_r2 > rsq_threshold
+        self.rsq_mask = self.gridsearch_params[:, -1] > rsq_threshold
 
         # create output array, knowing that iterative search adds rsq (+1)
         self.iterative_search_params = np.zeros(
