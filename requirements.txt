@@ -9,4 +9,5 @@ numba
 bottleneck 
 tqdm
 nistats
+tensorflow
 keras
