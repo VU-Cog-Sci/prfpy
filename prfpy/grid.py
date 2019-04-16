@@ -109,7 +109,7 @@ class Iso2DGaussianGridder(Gridder):
         self.grid_rfs = gauss2D_iso_cart(
             x=self.stimulus.x_coordinates[..., np.newaxis],
             y=self.stimulus.y_coordinates[..., np.newaxis],
-            mu=np.array([self.xs, self.ys]).reshape((-1, 2)).T,
+            mu=np.array([self.xs.ravel(), self.ys.ravel()]),
             sigma=self.sizes.ravel())
         # won't have to perform exponentiation if all ns are one (the default value)
         if len(np.unique(self.ns)) != 1:
