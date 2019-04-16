@@ -1,6 +1,7 @@
 import math
 import numpy as np
 
+import keras
 from keras import metrics
 from keras.models import Sequential
 from keras.layers import Dense
@@ -13,6 +14,12 @@ from keras.utils.vis_utils import plot_model
 
 
 class Gaussian2D_isoCart_pRF_Sequence(keras.utils.Sequence):
+    """Gaussian2D_isoCart_pRF_Sequence
+
+    class to generate pRF model timecourses, inherits from keras Sequence 
+
+    """
+
     def __init__(self, n_timepoints, batch_size, gridder, ecc_range, size_range, beta_range, baseline_range, n_range, grid_size, drift_ranges=[[0, 0]], noise_level=0, noise_ar=(1, 0.4)):
         self.n_timepoints = n_timepoints
         self.batch_size = batch_size
