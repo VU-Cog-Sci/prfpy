@@ -169,7 +169,7 @@ def gauss2D_logpolar(ecc, polar, mu=(1.0, 0.0), sigma=1.0, kappa=1.0):
         standard deviation of gauss (the default is 1.0)
     kappa : float, optional
         dispersion coefficient of the von Mises, 
-        akin to invers of standard deviation of gaussian (the default is 1.0)
+        akin to inverse of standard deviation of gaussian (the default is 1.0)
 
     Returns
     -------
