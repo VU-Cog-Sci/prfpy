@@ -20,12 +20,12 @@ We have big plans for pRFpy, and will be developing intensely in the coming mont
    :maxdepth: 2
    :caption: Reference
 
-    rf
-    timecourse
-    stim
-    grid
-    fit
-    cnn
+   rf
+   timecourse
+   stim
+   grid
+   fit
+   cnn
 
 
    
