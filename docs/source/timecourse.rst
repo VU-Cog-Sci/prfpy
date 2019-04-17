@@ -1,4 +1,4 @@
-pRFpy timecourse manipulation functionality
+Timecourse functionality
 ===================
 .. automodule:: prfpy.timecourse
    :members:

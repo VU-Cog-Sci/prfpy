@@ -22,8 +22,6 @@ We have big plans for pRFpy, and will be developing intensely in the coming mont
    grid
    fit
    cnn
-
-
    
 .. toctree::
    :maxdepth: 2
