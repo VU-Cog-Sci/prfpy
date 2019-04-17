@@ -1,4 +1,4 @@
-pRFpy gaussian receptive field structure
+Receptive fields
 ===================
 .. automodule:: prfpy.rf
    :members:

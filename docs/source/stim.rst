@@ -1,4 +1,4 @@
-pRFpy stimulus classes
+Stimulus classes
 ===================
 .. automodule:: prfpy.stimulus
    :members:

@@ -1,4 +1,4 @@
-pRFpy fit classes
+Fit classes
 ===================
 .. automodule:: prfpy.fit
    :members:

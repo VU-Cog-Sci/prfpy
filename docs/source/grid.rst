@@ -1,4 +1,4 @@
-pRFpy grid classes
+Grid classes
 ===================
 .. automodule:: prfpy.grid
    :members:
