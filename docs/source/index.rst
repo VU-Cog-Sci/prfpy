@@ -16,30 +16,18 @@ We have big plans for pRFpy, and will be developing intensely in the coming mont
    :maxdepth: 2
    :caption: Contents:
 
-pRFpy stimulus classes
-===================
-.. automodule:: prfpy.stimulus
-   :members:
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference
 
-pRFpy grid classes
-===================
-.. automodule:: prfpy.grid
-   :members:
+    rf
+    timecourse
+    stim
+    grid
+    fit
+    cnn
 
-pRFpy fit classes
-===================
-.. automodule:: prfpy.fit
-   :members:
 
-pRFpy gaussian receptive field structure
-===================
-.. automodule:: prfpy.rf
-   :members:
-
-pRFpy timecourse manipulation functionality
-===================
-.. automodule:: prfpy.timecourse
-   :members:
    
 Indices and tables
 ==================
