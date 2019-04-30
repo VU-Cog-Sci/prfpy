@@ -33,10 +33,14 @@ def stimulus_through_prf(prfs, stimulus, mask=None):
         the array of prfs. 
     stimulus : numpy.ndarray
         the stimulus design matrix, either convolved with hrf or not.
+    mask : numpy.ndarray
+        a mask in feature space, of dimensions equal to 
+        the spatial dimensions of both stimulus and receptive field
 
     """
     assert prfs.shape[1:] == stimulus.shape[:-1], \
-        'prf array dimensions {prfdim} and input stimulus array dimensions {stimdim} must have same dimensions'.format(
+        """prf array dimensions {prfdim} and input stimulus array dimensions {stimdim} 
+        must have same dimensions""".format(
             prfdim=prfs.shape[1:],
             stimdim=stimulus.shape[:-1])
     if mask == None:
@@ -44,7 +48,9 @@ def stimulus_through_prf(prfs, stimulus, mask=None):
         stim_r = stimulus.reshape((-1, stimulus.shape[-1]))
     else:
         assert prfs.shape[1:] == mask.shape and mask.shape == stimulus.shape[:-1], \
-            'mask dimensions {maskdim}, prf array dimensions {prfdim}, and input stimulus array dimensions {stimdim} must have same dimensions'.format(
+            """mask dimensions {maskdim}, prf array dimensions {prfdim}, 
+            and input stimulus array dimensions {stimdim} 
+            must have same dimensions""".format(
                 maskdim=mask.shape,
                 prfdim=prfs.shape[1:],
                 stimdim=stimulus.shape[:-1])

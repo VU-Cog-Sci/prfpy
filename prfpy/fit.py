@@ -70,13 +70,38 @@ def iterative_search(gridder, data, grid_params, args, verbose=True):
 
 
 class Fitter:
+    """Fitter
+
+    Superclass for classes that implement the different fitting methods, 
+    for a given model. It contains 2D-data and leverages a Gridder object.
+
+    Data should be two-dimensional so that all bookkeeping with regard to voxels, 
+    electrodes, etc is done by the user. Generally, a Fitter class should implement
+    both a `grid_fit` and an `interative_fit` method to be run in sequence.
+
+    """
+    
     def __init__(self, data, gridder, n_jobs=1, **kwargs):
+        """__init__ sets up data and gridder
+        
+        Parameters
+        ----------
+        data : numpy.ndarray, 2D
+            input data. First dimension units, Second dimension time
+        gridder : prfpy.Gridder
+            Gridder object that provides the grid and iterative search
+            predictions.
+        n_jobs : int, optional
+            number of jobs to use in parallelization (iterative search), by default 1
+        """
+        assert len(self.data.shape) > 2, \
+            "input data should be two-dimensional, with first dimension units and second dimension time"
         self.data = data
         self.gridder = gridder
         self.n_jobs = n_jobs
         self.__dict__.update(kwargs)
 
-        self.n_units = np.prod(self.data.shape[:-1])
+        self.n_units = self.data.shape[0]
         self.n_timepoints = self.data.shape[-1]
 
         # immediately convert nans to nums
@@ -87,7 +112,8 @@ class Fitter:
 class Iso2DGaussianFitter(Fitter):
     """Iso2DGaussianFitter
 
-    Class that implements the different fitting methods, 
+    Class that implements the different fitting methods
+    on a two-dimensional isotropic Gaussian pRF model,
     leveraging a Gridder object.
 
     """
@@ -167,7 +193,7 @@ class Iso2DGaussianFitter(Fitter):
                       args={}):
         if gridsearch_params is None:
             assert hasattr(
-                self, 'gridsearch_params'), 'First use self.grid_fit!'
+                self, 'gridsearch_params'), 'First use self.grid_fit, or provide grid search parameters!'
         else:
             self.gridsearch_params = gridsearch_params
 
