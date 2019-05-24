@@ -80,10 +80,10 @@ class Fitter:
     both a `grid_fit` and an `interative_fit` method to be run in sequence.
 
     """
-    
+
     def __init__(self, data, gridder, n_jobs=1, **kwargs):
         """__init__ sets up data and gridder
-        
+
         Parameters
         ----------
         data : numpy.ndarray, 2D
@@ -94,7 +94,7 @@ class Fitter:
         n_jobs : int, optional
             number of jobs to use in parallelization (iterative search), by default 1
         """
-        assert len(self.data.shape) > 2, \
+        assert len(data.shape) == 2, \
             "input data should be two-dimensional, with first dimension units and second dimension time"
         self.data = data
         self.gridder = gridder

@@ -46,6 +46,8 @@ class Gaussian2D_isoCart_pRF_Sequence(keras.utils.Sequence):
                 self.n_range[0], self.n_range[1], self.grid_size),
         )
 
+        self.on_epoch_end()
+
     def on_epoch_end(self):
         """creates new pRF models based on initial parameters"""
         self.parameters = np.array([
@@ -54,35 +56,45 @@ class Gaussian2D_isoCart_pRF_Sequence(keras.utils.Sequence):
             self.gridder.sizes.ravel(),
             self.beta_range[0] +
             (self.beta_range[1]-self.beta_range[0]) *
-            np.random.rand(gridder.predictions.shape[0]),
+            np.random.rand(self.gridder.predictions.shape[0]),
             self.baseline_range[0] +
             (self.baseline_range[1]-self.baseline_range[0]) *
-            np.random.rand(gridder.predictions.shape[0]),
+            np.random.rand(self.gridder.predictions.shape[0]),
             self.gridder.ns.ravel()
         ]).T
 
         # implement the random beta and baselines
-        self.predictions = self.parameters[:, 4] + self.parameters[:, 3] * gridder.predictions + \
-            gridder.create_drifts_and_noise(drift_ranges=self.drift_ranges,
-                                            noise_ar=noise_ar,
-                                            noise_amplitude=self.noise_level)
+        self.predictions = self.parameters[:, 4, np.newaxis] + \
+            self.parameters[:, 3, np.newaxis] * self.gridder.predictions
 
-        self.epoch_nr += 1
+        # create and add random drifts and noise
+        self.gridder.create_drifts_and_noise(drift_ranges=self.drift_ranges,
+                                             noise_ar=self.noise_ar,
+                                             noise_amplitude=self.noise_level)
+        # just the actual drifts, not their parameters
+        self.predictions += self.gridder.random_drifts[0].T
+        self.predictions += self.gridder.random_noise
+
+        # add dimension at the end to fit the whole thing
+        self.predictions = self.predictions[..., np.newaxis]
+        # self.epoch_nr += 1
 
     def __len__(self):
         """Denotes the number of batches per epoch"""
-        return int(np.floor(self.predictions.shape[0] / self.batch_size))
+        return int(np.floor(self.gridder.predictions.shape[0] / self.batch_size))
 
     def __getitem__(self, index):
         """Generate one batch of data"""
         # Generate indexes of the batch
-        X = self.predictions[index*self.batch_size:(index+1)*self.batch_size]
-        y = self.parameters[index*self.batch_size:(index+1)*self.batch_size]
+        X = self.predictions[index *
+                             self.batch_size:(index+1)*self.batch_size]
+        y = self.parameters[index *
+                            self.batch_size:(index+1)*self.batch_size]
 
         return X, y
 
 
-def create_cnn(n_timepoints, n_parameters, loss='mse', optimizer='adam', metrics=['mae']):
+def create_cnn(n_timepoints, n_parameters, loss='mse', optimizer='adam', metrics=['mae'], print_summary=True):
     """create_cnn
 
     creates and compiles a cnn by adding a nr of Conv1D layers
@@ -110,21 +122,31 @@ def create_cnn(n_timepoints, n_parameters, loss='mse', optimizer='adam', metrics
     Sequential
         Compiled Keras model
     """
-    n_Conv1D_layers = n_timepoints//32
+    n_Conv1D_layers = n_timepoints//32 - 1
+
+    minimal_kernel_size = 4
+    minimal_pool_size = 2
 
     model = Sequential()
     # first convolutional layer here
     model.add(Conv1D(filters=n_timepoints//2,
-                     kernel_size=4, input_shape=(n_timepoints, 1)))
-    model.add(MaxPooling1D(pool_size=2))
+                     kernel_size=minimal_kernel_size,
+                     input_shape=(n_timepoints, 1)))
+    model.add(MaxPooling1D(pool_size=minimal_pool_size))
 
     # loop over nr of required layers
-    for l in range(2, n_Conv1D_layers+1):
-        n_filters = n_timepoints//(2**l)
-        kernel_size = 2**l
-        model.add(Conv1D(filters=n_filters, kernel_size=kernel_size,
-                         input_shape=(n_timepoints, 1)))
-        model.add(MaxPooling1D(pool_size=kernel_size/2))
+    for l in range(n_Conv1D_layers-1):
+        kernel_size = minimal_kernel_size + minimal_kernel_size*l//2
+        n_filters = n_timepoints//kernel_size
+        pool_size = minimal_pool_size + minimal_pool_size*l//2
+        if l < n_Conv1D_layers/2:
+            model.add(Conv1D(filters=n_filters,
+                             kernel_size=kernel_size, activation='relu'))
+        else:
+            model.add(LocallyConnected1D(filters=n_filters,
+                                         kernel_size=kernel_size, activation='relu'))
+
+        model.add(MaxPooling1D(pool_size=pool_size))
 
     model.add(Flatten())
     model.add(Dense(n_parameters*2, kernel_initializer='uniform'))
@@ -133,5 +155,6 @@ def create_cnn(n_timepoints, n_parameters, loss='mse', optimizer='adam', metrics
     model.compile(loss='mse',
                   optimizer='nadam',
                   metrics=['mse'])
-
+    if print_summary:
+        print(model.summary())
     return model
