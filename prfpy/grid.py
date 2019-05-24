@@ -228,6 +228,7 @@ class Iso2DGaussianGridder(Gridder):
     def create_drifts_and_noise(self,
                                 drift_ranges=[[0, 0]],
                                 noise_ar=None,
+                                noise_ma=(1, 0.0),
                                 noise_amplitude=1.0):
         """add_drifs_and_noise
 
@@ -251,6 +252,6 @@ class Iso2DGaussianGridder(Gridder):
             dimensions=self.predictions.shape, amplitude_ranges=drift_ranges)
         if noise_ar is not None:
             self.random_noise = generate_arima_noise(
-                ar=noise_ar[0], ma=noise_ar[1], dimensions=self.predictions.shape) * noise_amplitude
+                ar=noise_ar, ma=noise_ma, dimensions=self.predictions.shape) * noise_amplitude
         else:
             self.random_noise = np.zeros_like(self.predictions)
