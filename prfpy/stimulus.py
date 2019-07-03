@@ -45,26 +45,29 @@ class PRFStimulus2D(object):
                 print("Need to specify either design matrix or screenshot path!")
                 raise IOError
             else:
+                
                 image_list = os.listdir(screenshot_path)
-                self.design_matrix=np.zeros((n_pix,n_pix,len(image_list)))
+                
+                #i don't take a screenshot at t=0, so just add an empty dm slice there
+                self.design_matrix=np.zeros((n_pix,n_pix,1+len(image_list)))
                 for image_file in image_list:
                     #assuming last three numbers before .png are the screenshot number
-                    img_number = int(image_file[-7:-4]) - 1
+                    img_number = int(image_file[-7:-4])
                     #subtract one to start from zero
                     img = imageio.imread(os.path.join(screenshot_path,image_file))
-                    #make it square and downsample
+                    #make it square
                     if img.shape[0]!=img.shape[1]:
                         offset=int((img.shape[1]-img.shape[0])/2)
                         img=img[:,offset:(offset+img.shape[0])]
                     
+                    #downsample
                     downsampling_constant = int(img.shape[1]/n_pix)
                     downsampled_img = img[::downsampling_constant,::downsampling_constant]
                     
-                    #binarize image 
-                    #assumes standard RGB255 format; assumes only colors present in image are black, white, grey, red, green.
+                    #binarize image into dm matrix
+                    #assumes: standard RGB255 format; only colors present in image are black, white, grey, red, green.
                     self.design_matrix[:,:,img_number][np.where(((downsampled_img[:,:,0] == 0) & (downsampled_img[:,:,1] == 0)) | ((downsampled_img[:,:,0] == 255) & (downsampled_img[:,:,1] == 255)))] = 1
-                    
-                    
+                
                 
                     
 
@@ -89,7 +92,7 @@ class PRFStimulus2D(object):
         self.max_ecc = np.max(self.ecc_coordinates)
 
         # construct a standard mask based on standard deviation over time
-        self.mask = np.std(design_matrix, axis=-1) != 0
+        self.mask = np.std(self.design_matrix, axis=-1) != 0
 
 
 class PRFStimulus1D(object):
@@ -123,6 +126,3 @@ class PRFStimulus1D(object):
         self.design_matrix = design_matrix
         self.mapping = mapping
         self.TR = TR
-
-
-DMFromScreenshots
