@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.signal as signal
 from nistats.hemodynamic_models import spm_hrf, spm_time_derivative, spm_dispersion_derivative
 
 from .rf import gauss2D_iso_cart   # import required RF shapes
@@ -255,3 +256,77 @@ class Iso2DGaussianGridder(Gridder):
                 ar=noise_ar, ma=noise_ma, dimensions=self.predictions.shape) * noise_amplitude
         else:
             self.random_noise = np.zeros_like(self.predictions)
+
+
+class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
+    """Norm_Iso2DGaussianGridder
+    
+    Redefining class to use 2DIsoGaussianGridder in grid fit, but normalization model in iterative fitting
+    """
+    
+    def return_single_prediction(self,
+                                 mu_x,
+                                 mu_y,
+                                 prf_size,
+                                 prf_amplitude,
+                                 bold_baseline,
+                                 
+                                 neural_baseline,
+                                 surround_amplitude,
+                                 surround_size,
+                                 surround_baseline
+                                 ):
+        """return_single_prediction
+
+        returns the prediction for a single set of parameters.
+        As this is to be used during iterative search, it also 
+        has arguments beta and baseline. 
+
+        Parameters
+        ----------
+        mu_x : float
+            x-position of pRF
+        mu_y : float
+            y-position of pRF
+        prf_size : float
+            size of pRF
+        beta : float, optional
+            amplitude of pRF (the default is 1)        
+        baseline : float, optional
+            baseline of pRF (the default is 0)
+     
+
+        Returns
+        -------
+        numpy.ndarray
+            single prediction given the model
+        """
+        
+                # create the rfs
+        prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+                              y=self.stimulus.y_coordinates[..., np.newaxis],
+                              mu=(mu_x, mu_y),
+                              sigma=prf_size)
+        
+        
+        surround_prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+                              y=self.stimulus.y_coordinates[..., np.newaxis],
+                              mu=(mu_x, mu_y),
+                              sigma=surround_size)
+        
+        #not sure why we need to take the transpose here but ok. following parent method from Tomas
+        prf = prf.T
+        surround_prf = surround_prf.T
+        
+        # create normalization model timecourse
+        
+        tc = signal.convolve(((prf_amplitude*stimulus_through_prf(prf, self.stimulus.design_matrix) + neural_baseline)/(surround_amplitude*stimulus_through_prf(surround_prf, self.stimulus.design_matrix) + surround_baseline))[0,:], self.hrf, mode='full')[:self.stimulus.design_matrix.shape[-1]]                         
+        
+        # tc /= tc.max()
+        if not self.filter_predictions:
+            return bold_baseline + tc
+        else:
+            return bold_baseline + sgfilter_predictions(tc.T,
+                                                          window_length=self.window_length,
+                                                          polyorder=self.polyorder,
+                                                          highpass=self.highpass).T
