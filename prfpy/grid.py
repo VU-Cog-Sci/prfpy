@@ -8,7 +8,6 @@ from .timecourse import stimulus_through_prf, \
     generate_random_cosine_drifts, \
     generate_arima_noise, \
     sgfilter_predictions
-from .stimulus import PRFStimulus2D
 
 
 class Gridder(object):
@@ -25,7 +24,7 @@ class Gridder(object):
         Parameters
         ----------
         stimulus : PRFStimulus2D or PRFStimulusDD
-            Stimulus object containing information about the stimulus, 
+            Stimulus object containing information about the stimulus,
             and the space in which it lives.
 
         """
@@ -34,7 +33,7 @@ class Gridder(object):
 
 class Iso2DGaussianGridder(Gridder):
     """Iso2DGaussianGridder
-    To extend please create a setup_XXX_grid function for any new way of 
+    To extend please create a setup_XXX_grid function for any new way of
     defining grids.
     """
 
@@ -53,19 +52,19 @@ class Iso2DGaussianGridder(Gridder):
         Parameters
         ----------
         stimulus : PRFStimulus2D
-            Stimulus object specifying the information about the stimulus, 
+            Stimulus object specifying the information about the stimulus,
             and the space in which it lives.
         hrf : string, list or numpy.ndarray, optional
-            HRF shape for this gridder. 
+            HRF shape for this gridder.
             Can be 'direct', which implements nothing (for eCoG or later convolution),
             a list or array of 3, which are multiplied with the three spm HRF basis functions,
             and an array already sampled on the TR by the user.
             (the default is None, which implements standard spm HRF)
-        filter_predictions : boolean, optional 
+        filter_predictions : boolean, optional
             whether to high-pass filter the predictions, default False
-        window_length : int, odd number, optional 
-            length of savgol filter, default 201 TRs 
-        polyorder : int, optional  
+        window_length : int, odd number, optional
+            length of savgol filter, default 201 TRs
+        polyorder : int, optional
             polynomial order of savgol filter, default 3
         highpass : boolean, optional
             whether to filter highpass or lowpass, default True
@@ -74,13 +73,13 @@ class Iso2DGaussianGridder(Gridder):
         self.__dict__.update(kwargs)
 
         # HRF stuff
-        if hrf == None:  # for use with standard fMRI
+        if hrf is None:  # for use with standard fMRI
             self.hrf = spm_hrf(tr=self.stimulus.TR,
                                oversampling=1, time_length=40)
         elif hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
             self.hrf = np.array([1])
         # some specific hrf with spm basis set
-        elif ((type(hrf) == list) or (type(hrf) == np.ndarray)) and len(hrf) == 3:
+        elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
             self.hrf = np.array([hrf[0] * spm_hrf(tr=self.stimulus.TR,
                                                   oversampling=1, time_length=40),
                                  hrf[1] * spm_time_derivative(tr=self.stimulus.TR,
@@ -88,7 +87,7 @@ class Iso2DGaussianGridder(Gridder):
                                  hrf[2] * spm_dispersion_derivative(tr=self.stimulus.TR,
                                                                     oversampling=1, time_length=40)]).sum(axis=0)
         # some specific hrf already defined at the TR (!)
-        elif type(hrf) == np.ndarray and len(hrf) > 3:
+        elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
             self.hrf = hrf
 
         self.convolved_design_matrix = convolve_stimulus_dm(
@@ -112,7 +111,8 @@ class Iso2DGaussianGridder(Gridder):
             y=self.stimulus.y_coordinates[..., np.newaxis],
             mu=np.array([self.xs.ravel(), self.ys.ravel()]),
             sigma=self.sizes.ravel())
-        # won't have to perform exponentiation if all ns are one (the default value)
+        # won't have to perform exponentiation if all ns are one (the default
+        # value)
         if len(np.unique(self.ns)) != 1:
             self.grid_rfs **= self.ns.ravel()
         self.grid_rfs = self.grid_rfs.T
@@ -150,7 +150,7 @@ class Iso2DGaussianGridder(Gridder):
         size_grid : list
             to be filled in by user
         n_grid : list, optional
-            to be filled in by user 
+            to be filled in by user
             (the default is [1])
         """
         assert ecc_grid is not None and polar_grid is not None and size_grid is not None, \
@@ -183,8 +183,8 @@ class Iso2DGaussianGridder(Gridder):
         """return_single_prediction
 
         returns the prediction for a single set of parameters.
-        As this is to be used during iterative search, it also 
-        has arguments beta and baseline. 
+        As this is to be used during iterative search, it also
+        has arguments beta and baseline.
 
         Parameters
         ----------
@@ -195,11 +195,11 @@ class Iso2DGaussianGridder(Gridder):
         size : float
             size of pRF
         beta : float, optional
-            amplitude of pRF (the default is 1)        
+            amplitude of pRF (the default is 1)
         baseline : float, optional
             baseline of pRF (the default is 0)
         n : float, optional
-            exponent of pRF (the default is 1, which is a linear Gaussian)        
+            exponent of pRF (the default is 1, which is a linear Gaussian)
 
         Returns
         -------
@@ -238,7 +238,7 @@ class Iso2DGaussianGridder(Gridder):
         Parameters
         ----------
         drift_ranges : list of 2-lists of floats, optional
-            specifies the lower- and upper bounds of the  ranges 
+            specifies the lower- and upper bounds of the  ranges
             of each of the discrete cosine low-pass components
             to be generated
         noise_ar : 2x2 list.
@@ -260,27 +260,28 @@ class Iso2DGaussianGridder(Gridder):
 
 class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
     """Norm_Iso2DGaussianGridder
-    
-    Redefining class to use 2DIsoGaussianGridder in grid fit, but normalization model in iterative fitting
+
+    Redefining class to use 2DIsoGaussianGridder in grid fit, 
+    normalization model in iterative fitting
     """
-    
+
     def return_single_prediction(self,
                                  mu_x,
                                  mu_y,
                                  prf_size,
                                  prf_amplitude,
                                  bold_baseline,
-                                 
+
                                  neural_baseline,
-                                 surround_amplitude,
-                                 surround_size,
+                                 srf_amplitude,
+                                 srf_size,
                                  surround_baseline
                                  ):
         """return_single_prediction
 
         returns the prediction for a single set of parameters.
-        As this is to be used during iterative search, it also 
-        has arguments beta and baseline. 
+        As this is to be used during iterative search, it also
+        has arguments beta and baseline.
 
         Parameters
         ----------
@@ -290,43 +291,44 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
             y-position of pRF
         prf_size : float
             size of pRF
-        beta : float, optional
-            amplitude of pRF (the default is 1)        
-        baseline : float, optional
-            baseline of pRF (the default is 0)
-     
+
 
         Returns
         -------
         numpy.ndarray
             single prediction given the model
         """
-        
-                # create the rfs
+
+        # create the rfs
+        # not sure why we need to take the transpose here but ok. following
+        # parent method from Tomas
         prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                              y=self.stimulus.y_coordinates[..., np.newaxis],
-                              mu=(mu_x, mu_y),
-                              sigma=prf_size)
-        
-        
-        surround_prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                              y=self.stimulus.y_coordinates[..., np.newaxis],
-                              mu=(mu_x, mu_y),
-                              sigma=surround_size)
-        
-        #not sure why we need to take the transpose here but ok. following parent method from Tomas
-        prf = prf.T
-        surround_prf = surround_prf.T
-        
+                               y=self.stimulus.y_coordinates[..., np.newaxis],
+                               mu=(mu_x, mu_y),
+                               sigma=prf_size).T
+
+        # surround receptive field (denominator)
+        srf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+                               y=self.stimulus.y_coordinates[...,
+                                                             np.newaxis],
+                               mu=(mu_x, mu_y),
+                               sigma=srf_size).T
+
+        dm = self.stimulus.design_matrix
+
         # create normalization model timecourse
-        
-        tc = signal.convolve(((prf_amplitude*stimulus_through_prf(prf, self.stimulus.design_matrix) + neural_baseline)/(surround_amplitude*stimulus_through_prf(surround_prf, self.stimulus.design_matrix) + surround_baseline))[0,:], self.hrf, mode='full')[:self.stimulus.design_matrix.shape[-1]]                         
-        
+        neural_tc = (prf_amplitude * stimulus_through_prf(prf, dm) + neural_baseline) /\
+            (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline)
+
+        tc = signal.convolve(neural_tc[0, :],
+                             self.hrf,
+                             mode='full')[:dm.shape[-1]]
+
         # tc /= tc.max()
         if not self.filter_predictions:
             return bold_baseline + tc
         else:
             return bold_baseline + sgfilter_predictions(tc.T,
-                                                          window_length=self.window_length,
-                                                          polyorder=self.polyorder,
-                                                          highpass=self.highpass).T
+                                                        window_length=self.window_length,
+                                                        polyorder=self.polyorder,
+                                                        highpass=self.highpass).T
