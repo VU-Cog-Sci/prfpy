@@ -48,7 +48,7 @@ class PRFStimulus2D(object):
                 
                 image_list = os.listdir(screenshot_path)
                 
-                #i don't take a screenshot at t=0, so just add an empty dm slice there
+                #there is one more MR image than screenshot
                 self.design_matrix=np.zeros((n_pix,n_pix,1+len(image_list)))
                 for image_file in image_list:
                     #assuming last three numbers before .png are the screenshot number
