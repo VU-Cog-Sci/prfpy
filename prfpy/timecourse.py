@@ -59,7 +59,7 @@ def stimulus_through_prf(prfs, stimulus, mask=None):
     return prf_r @ stim_r
 
 
-def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, add_mean=True, **kwargs):
+def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, **kwargs):
     """sgfilter_predictions
 
     savitzky golay filter predictions, to conform to data filtering
@@ -74,11 +74,7 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     polyorder : int, optional
         polynomial order for SG filter (the default is 3, which performs well for fMRI signals
         when the window length is longer than 2 minutes)
-    highpass : bool, optional
-        whether to use the sgfilter as highpass (True, default) or lowpass (False)
-    add_mean : bool, optional
-        whether to add the mean of the time-courses back to the signal after filtering
-        (True, default) or not (False)
+
     **kwargs are passed on to scipy.signal.savgol_filter
 
     Raises
@@ -95,16 +91,10 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
         raise ValueError  # window_length should be odd
     lp_filtered_predictions = signal.savgol_filter(
         predictions, window_length=window_length, polyorder=polyorder, **kwargs)
-
     if highpass:
-        output = predictions - lp_filtered_predictions
+        return predictions - lp_filtered_predictions
     else:
-        output = lp_filtered_predictions
-
-    if add_mean:
-        return output + predictions.mean(-1)
-    else:
-        return output
+        return lp_filtered_predictions
 
 
 def generate_random_legendre_drifts(dimensions=(1000, 120),
