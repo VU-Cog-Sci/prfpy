@@ -61,7 +61,7 @@ def iterative_search(gridder, data, grid_params, args, verbose=True):
         first element: parameter values,
         second element: rsq value
     """
-    output = fmin_powell(error_function, grid_params, xtol=1e-6, ftol=1e-3,  # maxfun=1e15,
+    output = fmin_powell(error_function, grid_params, xtol=1e-6, ftol=1e-3,
                          args=(args, data, gridder.return_single_prediction),
                          full_output=True, disp=verbose)
     return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]

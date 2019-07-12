@@ -1,6 +1,4 @@
 import numpy as np
-import os
-import imageio
 
 
 class PRFStimulus2D(object):
@@ -13,11 +11,9 @@ class PRFStimulus2D(object):
 
     def __init__(self,
                  screen_size_cm,
-                 screen_distance_cm,                
+                 screen_distance_cm,
+                 design_matrix,
                  TR,
-                 design_matrix=None,
-                 screenshot_path=None,
-                 n_pix=40,
                  *args, **kwargs):
         """__init__
 
@@ -28,8 +24,6 @@ class PRFStimulus2D(object):
             size of screen in centimeters
         screen_distance_cm : float
             eye-screen distance in centimeters
-        screenshots_path: string
-            if provided, construct a design_matrix from a sequence of numbered PNG images found in this path
         design_matrix : numpy.ndarray
             an N by t matrix, where N is [x, x]. 
             represents a square screen evolving over time (time is last dimension)
@@ -37,41 +31,7 @@ class PRFStimulus2D(object):
         """
         self.screen_size_cm = screen_size_cm
         self.screen_distance_cm = screen_distance_cm
-        
-        if design_matrix is not None:
-            self.design_matrix = design_matrix
-        else:
-            if screenshot_path is None:
-                print("Need to specify either design matrix or screenshot path!")
-                raise IOError
-            else:
-                
-                image_list = os.listdir(screenshot_path)
-                
-                #there is one more MR image than screenshot
-                self.design_matrix=np.zeros((n_pix,n_pix,1+len(image_list)))
-                for image_file in image_list:
-                    #assuming last three numbers before .png are the screenshot number
-                    img_number = int(image_file[-7:-4])
-                    #subtract one to start from zero
-                    img = imageio.imread(os.path.join(screenshot_path,image_file))
-                    #make it square
-                    if img.shape[0]!=img.shape[1]:
-                        offset=int((img.shape[1]-img.shape[0])/2)
-                        img=img[:,offset:(offset+img.shape[0])]
-                    
-                    #downsample
-                    downsampling_constant = int(img.shape[1]/n_pix)
-                    downsampled_img = img[::downsampling_constant,::downsampling_constant]
-                    
-                    #binarize image into dm matrix
-                    #assumes: standard RGB255 format; only colors present in image are black, white, grey, red, green.
-                    self.design_matrix[:,:,img_number][np.where(((downsampled_img[:,:,0] == 0) & (downsampled_img[:,:,1] == 0)) | ((downsampled_img[:,:,0] == 255) & (downsampled_img[:,:,1] == 255)))] = 1
-                
-                
-                    
-
-            
+        self.design_matrix = design_matrix
         if len(self.design_matrix.shape) >= 3 and self.design_matrix.shape[0] != self.design_matrix.shape[1]:
             raise ValueError  # need the screen to be square
         self.TR = TR
@@ -92,7 +52,7 @@ class PRFStimulus2D(object):
         self.max_ecc = np.max(self.ecc_coordinates)
 
         # construct a standard mask based on standard deviation over time
-        self.mask = np.std(self.design_matrix, axis=-1) != 0
+        self.mask = np.std(design_matrix, axis=-1) != 0
 
 
 class PRFStimulus1D(object):
