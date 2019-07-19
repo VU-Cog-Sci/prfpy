@@ -218,10 +218,11 @@ class Iso2DGaussianGridder(Gridder):
         # create timecourse
         tc = stimulus_through_prf(rf, self.convolved_design_matrix)
         # tc /= tc.max()
+        
         if not self.filter_predictions:
             return baseline + beta * tc
         else:
-            return baseline + beta * sgfilter_predictions(tc.T,
+            return baseline + beta * sgfilter_predictions(tc[0,:],
                                                           window_length=self.window_length,
                                                           polyorder=self.polyorder,
                                                           highpass=self.highpass).T
