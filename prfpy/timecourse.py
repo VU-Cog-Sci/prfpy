@@ -59,7 +59,7 @@ def stimulus_through_prf(prfs, stimulus, mask=None):
     return prf_r @ stim_r
 
 
-def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, add_mean=True, **kwargs):
+def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, add_mean=True, cond_lengths=None, **kwargs):
     """sgfilter_predictions
 
     savitzky golay filter predictions, to conform to data filtering
@@ -79,6 +79,12 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     add_mean : bool, optional
         whether to add the mean of the time-courses back to the signal after filtering
         (True, default) or not (False)
+    cond_lengths : list or numpy.ndarray, optional
+        specify length of each condition in TRs
+        If not None, the predictions are split in the time dimension in len(cond_lengths) chunks,
+        and the savgol filter is applied to each chunk separately.
+        The i^th chunk has size cond_lengths[i]
+        
     **kwargs are passed on to scipy.signal.savgol_filter
 
     Raises
@@ -93,18 +99,55 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     """
     if window_length % 2 != 1:
         raise ValueError  # window_length should be odd
-    lp_filtered_predictions = signal.savgol_filter(
-        predictions, window_length=window_length, polyorder=polyorder, **kwargs)
+    
+    if cond_lengths != None:
+        #first assess that the number and sizes of chunks are compatible with the predictions
+        if np.sum(cond_lengths) != predictions.shape[-1]:
+            print(predictions.shape)
+            print("Specified condition lengths are incompatible with the number prediction timepoints.")
+            raise ValueError
+        else:
+            lp_filtered_predictions = np.zeros_like(predictions)
+            for i,cond in enumerate(cond_lengths):
+                if i==0:
+                    start=0
+                else:
+                    start=cond_lengths[i-1]
+                    
+                stop=start+cond_lengths[i]
+                
+                lp_filtered_predictions[...,start:stop] = signal.savgol_filter(
+                        predictions[...,start:stop], window_length=window_length, polyorder=polyorder, **kwargs)
+                
+                if add_mean:
+                    if highpass:
+                        lp_filtered_predictions[...,start:stop] -= np.mean(predictions[...,start:stop], axis=-1)[...,np.newaxis]
+                    else:
+                        lp_filtered_predictions[...,start:stop] += np.mean(predictions[...,start:stop], axis=-1)[...,np.newaxis]
+                        
+                    
+                    
+                
+    else: 
+        
+     
+        lp_filtered_predictions = signal.savgol_filter(
+                predictions, window_length=window_length, polyorder=polyorder, **kwargs)
+        
+        if add_mean:
+            if highpass:
+                lp_filtered_predictions -= np.mean(predictions, axis=-1)[...,np.newaxis]
+            else:
+                lp_filtered_predictions += np.mean(predictions, axis=-1)[...,np.newaxis]
+        
+        
 
     if highpass:
-        output = predictions - lp_filtered_predictions
+        return predictions - lp_filtered_predictions
     else:
-        output = lp_filtered_predictions
+        return lp_filtered_predictions
+    
 
-    if add_mean:
-        return output + predictions.mean(-1)
-    else:
-        return output
 
 
 def generate_random_legendre_drifts(dimensions=(1000, 120),
