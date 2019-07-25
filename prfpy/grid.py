@@ -44,6 +44,8 @@ class Iso2DGaussianGridder(Gridder):
                  window_length=201,
                  polyorder=3,
                  highpass=True,
+                 add_mean=True,
+                 cond_lengths=None,
                  **kwargs):
         """__init__ for Iso2DGaussianGridder
 
@@ -68,6 +70,13 @@ class Iso2DGaussianGridder(Gridder):
             polynomial order of savgol filter, default 3
         highpass : boolean, optional
             whether to filter highpass or lowpass, default True
+        add_mean : boolean, optional
+            whether to add mean to filtered predictions, default True    
+        cond_lengths : list or numpy.ndarray, optional
+            specify length of each condition in TRs
+            If not None, the predictions are split in the time dimension in len(cond_lengths) chunks,
+            and the savgol filter is applied to each chunk separately.
+            The i^th chunk has size cond_lengths[i]
         """
         super().__init__(stimulus)
         self.__dict__.update(kwargs)
@@ -98,6 +107,8 @@ class Iso2DGaussianGridder(Gridder):
         self.window_length = window_length
         self.polyorder = polyorder
         self.highpass = highpass
+        self.add_mean = add_mean
+        self.cond_lengths = cond_lengths
 
     def create_rfs(self):
         """create_rfs
@@ -165,10 +176,12 @@ class Iso2DGaussianGridder(Gridder):
         self.stimulus_times_prfs()
 
         if self.filter_predictions:
-            self.predictions = sgfilter_predictions(self.predictions.T,
+            self.predictions = sgfilter_predictions(self.predictions,
                                                     window_length=self.window_length,
                                                     polyorder=self.polyorder,
-                                                    highpass=self.highpass).T
+                                                    highpass=self.highpass,
+                                                    add_mean=self.add_mean,
+                                                    cond_lengths=self.cond_lengths)
             self.filtered_predictions = True
         else:
             self.filtered_predictions = False
@@ -225,7 +238,9 @@ class Iso2DGaussianGridder(Gridder):
             return baseline + beta * sgfilter_predictions(tc[0,:],
                                                           window_length=self.window_length,
                                                           polyorder=self.polyorder,
-                                                          highpass=self.highpass).T
+                                                          highpass=self.highpass,
+                                                          add_mean=self.add_mean,
+                                                          cond_lengths=self.cond_lengths).T
 
     def create_drifts_and_noise(self,
                                 drift_ranges=[[0, 0]],
@@ -332,4 +347,6 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
             return bold_baseline + sgfilter_predictions(tc.T,
                                                         window_length=self.window_length,
                                                         polyorder=self.polyorder,
-                                                        highpass=self.highpass).T
+                                                        highpass=self.highpass,
+                                                        add_mean=self.add_mean,
+                                                        cond_lengths=self.cond_lengths).T

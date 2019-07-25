@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sp
-from scipy.optimize import fmin_powell
+from scipy.optimize import fmin_powell, fmin_l_bfgs_b
 import bottleneck as bn
 from tqdm import tqdm
 
@@ -33,7 +33,7 @@ def error_function(parameters, args, data, objective_function):
     return bn.nansum((data - objective_function(*list(parameters), **args))**2)
 
 
-def iterative_search(gridder, data, grid_params, args, verbose=True):
+def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
     """iterative_search
 
     function to be called using joblib's Parallel function for the iterative search stage.
@@ -61,9 +61,20 @@ def iterative_search(gridder, data, grid_params, args, verbose=True):
         first element: parameter values,
         second element: rsq value
     """
-    output = fmin_powell(error_function, grid_params, xtol=1e-5, ftol=1e-4,
+    if 'bounds' in kwargs:
+        if verbose==True:
+            iprint=0
+        else:
+            iprint=-1
+        output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
+                               args=(args, data, gridder.return_single_prediction),
+                               approx_grad=True,
+                               iprint=iprint, maxls=50) 
+    else:
+        output = fmin_powell(error_function, grid_params, xtol=1e-6, ftol=1e-6,
                          args=(args, data, gridder.return_single_prediction),
                          full_output=True, disp=verbose)
+        
     return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
 
 
@@ -224,12 +235,20 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
     with an iterative fitting procedure
 
     """
+    
 
     def iterative_fit(self,
                       rsq_threshold,
                       verbose=False,
                       gridsearch_params=None,
                       args={}):
+        
+        
+        if 'bounds' in self.__dict__:
+            self.bounds = self.__dict__['bounds']
+        else:
+            print("Warning: performing normalization model fit without bounds on parameters")
+        
         if gridsearch_params is None:
             assert hasattr(
                 self, 'gridsearch_params'), 'First use self.grid_fit, or provide grid search parameters!'
@@ -267,7 +286,9 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
             delayed(iterative_search)(self.gridder,
                                       data,
                                       grid_pars,
-                                      args=args, verbose=verbose)
+                                      args=args,
+                                      verbose=verbose,
+                                      bounds=self.bounds)
             for (data, grid_pars) in zip(self.data[self.rsq_mask],
                                          self.gridsearch_params[self.rsq_mask][:, parameter_mask]))
         self.iterative_search_params[self.rsq_mask] = np.array(
