@@ -103,7 +103,6 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     if cond_lengths != None:
         #first assess that the number and sizes of chunks are compatible with the predictions
         if np.sum(cond_lengths) != predictions.shape[-1]:
-            print(predictions.shape)
             print("Specified condition lengths are incompatible with the number prediction timepoints.")
             raise ValueError
         else:

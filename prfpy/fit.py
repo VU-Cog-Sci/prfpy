@@ -68,8 +68,11 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
             iprint=-1
         output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
                                args=(args, data, gridder.return_single_prediction),
-                               approx_grad=True,
-                               iprint=iprint, maxls=50) 
+                               approx_grad=True, maxls=50, pgtol=1e-8, factr=1e5,
+                               #default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
+                               iprint=iprint)
+        if verbose==True:
+            print(output[2])
     else:
         output = fmin_powell(error_function, grid_params, xtol=1e-6, ftol=1e-6,
                          args=(args, data, gridder.return_single_prediction),
