@@ -32,6 +32,7 @@ def error_function(parameters, args, data, objective_function, gradient_objectiv
     """
     return bn.nansum((data - objective_function(*list(parameters), **args))**2)
 
+
 def gradient_error_function(parameters, args, data, objective_function, gradient_objective_function):
     """error_function
 
@@ -55,8 +56,9 @@ def gradient_error_function(parameters, args, data, objective_function, gradient
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    return bn.nansum(-2*(data - objective_function(*list(parameters), **args))[np.newaxis,...]\
-                     *gradient_objective_function(*list(parameters), **args), axis=-1)
+    return bn.nansum(-2*(data - objective_function(*list(parameters), **args))[np.newaxis, ...]
+                     * gradient_objective_function(*list(parameters), **args), axis=-1)
+
 
 def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
     """iterative_search
@@ -91,16 +93,18 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
             iprint = 0
         else:
             iprint = -1
-        
+
         if hasattr(gridder, 'gradient_single_prediction'):
             output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
-                                   args=(args, data, gridder.return_single_prediction, gridder.gradient_single_prediction),
+                                   args=(args, data, gridder.return_single_prediction,
+                                         gridder.gradient_single_prediction),
                                    fprime=gradient_error_function, maxls=50, pgtol=1e-8, factr=1e5,
                                    # default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
-                                   iprint=iprint)            
+                                   iprint=iprint)
         else:
             output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
-                                   args=(args, data, gridder.return_single_prediction),
+                                   args=(args, data,
+                                         gridder.return_single_prediction),
                                    approx_grad=True, maxls=50, pgtol=1e-8, factr=1e5,
                                    # default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
                                    iprint=iprint)
