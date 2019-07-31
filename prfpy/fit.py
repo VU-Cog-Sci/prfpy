@@ -7,7 +7,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 
 
-def error_function(parameters, args, data, objective_function):
+def error_function(parameters, args, data, objective_function, gradient_objective_function=None):
     """error_function
 
     Generic error function.
@@ -32,6 +32,31 @@ def error_function(parameters, args, data, objective_function):
     """
     return bn.nansum((data - objective_function(*list(parameters), **args))**2)
 
+def gradient_error_function(parameters, args, data, objective_function, gradient_objective_function):
+    """error_function
+
+    Generic error function.
+
+    [description]
+
+    Parameters
+    ----------
+    parameters : tuple
+        A tuple of values representing a model setting.
+    args : dictionary
+        Extra arguments to `objective_function` beyond those in `parameters`.
+    data : ndarray
+       The actual, measured time-series against which the model is fit.
+    objective_function : callable
+        The objective function that takes `parameters` and `args` and
+        produces a model time-series.
+    Returns
+    -------
+    error : float
+        The residual sum of squared errors between the prediction and data.
+    """
+    return bn.nansum(-2*(data - objective_function(*list(parameters), **args))[np.newaxis,...]\
+                     *gradient_objective_function(*list(parameters), **args), axis=-1)
 
 def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
     """iterative_search
@@ -66,11 +91,19 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
             iprint = 0
         else:
             iprint = -1
-        output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
-                               args=(args, data, gridder.return_single_prediction),
-                               approx_grad=True, maxls=50, pgtol=1e-8, factr=1e5,
-                               # default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
-                               iprint=iprint)
+        
+        if hasattr(gridder, 'gradient_single_prediction'):
+            output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
+                                   args=(args, data, gridder.return_single_prediction, gridder.gradient_single_prediction),
+                                   fprime=gradient_error_function, maxls=50, pgtol=1e-8, factr=1e5,
+                                   # default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
+                                   iprint=iprint)            
+        else:
+            output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
+                                   args=(args, data, gridder.return_single_prediction),
+                                   approx_grad=True, maxls=50, pgtol=1e-8, factr=1e5,
+                                   # default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
+                                   iprint=iprint)
         if verbose == True:
             print(output[2])
     else:
