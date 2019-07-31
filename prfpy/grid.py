@@ -316,7 +316,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         # create the rfs
         # not sure why we need to take the transpose here but ok. following
         # parent method from Tomas
-        
+
         prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
@@ -348,19 +348,19 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                                         highpass=self.highpass,
                                                         add_mean=self.add_mean,
                                                         cond_lengths=self.cond_lengths).T
-                                                        
-    def gradient_single_prediction(self,
-                                 mu_x,
-                                 mu_y,
-                                 prf_size,
-                                 prf_amplitude,
-                                 bold_baseline,
 
-                                 neural_baseline,
-                                 srf_amplitude,
-                                 srf_size,
-                                 surround_baseline
-                                 ):
+    def gradient_single_prediction(self,
+                                   mu_x,
+                                   mu_y,
+                                   prf_size,
+                                   prf_amplitude,
+                                   bold_baseline,
+
+                                   neural_baseline,
+                                   srf_amplitude,
+                                   srf_size,
+                                   surround_baseline
+                                   ):
         """gradient_single_prediction
 
         returns the prediction gradient for a single set of parameters.
@@ -386,7 +386,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         # parent method from Tomas
         x_coord = self.stimulus.x_coordinates[..., np.newaxis]
         y_coord = self.stimulus.y_coordinates[..., np.newaxis]
-        
+
         prf = gauss2D_iso_cart(x=x_coord,
                                y=y_coord,
                                mu=(mu_x, mu_y),
@@ -401,57 +401,58 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         dm = self.stimulus.design_matrix
 
         gradient = np.zeros((9, dm.shape[-1]))
-        
-        
-        #mu_x gradient
+
+        # mu_x gradient
         gradient[0, :] = 2 * prf_amplitude * stimulus_through_prf((x_coord.T - mu_x) * prf, dm) /\
             (2 * prf_size**2 * (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline)) -\
             (2 * (prf_amplitude * stimulus_through_prf((x_coord.T - mu_x) * prf, dm) + neural_baseline
                   ) * srf_amplitude * stimulus_through_prf(srf, dm)) /\
             (2 * srf_size**2 * (srf_amplitude *
                                 stimulus_through_prf(srf, dm) + surround_baseline)**2)
-            
-        #mu_y gradient
-        gradient[1,:] = 2 * prf_amplitude * stimulus_through_prf((y_coord.T - mu_y) * prf, dm) /\
+
+        # mu_y gradient
+        gradient[1, :] = 2 * prf_amplitude * stimulus_through_prf((y_coord.T - mu_y) * prf, dm) /\
             (2 * prf_size**2 * (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline)) -\
             (2 * (prf_amplitude * stimulus_through_prf((y_coord.T - mu_y) * prf, dm) + neural_baseline
                   ) * srf_amplitude * stimulus_through_prf(srf, dm)) /\
             (2 * srf_size**2 * (srf_amplitude *
                                 stimulus_through_prf(srf, dm) + surround_baseline)**2)
-        
-        #prf_size gradient
-        gradient[2,:] = (prf_amplitude * stimulus_through_prf(((x_coord.T-mu_x)**2+(y_coord.T - mu_y)**2) * prf, dm))/\
-         (prf_size**3 * (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline) )
-        
-        #prf_amplitude gradient
-        gradient[3,:] = stimulus_through_prf(prf, dm)/\
-        (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline)
-        
-        #neural_baseline gradient
-        gradient[5,:] = 1/(srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline)
-        
-        #srf_amplitude gradient
-        gradient[6,:] = -(prf_amplitude*stimulus_through_prf(prf, dm) + neural_baseline)*\
-        stimulus_through_prf(srf,dm)/\
-        (srf_amplitude * stimulus_through_prf(srf, dm)+surround_baseline)**2
-        
-        #srf_size gradient
-        gradient[7,:] = srf_amplitude * stimulus_through_prf((-(x_coord.T-mu_x)**2-(y_coord.T - mu_y)**2) * srf, dm)*\
-        (prf_amplitude*stimulus_through_prf(prf, dm) + neural_baseline)/\
-        (srf_size**3 * (srf_amplitude * stimulus_through_prf(srf, dm)+surround_baseline)**2)
-        
-        #surround_baseline gradient
-        gradient[8,:] = - (prf_amplitude*stimulus_through_prf(prf, dm) + neural_baseline)/\
-        (srf_amplitude * stimulus_through_prf(srf, dm)+surround_baseline)**2
-        
-        
+
+        # prf_size gradient
+        gradient[2, :] = (prf_amplitude * stimulus_through_prf(((x_coord.T-mu_x)**2+(y_coord.T - mu_y)**2) * prf, dm)) /\
+            (prf_size**3 * (srf_amplitude *
+                            stimulus_through_prf(srf, dm) + surround_baseline))
+
+        # prf_amplitude gradient
+        gradient[3, :] = stimulus_through_prf(prf, dm) /\
+            (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline)
+
+        # neural_baseline gradient
+        gradient[5, :] = 1/(srf_amplitude *
+                            stimulus_through_prf(srf, dm) + surround_baseline)
+
+        # srf_amplitude gradient
+        gradient[6, :] = -(prf_amplitude*stimulus_through_prf(prf, dm) + neural_baseline) *\
+            stimulus_through_prf(srf, dm) /\
+            (srf_amplitude * stimulus_through_prf(srf, dm)+surround_baseline)**2
+
+        # srf_size gradient
+        gradient[7, :] = srf_amplitude * stimulus_through_prf((-(x_coord.T-mu_x)**2-(y_coord.T - mu_y)**2) * srf, dm) *\
+            (prf_amplitude*stimulus_through_prf(prf, dm) + neural_baseline) /\
+            (srf_size**3 * (srf_amplitude *
+                            stimulus_through_prf(srf, dm)+surround_baseline)**2)
+
+        # surround_baseline gradient
+        gradient[8, :] = - (prf_amplitude*stimulus_through_prf(prf, dm) + neural_baseline) /\
+            (srf_amplitude * stimulus_through_prf(srf, dm)+surround_baseline)**2
+
         for i in range(gradient.shape[0]):
-            gradient[i,:] = signal.convolve(gradient[i, :],
-                                 self.hrf,
-                                 mode='full')[:dm.shape[-1]]
-            
-        #BOLD baseline is the only parameter outside HRF convolution   
-        gradient[4,:] = np.ones(dm.shape[-1]) 
+            gradient[i, :] = signal.convolve(gradient[i, :],
+                                             self.hrf,
+                                             mode='full')[:dm.shape[-1]]
+
+        # BOLD baseline is the only parameter outside HRF convolution
+        gradient[4, :] = np.ones(dm.shape[-1])
 
         # tc /= tc.max()
         if not self.filter_predictions:
