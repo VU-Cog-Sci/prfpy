@@ -231,11 +231,11 @@ class Iso2DGaussianGridder(Gridder):
         # create timecourse
         tc = stimulus_through_prf(rf, self.convolved_design_matrix)
         # tc /= tc.max()
-        
+
         if not self.filter_predictions:
             return baseline + beta * tc
         else:
-            return baseline + beta * sgfilter_predictions(tc[0,:],
+            return baseline + beta * sgfilter_predictions(tc[0, :],
                                                           window_length=self.window_length,
                                                           polyorder=self.polyorder,
                                                           highpass=self.highpass,
@@ -278,7 +278,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
     """Norm_Iso2DGaussianGridder
 
     Redefining class to use normalization model in iterative fitting
-    
+
     """
 
     def return_single_prediction(self,
@@ -355,7 +355,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
 class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
     """redefining class for difference of Gaussians in iterative fit.
     """
-    
+
     def return_single_prediction(self,
                                  mu_x,
                                  mu_y,
@@ -404,15 +404,15 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                sigma=srf_size).T
 
         tc = prf_amplitude*stimulus_through_prf(prf, self.convolved_design_matrix)\
-            -srf_amplitude*stimulus_through_prf(srf, self.convolved_design_matrix)
-        
-        
+            - srf_amplitude * \
+            stimulus_through_prf(srf, self.convolved_design_matrix)
+
         if not self.filter_predictions:
             return bold_baseline + tc
         else:
-            return bold_baseline + sgfilter_predictions(tc[0,:],
-                                                   window_length=self.window_length,
-                                                   polyorder=self.polyorder,
-                                                   highpass=self.highpass,
-                                                   add_mean=self.add_mean,
-                                                   cond_lengths=self.cond_lengths).T
+            return bold_baseline + sgfilter_predictions(tc[0, :],
+                                                        window_length=self.window_length,
+                                                        polyorder=self.polyorder,
+                                                        highpass=self.highpass,
+                                                        add_mean=self.add_mean,
+                                                        cond_lengths=self.cond_lengths).T
