@@ -234,7 +234,7 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
     Class that implements a grid fit on a two-dimensional isotropic
     Gaussian pRF model, leveraging a Gridder object.
-    The result is used as starting guess to fit the Normalization model 
+    The gridder result is used as starting guess to fit the Normalization model 
     with an iterative fitting procedure
 
     """
@@ -250,7 +250,8 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
         if 'bounds' in self.__dict__:
             self.bounds = self.__dict__['bounds']
         else:
-            print("Warning: performing normalization model fit without bounds on parameters")
+            print("Please specify bounds on parameters")
+            raise IOError
         
         if gridsearch_params is None:
             assert hasattr(
@@ -275,10 +276,72 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
             self.gridsearch_params = np.insert(
                 self.gridsearch_params, 8, 1.0, axis=-1)
 
-        if not self.fit_css:  # if we don't want to fit the n, we take it out of the parameters
-            parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 2)
+        #take exponent and rsq out of the parameters
+        parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 2)
+
+        self.rsq_mask = self.gridsearch_params[:, -1] > rsq_threshold
+
+        # create output array, knowing that iterative search adds rsq (+1)
+        self.iterative_search_params = np.zeros(
+            (self.n_units, len(parameter_mask) + 1))
+        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
+            delayed(iterative_search)(self.gridder,
+                                      data,
+                                      grid_pars,
+                                      args=args,
+                                      verbose=verbose,
+                                      bounds=self.bounds)
+            for (data, grid_pars) in zip(self.data[self.rsq_mask],
+                                         self.gridsearch_params[self.rsq_mask][:, parameter_mask]))
+        self.iterative_search_params[self.rsq_mask] = np.array(
+            iterative_search_params)
+
+
+
+
+class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
+    """DoG_Iso2DGaussianFitter
+
+    Class that implements a grid fit on a two-dimensional isotropic
+    difference of Gaussians pRF model, leveraging a Gridder object.
+    The gridder result is used as starting guess to fit the DoG model 
+    with an iterative fitting procedure
+
+    """
+    
+
+    def iterative_fit(self,
+                      rsq_threshold,
+                      verbose=False,
+                      gridsearch_params=None,
+                      args={}):
+        
+        
+        if 'bounds' in self.__dict__:
+            self.bounds = self.__dict__['bounds']
         else:
-            parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 1)
+            print("Please specify bounds on parameters")
+            raise IOError
+        
+        if gridsearch_params is None:
+            assert hasattr(
+                self, 'gridsearch_params'), 'First use self.grid_fit, or provide grid search parameters!'
+        else:
+            self.gridsearch_params = gridsearch_params
+
+        if self.gridsearch_params.shape[-1] < 8:
+            # here I inject starting values for DoG model extra parameters
+
+            # surround amplitude
+            self.gridsearch_params = np.insert(
+                self.gridsearch_params, 5, 1.0, axis=-1) 
+            # surround size
+            self.gridsearch_params = np.insert(
+                self.gridsearch_params, 6, 1.0, axis=-1)
+
+
+        #take exponent and rsq out of the parameters
+        parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 2)
 
         self.rsq_mask = self.gridsearch_params[:, -1] > rsq_threshold
 

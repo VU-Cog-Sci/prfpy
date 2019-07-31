@@ -277,8 +277,8 @@ class Iso2DGaussianGridder(Gridder):
 class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
     """Norm_Iso2DGaussianGridder
 
-    Redefining class to use 2DIsoGaussianGridder in grid fit, 
-    normalization model in iterative fitting
+    Redefining class to use normalization model in iterative fitting
+    
     """
 
     def return_single_prediction(self,
@@ -350,3 +350,69 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                                         highpass=self.highpass,
                                                         add_mean=self.add_mean,
                                                         cond_lengths=self.cond_lengths).T
+
+
+class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
+    """redefining class for difference of Gaussians in iterative fit.
+    """
+    
+    def return_single_prediction(self,
+                                 mu_x,
+                                 mu_y,
+                                 prf_size,
+                                 prf_amplitude,
+                                 bold_baseline,
+
+                                 srf_amplitude,
+                                 srf_size
+                                 ):
+        """return_single_prediction
+
+        returns the prediction for a single set of parameters.
+        As this is to be used during iterative search, it also
+        has arguments beta and baseline.
+
+        Parameters
+        ----------
+        mu_x : float
+            x-position of pRF
+        mu_y : float
+            y-position of pRF
+        prf_size : float
+            size of pRF
+
+
+        Returns
+        -------
+        numpy.ndarray
+            single prediction given the model
+        """
+
+        # create the rfs
+        # not sure why we need to take the transpose here but ok. following
+        # parent method from Tomas
+        prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+                               y=self.stimulus.y_coordinates[..., np.newaxis],
+                               mu=(mu_x, mu_y),
+                               sigma=prf_size).T
+
+        # surround receptive field (denominator)
+        srf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+                               y=self.stimulus.y_coordinates[...,
+                                                             np.newaxis],
+                               mu=(mu_x, mu_y),
+                               sigma=srf_size).T
+
+        tc = prf_amplitude*stimulus_through_prf(prf, self.convolved_design_matrix)\
+            -srf_amplitude*stimulus_through_prf(srf, self.convolved_design_matrix)
+        
+        
+        if not self.filter_predictions:
+            return bold_baseline + tc
+        else:
+            return bold_baseline + sgfilter_predictions(tc[0,:],
+                                                   window_length=self.window_length,
+                                                   polyorder=self.polyorder,
+                                                   highpass=self.highpass,
+                                                   add_mean=self.add_mean,
+                                                   cond_lengths=self.cond_lengths).T
