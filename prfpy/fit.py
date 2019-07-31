@@ -62,22 +62,22 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
         second element: rsq value
     """
     if 'bounds' in kwargs:
-        if verbose==True:
-            iprint=0
+        if verbose == True:
+            iprint = 0
         else:
-            iprint=-1
+            iprint = -1
         output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
                                args=(args, data, gridder.return_single_prediction),
                                approx_grad=True, maxls=50, pgtol=1e-8, factr=1e5,
-                               #default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
+                               # default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
                                iprint=iprint)
-        if verbose==True:
+        if verbose == True:
             print(output[2])
     else:
         output = fmin_powell(error_function, grid_params, xtol=1e-6, ftol=1e-6,
-                         args=(args, data, gridder.return_single_prediction),
-                         full_output=True, disp=verbose)
-        
+                             args=(args, data, gridder.return_single_prediction),
+                             full_output=True, disp=verbose)
+
     return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
 
 
@@ -238,21 +238,19 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
     with an iterative fitting procedure
 
     """
-    
 
     def iterative_fit(self,
                       rsq_threshold,
                       verbose=False,
                       gridsearch_params=None,
                       args={}):
-        
-        
+
         if 'bounds' in self.__dict__:
             self.bounds = self.__dict__['bounds']
         else:
             print("Please specify bounds on parameters")
             raise IOError
-        
+
         if gridsearch_params is None:
             assert hasattr(
                 self, 'gridsearch_params'), 'First use self.grid_fit, or provide grid search parameters!'
@@ -276,7 +274,7 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
             self.gridsearch_params = np.insert(
                 self.gridsearch_params, 8, 1.0, axis=-1)
 
-        #take exponent and rsq out of the parameters
+        # take exponent and rsq out of the parameters
         parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 2)
 
         self.rsq_mask = self.gridsearch_params[:, -1] > rsq_threshold
@@ -297,8 +295,6 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
             iterative_search_params)
 
 
-
-
 class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
     """DoG_Iso2DGaussianFitter
 
@@ -308,21 +304,19 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
     with an iterative fitting procedure
 
     """
-    
 
     def iterative_fit(self,
                       rsq_threshold,
                       verbose=False,
                       gridsearch_params=None,
                       args={}):
-        
-        
+
         if 'bounds' in self.__dict__:
             self.bounds = self.__dict__['bounds']
         else:
             print("Please specify bounds on parameters")
             raise IOError
-        
+
         if gridsearch_params is None:
             assert hasattr(
                 self, 'gridsearch_params'), 'First use self.grid_fit, or provide grid search parameters!'
@@ -334,13 +328,12 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             # surround amplitude
             self.gridsearch_params = np.insert(
-                self.gridsearch_params, 5, 1.0, axis=-1) 
+                self.gridsearch_params, 5, 1.0, axis=-1)
             # surround size
             self.gridsearch_params = np.insert(
                 self.gridsearch_params, 6, 1.0, axis=-1)
 
-
-        #take exponent and rsq out of the parameters
+        # take exponent and rsq out of the parameters
         parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 2)
 
         self.rsq_mask = self.gridsearch_params[:, -1] > rsq_threshold
