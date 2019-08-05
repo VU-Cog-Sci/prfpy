@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sp
-from scipy.optimize import fmin_powell, fmin_l_bfgs_b
+from scipy.optimize import fmin_powell, minimize
 import bottleneck as bn
 from tqdm import tqdm
 
@@ -88,34 +88,50 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
         first element: parameter values,
         second element: rsq value
     """
-    if 'bounds' in kwargs:
-        if verbose == True:
-            iprint = 0
-        else:
-            iprint = -1
+    if kwargs['bounds'] is not None:
 
-        if hasattr(gridder, 'gradient_single_prediction'):
-            output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
+        if kwargs['gradient_method']=='analytic':
+            
+            if not hasattr(gridder,'gradient_single_prediction'):
+                print('Analytic gradient selected but no gradient function provided')
+                raise IOError
+            
+            if verbose:
+                print('Using analytic gradientUa')
+                
+            output = minimize(error_function, grid_params, bounds=kwargs['bounds'],
                                    args=(args, data, gridder.return_single_prediction,
                                          gridder.gradient_single_prediction),
-                                   fprime=gradient_error_function, maxls=50, pgtol=1e-8, factr=1e5,
-                                   # default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
-                                   iprint=iprint)
-        else:
-            output = fmin_l_bfgs_b(error_function, grid_params, bounds=kwargs['bounds'],
+                                   jac=gradient_error_function,
+                                   method='L-BFGS-B', 
+                                   options=dict(disp=verbose, maxls=300, ftol=1e-80))
+        elif kwargs['gradient_method']=='numerical':
+            if verbose:
+                print('Using numerical gradient')
+                
+            output = minimize(error_function, grid_params, bounds=kwargs['bounds'],
                                    args=(args, data,
                                          gridder.return_single_prediction),
-                                   approx_grad=True, maxls=50, pgtol=1e-8, factr=1e5,
-                                   # default factr=1e7. ftol is factr*mach_precision. mach_precision is 1e-16
-                                   iprint=iprint)
-        if verbose == True:
-            print(output[2])
+                                   method='L-BFGS-B', 
+                                   options=dict(disp=verbose, maxls=300, ftol=1e-80))
+        else:
+            if verbose:
+                print('Using no-gradient minimization')
+            output = minimize(error_function, grid_params, bounds=kwargs['bounds'],
+                                   args=(args, data,
+                                         gridder.return_single_prediction),
+                                         method='trust-constr',
+                                   options=dict(disp=verbose))            
+
+        return np.r_[output['x'], 1 - (output['fun'] / (len(data) * data.var()))]
+    
     else:
+        
         output = fmin_powell(error_function, grid_params, xtol=1e-6, ftol=1e-6,
                              args=(args, data, gridder.return_single_prediction),
                              full_output=True, disp=verbose)
 
-    return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
+        return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
 
 
 class Fitter:
@@ -156,6 +172,18 @@ class Fitter:
         # immediately convert nans to nums
         self.data = np.nan_to_num(data)
         self.data_var = self.data.var(axis=-1)
+        
+        
+        if 'bounds' in self.__dict__:
+            self.bounds = self.__dict__['bounds']
+        else:
+            self.bounds = None
+        
+        if 'gradient_method' in self.__dict__:
+            self.gradient_method = self.__dict__['gradient_method']
+        else:
+            self.gradient_method = None     
+                       
 
 
 class Iso2DGaussianFitter(Fitter):
@@ -260,7 +288,10 @@ class Iso2DGaussianFitter(Fitter):
             delayed(iterative_search)(self.gridder,
                                       data,
                                       grid_pars,
-                                      args=args, verbose=verbose)
+                                      args=args, 
+                                      verbose=verbose,
+                                      bounds=self.bounds,
+                                      gradient_method=self.gradient_method)
             for (data, grid_pars) in zip(self.data[self.rsq_mask], self.gridsearch_params[self.rsq_mask][:, parameter_mask]))
         self.iterative_search_params[self.rsq_mask] = np.array(
             iterative_search_params)
@@ -282,11 +313,10 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
                       gridsearch_params=None,
                       args={}):
 
-        if 'bounds' in self.__dict__:
-            self.bounds = self.__dict__['bounds']
-        else:
+        if 'bounds' not in self.__dict__:
             print("Please specify bounds on parameters")
             raise IOError
+             
 
         if gridsearch_params is None:
             assert hasattr(
@@ -325,11 +355,13 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
                                       grid_pars,
                                       args=args,
                                       verbose=verbose,
-                                      bounds=self.bounds)
+                                      bounds=self.bounds,
+                                      gradient_method=self.gradient_method)
             for (data, grid_pars) in zip(self.data[self.rsq_mask],
                                          self.gridsearch_params[self.rsq_mask][:, parameter_mask]))
         self.iterative_search_params[self.rsq_mask] = np.array(
             iterative_search_params)
+        
 
 
 class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
@@ -348,9 +380,7 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
                       gridsearch_params=None,
                       args={}):
 
-        if 'bounds' in self.__dict__:
-            self.bounds = self.__dict__['bounds']
-        else:
+        if 'bounds' not in self.__dict__:
             print("Please specify bounds on parameters")
             raise IOError
 
@@ -384,7 +414,8 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
                                       grid_pars,
                                       args=args,
                                       verbose=verbose,
-                                      bounds=self.bounds)
+                                      bounds=self.bounds,
+                                      gradient_method=self.gradient_method)
             for (data, grid_pars) in zip(self.data[self.rsq_mask],
                                          self.gridsearch_params[self.rsq_mask][:, parameter_mask]))
         self.iterative_search_params[self.rsq_mask] = np.array(

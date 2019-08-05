@@ -107,13 +107,10 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
             raise ValueError
         else:
             lp_filtered_predictions = np.zeros_like(predictions)
-            for i,cond in enumerate(cond_lengths):
-                if i==0:
-                    start=0
-                else:
-                    start=cond_lengths[i-1]
-                    
-                stop=start+cond_lengths[i]
+            start=0
+            for cond_length in cond_lengths:
+   
+                stop=start+cond_length
                 
                 lp_filtered_predictions[...,start:stop] = signal.savgol_filter(
                         predictions[...,start:stop], window_length=window_length, polyorder=polyorder, **kwargs)
@@ -123,7 +120,8 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
                         lp_filtered_predictions[...,start:stop] -= np.mean(predictions[...,start:stop], axis=-1)[...,np.newaxis]
                     else:
                         lp_filtered_predictions[...,start:stop] += np.mean(predictions[...,start:stop], axis=-1)[...,np.newaxis]
-                        
+                
+                start+=cond_length
                     
                     
                 
