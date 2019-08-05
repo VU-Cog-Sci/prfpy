@@ -451,20 +451,18 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                              self.hrf,
                                              mode='full')[:dm.shape[-1]]
 
-
-
         if not self.filter_predictions:
             # BOLD baseline is the only parameter outside HRF convolution and SG filter
             gradient[4, :] = np.ones(dm.shape[-1])
             return gradient
         else:
             gradient = sgfilter_predictions(gradient,
-                                        window_length=self.window_length,
-                                        polyorder=self.polyorder,
-                                        highpass=self.highpass,
-                                        add_mean=self.add_mean,
-                                        cond_lengths=self.cond_lengths)
-            
+                                            window_length=self.window_length,
+                                            polyorder=self.polyorder,
+                                            highpass=self.highpass,
+                                            add_mean=self.add_mean,
+                                            cond_lengths=self.cond_lengths)
+
             # BOLD baseline is the only parameter outside HRF convolution and SG filter
             gradient[4, :] = np.ones(dm.shape[-1])
             return gradient

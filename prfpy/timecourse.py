@@ -84,7 +84,7 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
         If not None, the predictions are split in the time dimension in len(cond_lengths) chunks,
         and the savgol filter is applied to each chunk separately.
         The i^th chunk has size cond_lengths[i]
-        
+
     **kwargs are passed on to scipy.signal.savgol_filter
 
     Raises
@@ -99,52 +99,50 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     """
     if window_length % 2 != 1:
         raise ValueError  # window_length should be odd
-    
+
     if cond_lengths != None:
-        #first assess that the number and sizes of chunks are compatible with the predictions
+        # first assess that the number and sizes of chunks are compatible with the predictions
         if np.sum(cond_lengths) != predictions.shape[-1]:
-            print("Specified condition lengths are incompatible with the number prediction timepoints.")
+            print(
+                "Specified condition lengths are incompatible with the number prediction timepoints.")
             raise ValueError
         else:
             lp_filtered_predictions = np.zeros_like(predictions)
-            start=0
+            start = 0
             for cond_length in cond_lengths:
-   
-                stop=start+cond_length
-                
-                lp_filtered_predictions[...,start:stop] = signal.savgol_filter(
-                        predictions[...,start:stop], window_length=window_length, polyorder=polyorder, **kwargs)
-                
+
+                stop = start+cond_length
+
+                lp_filtered_predictions[..., start:stop] = signal.savgol_filter(
+                    predictions[..., start:stop], window_length=window_length, polyorder=polyorder, **kwargs)
+
                 if add_mean:
                     if highpass:
-                        lp_filtered_predictions[...,start:stop] -= np.mean(predictions[...,start:stop], axis=-1)[...,np.newaxis]
+                        lp_filtered_predictions[..., start:stop] -= np.mean(
+                            predictions[..., start:stop], axis=-1)[..., np.newaxis]
                     else:
-                        lp_filtered_predictions[...,start:stop] += np.mean(predictions[...,start:stop], axis=-1)[...,np.newaxis]
-                
-                start+=cond_length
-                    
-                    
-                
-    else: 
-        
-     
+                        lp_filtered_predictions[..., start:stop] += np.mean(
+                            predictions[..., start:stop], axis=-1)[..., np.newaxis]
+
+                start += cond_length
+
+    else:
+
         lp_filtered_predictions = signal.savgol_filter(
-                predictions, window_length=window_length, polyorder=polyorder, **kwargs)
-        
+            predictions, window_length=window_length, polyorder=polyorder, **kwargs)
+
         if add_mean:
             if highpass:
-                lp_filtered_predictions -= np.mean(predictions, axis=-1)[...,np.newaxis]
+                lp_filtered_predictions -= np.mean(
+                    predictions, axis=-1)[..., np.newaxis]
             else:
-                lp_filtered_predictions += np.mean(predictions, axis=-1)[...,np.newaxis]
-        
-        
+                lp_filtered_predictions += np.mean(
+                    predictions, axis=-1)[..., np.newaxis]
 
     if highpass:
         return predictions - lp_filtered_predictions
     else:
         return lp_filtered_predictions
-    
-
 
 
 def generate_random_legendre_drifts(dimensions=(1000, 120),
