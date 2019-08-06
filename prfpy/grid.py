@@ -45,7 +45,7 @@ class Iso2DGaussianGridder(Gridder):
                  polyorder=3,
                  highpass=True,
                  add_mean=True,
-                 cond_lengths=None,
+                 task_lengths=None,
                  **kwargs):
         """__init__ for Iso2DGaussianGridder
 
@@ -72,11 +72,11 @@ class Iso2DGaussianGridder(Gridder):
             whether to filter highpass or lowpass, default True
         add_mean : boolean, optional
             whether to add mean to filtered predictions, default True    
-        cond_lengths : list or numpy.ndarray, optional
+        task_lengths : list or numpy.ndarray, optional
             specify length of each condition in TRs
-            If not None, the predictions are split in the time dimension in len(cond_lengths) chunks,
+            If not None, the predictions are split in the time dimension in len(task_lengths) chunks,
             and the savgol filter is applied to each chunk separately.
-            The i^th chunk has size cond_lengths[i]
+            The i^th chunk has size task_lengths[i]
         """
         super().__init__(stimulus)
         self.__dict__.update(kwargs)
@@ -108,7 +108,7 @@ class Iso2DGaussianGridder(Gridder):
         self.polyorder = polyorder
         self.highpass = highpass
         self.add_mean = add_mean
-        self.cond_lengths = cond_lengths
+        self.task_lengths = task_lengths
 
     def create_rfs(self):
         """create_rfs
@@ -181,7 +181,7 @@ class Iso2DGaussianGridder(Gridder):
                                                     polyorder=self.polyorder,
                                                     highpass=self.highpass,
                                                     add_mean=self.add_mean,
-                                                    cond_lengths=self.cond_lengths)
+                                                    task_lengths=self.task_lengths)
             self.filtered_predictions = True
         else:
             self.filtered_predictions = False
@@ -240,7 +240,7 @@ class Iso2DGaussianGridder(Gridder):
                                                           polyorder=self.polyorder,
                                                           highpass=self.highpass,
                                                           add_mean=self.add_mean,
-                                                          cond_lengths=self.cond_lengths).T
+                                                          task_lengths=self.task_lengths).T
 
     def create_drifts_and_noise(self,
                                 drift_ranges=[[0, 0]],
@@ -347,7 +347,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                                         polyorder=self.polyorder,
                                                         highpass=self.highpass,
                                                         add_mean=self.add_mean,
-                                                        cond_lengths=self.cond_lengths).T
+                                                        task_lengths=self.task_lengths).T
 
     def gradient_single_prediction(self,
                                    mu_x,
@@ -461,7 +461,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                             polyorder=self.polyorder,
                                             highpass=self.highpass,
                                             add_mean=self.add_mean,
-                                            cond_lengths=self.cond_lengths)
+                                            task_lengths=self.task_lengths)
 
             # BOLD baseline is the only parameter outside HRF convolution and SG filter
             gradient[4, :] = np.ones(dm.shape[-1])
@@ -531,4 +531,4 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                                         polyorder=self.polyorder,
                                                         highpass=self.highpass,
                                                         add_mean=self.add_mean,
-                                                        cond_lengths=self.cond_lengths).T
+                                                        task_lengths=self.task_lengths).T

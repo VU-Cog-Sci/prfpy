@@ -59,7 +59,7 @@ def stimulus_through_prf(prfs, stimulus, mask=None):
     return prf_r @ stim_r
 
 
-def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, add_mean=True, cond_lengths=None, **kwargs):
+def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, add_mean=True, task_lengths=None, **kwargs):
     """sgfilter_predictions
 
     savitzky golay filter predictions, to conform to data filtering
@@ -79,11 +79,11 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     add_mean : bool, optional
         whether to add the mean of the time-courses back to the signal after filtering
         (True, default) or not (False)
-    cond_lengths : list or numpy.ndarray, optional
+    task_lengths : list or numpy.ndarray, optional
         specify length of each condition in TRs
-        If not None, the predictions are split in the time dimension in len(cond_lengths) chunks,
+        If not None, the predictions are split in the time dimension in len(task_lengths) chunks,
         and the savgol filter is applied to each chunk separately.
-        The i^th chunk has size cond_lengths[i]
+        The i^th chunk has size task_lengths[i]
 
     **kwargs are passed on to scipy.signal.savgol_filter
 
@@ -100,18 +100,18 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     if window_length % 2 != 1:
         raise ValueError  # window_length should be odd
 
-    if cond_lengths != None:
+    if task_lengths != None:
         # first assess that the number and sizes of chunks are compatible with the predictions
-        if np.sum(cond_lengths) != predictions.shape[-1]:
+        if np.sum(task_lengths) != predictions.shape[-1]:
             print(
                 "Specified condition lengths are incompatible with the number prediction timepoints.")
             raise ValueError
         else:
             lp_filtered_predictions = np.zeros_like(predictions)
             start = 0
-            for cond_length in cond_lengths:
+            for task_length in task_lengths:
 
-                stop = start+cond_length
+                stop = start+task_length
 
                 lp_filtered_predictions[..., start:stop] = signal.savgol_filter(
                     predictions[..., start:stop], window_length=window_length, polyorder=polyorder, **kwargs)
@@ -124,7 +124,7 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
                         lp_filtered_predictions[..., start:stop] += np.mean(
                             predictions[..., start:stop], axis=-1)[..., np.newaxis]
 
-                start += cond_length
+                start += task_length
 
     else:
 
