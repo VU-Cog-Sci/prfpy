@@ -223,19 +223,27 @@ class Iso2DGaussianGridder(Gridder):
         rf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                               y=self.stimulus.y_coordinates[..., np.newaxis],
                               mu=(mu_x, mu_y),
-                              sigma=size)
+                              sigma=size).T
         # won't have to perform exponentiation if n == 1
-        if n != 1:
-            rf **= n
-        rf = rf.T
+        if n == 1:
+
         # create timecourse
-        tc = stimulus_through_prf(rf, self.convolved_design_matrix)
-        # tc /= tc.max()
+            tc = stimulus_through_prf(rf, self.convolved_design_matrix)[0, :]
+        else:
+            dm = self.stimulus.design_matrix
+            neural_tc = stimulus_through_prf(rf, dm)**n
+            
+            tc = signal.convolve(neural_tc[0, :],
+                             self.hrf,
+                             mode='full')[:dm.shape[-1]].T
+            
+            
+            
 
         if not self.filter_predictions:
             return baseline + beta * tc
         else:
-            return baseline + beta * sgfilter_predictions(tc[0, :],
+            return baseline + beta * sgfilter_predictions(tc,
                                                           window_length=self.window_length,
                                                           polyorder=self.polyorder,
                                                           highpass=self.highpass,
@@ -336,13 +344,13 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         tc = signal.convolve(neural_tc[0, :],
                              self.hrf,
-                             mode='full')[:dm.shape[-1]]
+                             mode='full')[:dm.shape[-1]].T
 
         # tc /= tc.max()
         if not self.filter_predictions:
             return bold_baseline + tc
         else:
-            return bold_baseline + sgfilter_predictions(tc.T,
+            return bold_baseline + sgfilter_predictions(tc,
                                                         window_length=self.window_length,
                                                         polyorder=self.polyorder,
                                                         highpass=self.highpass,
@@ -521,12 +529,12 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         tc = prf_amplitude*stimulus_through_prf(prf, self.convolved_design_matrix)\
             - srf_amplitude * \
-            stimulus_through_prf(srf, self.convolved_design_matrix)
+            stimulus_through_prf(srf, self.convolved_design_matrix)[0, :]
 
         if not self.filter_predictions:
             return bold_baseline + tc
         else:
-            return bold_baseline + sgfilter_predictions(tc[0, :],
+            return bold_baseline + sgfilter_predictions(tc,
                                                         window_length=self.window_length,
                                                         polyorder=self.polyorder,
                                                         highpass=self.highpass,
