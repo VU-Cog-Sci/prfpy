@@ -227,18 +227,15 @@ class Iso2DGaussianGridder(Gridder):
         # won't have to perform exponentiation if n == 1
         if n == 1:
 
-        # create timecourse
+            # create timecourse
             tc = stimulus_through_prf(rf, self.convolved_design_matrix)[0, :]
         else:
             dm = self.stimulus.design_matrix
             neural_tc = stimulus_through_prf(rf, dm)**n
-            
+
             tc = signal.convolve(neural_tc[0, :],
-                             self.hrf,
-                             mode='full')[:dm.shape[-1]].T
-            
-            
-            
+                                 self.hrf,
+                                 mode='full')[:dm.shape[-1]].T
 
         if not self.filter_predictions:
             return baseline + beta * tc
@@ -520,14 +517,13 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                mu=(mu_x, mu_y),
                                sigma=prf_size).T
 
-        # surround receptive field (denominator)
+        # surround receptive field
         srf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                               y=self.stimulus.y_coordinates[...,
-                                                             np.newaxis],
+                               y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
                                sigma=srf_size).T
 
-        tc = prf_amplitude*stimulus_through_prf(prf, self.convolved_design_matrix)\
+        tc = prf_amplitude*stimulus_through_prf(prf, self.convolved_design_matrix)[0, :]\
             - srf_amplitude * \
             stimulus_through_prf(srf, self.convolved_design_matrix)[0, :]
 

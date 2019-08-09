@@ -329,10 +329,10 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
                 self.gridsearch_params, 5, 1.0, axis=-1)
             # surround amplitude
             self.gridsearch_params = np.insert(
-                self.gridsearch_params, 6, 1.0, axis=-1)  # self.gridsearch_params[:,3]/2
+                self.gridsearch_params, 6, self.gridsearch_params[:, 3]/2, axis=-1)  # self.gridsearch_params[:,3]/2
             # surround size
             self.gridsearch_params = np.insert(
-                self.gridsearch_params, 7, 1.0, axis=-1)
+                self.gridsearch_params, 7, self.gridsearch_params[:, 2]*2, axis=-1)
             # surround baseline
             self.gridsearch_params = np.insert(
                 self.gridsearch_params, 8, 1.0, axis=-1)
@@ -390,10 +390,10 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             # surround amplitude
             self.gridsearch_params = np.insert(
-                self.gridsearch_params, 5, 1.0, axis=-1)
+                self.gridsearch_params, 5, self.gridsearch_params[:, 3]/2, axis=-1)
             # surround size
             self.gridsearch_params = np.insert(
-                self.gridsearch_params, 6, 1.0, axis=-1)
+                self.gridsearch_params, 6, self.gridsearch_params[:, 2]*2, axis=-1)
 
         # take exponent and rsq out of the parameters
         parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 2)
