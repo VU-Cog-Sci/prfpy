@@ -321,6 +321,9 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         # create the rfs
         # not sure why we need to take the transpose here but ok. following
         # parent method from Tomas
+        if srf_amplitude == 0.0 and surround_baseline == 0.0:
+            surround_baseline = 1e-3
+            
 
         prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
@@ -508,7 +511,7 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
         numpy.ndarray
             single prediction given the model
         """
-
+        
         # create the rfs
         # not sure why we need to take the transpose here but ok. following
         # parent method from Tomas
