@@ -281,7 +281,7 @@ class Iso2DGaussianFitter(Fitter):
         # create output array, knowing that iterative search adds rsq (+1)
         self.iterative_search_params = np.zeros(
             (self.n_units, len(parameter_mask) + 1))
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
+        iterative_search_params = Parallel(self.n_jobs, verbose=verbose, prefer='threads')(
             delayed(iterative_search)(self.gridder,
                                       data,
                                       grid_pars,
@@ -345,7 +345,7 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
         # create output array, knowing that iterative search adds rsq (+1)
         self.iterative_search_params = np.zeros(
             (self.n_units, len(parameter_mask) + 1))
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
+        iterative_search_params = Parallel(self.n_jobs, verbose=verbose, prefer='threads')(
             delayed(iterative_search)(self.gridder,
                                       data,
                                       grid_pars,
@@ -390,10 +390,10 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             # surround amplitude
             self.gridsearch_params = np.insert(
-                self.gridsearch_params, 5, self.gridsearch_params[:, 3]/2, axis=-1)
+                self.gridsearch_params, 5, 0.01, axis=-1)
             # surround size
             self.gridsearch_params = np.insert(
-                self.gridsearch_params, 6, self.gridsearch_params[:, 2]*2, axis=-1)
+                self.gridsearch_params, 6, 200, axis=-1)
 
         # take exponent and rsq out of the parameters
         parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 2)
@@ -403,7 +403,7 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
         # create output array, knowing that iterative search adds rsq (+1)
         self.iterative_search_params = np.zeros(
             (self.n_units, len(parameter_mask) + 1))
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
+        iterative_search_params = Parallel(self.n_jobs, verbose=verbose, prefer='threads')(
             delayed(iterative_search)(self.gridder,
                                       data,
                                       grid_pars,
