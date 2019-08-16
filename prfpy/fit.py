@@ -281,7 +281,7 @@ class Iso2DGaussianFitter(Fitter):
         # create output array, knowing that iterative search adds rsq (+1)
         self.iterative_search_params = np.zeros(
             (self.n_units, len(parameter_mask) + 1))
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose, prefer='threads')(
+        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
             delayed(iterative_search)(self.gridder,
                                       data,
                                       grid_pars,
@@ -345,7 +345,7 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
         # create output array, knowing that iterative search adds rsq (+1)
         self.iterative_search_params = np.zeros(
             (self.n_units, len(parameter_mask) + 1))
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose, prefer='threads')(
+        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
             delayed(iterative_search)(self.gridder,
                                       data,
                                       grid_pars,
@@ -403,7 +403,7 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
         # create output array, knowing that iterative search adds rsq (+1)
         self.iterative_search_params = np.zeros(
             (self.n_units, len(parameter_mask) + 1))
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose, prefer='threads')(
+        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
             delayed(iterative_search)(self.gridder,
                                       data,
                                       grid_pars,
