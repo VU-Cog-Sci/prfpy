@@ -240,7 +240,7 @@ class Iso2DGaussianFitter(Fitter):
             dm = np.vstack([np.ones_like(self.gridder.predictions[prediction_num]),
                             self.gridder.predictions[prediction_num]]).T
             (intercept, slope), residual, _, _ = sp.linalg.lstsq(
-                dm, self.data.T)
+                dm.astype('float32'), self.data.T.astype('float32'))
             rsqs = ((1 - residual / (self.n_timepoints * self.data_var)))
 
             improved_fits = rsqs > self.gridsearch_r2
