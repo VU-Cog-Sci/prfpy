@@ -100,7 +100,8 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
                 print('Using analytic gradientUa')
 
             output = minimize(error_function, grid_params, bounds=kwargs['bounds'],
-                              args=(args, data, gridder.return_single_prediction),
+                              args=(args, data, gridder.return_single_prediction,
+                                    gridder.gradient_single_prediction),
                               jac=gradient_error_function,
                               method='L-BFGS-B',
                               options=dict(disp=verbose, maxls=300, ftol=1e-80))
