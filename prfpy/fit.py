@@ -201,7 +201,8 @@ class Iso2DGaussianFitter(Fitter):
                  ecc_grid,
                  polar_grid,
                  size_grid,
-                 n_grid=[1]):
+                 n_grid=[1],
+                 n_batches=1):
         """grid_fit
 
         performs grid fit using provided grids and predictor definitions
@@ -225,41 +226,71 @@ class Iso2DGaussianFitter(Fitter):
                                              size_grid=size_grid,
                                              n_grid=n_grid)
 
-        # set up book-keeping to minimize memory usage.
-        self.gridsearch_r2 = np.zeros(self.n_units)
-        self.best_fitting_prediction = np.zeros(
-            self.n_units, dtype=int)
-        self.best_fitting_beta = np.zeros(self.n_units, dtype=float)
-        self.best_fitting_baseline = np.zeros(
-            self.n_units, dtype=float)
+        # # set up book-keeping to minimize memory usage.
+        # self.gridsearch_r2 = np.zeros(self.n_units)
+        # self.best_fitting_prediction = np.zeros(
+        #     self.n_units, dtype=int)
+        # self.best_fitting_beta = np.zeros(self.n_units, dtype=float)
+        # self.best_fitting_baseline = np.zeros(
+        #     self.n_units, dtype=float)
 
-        for prediction_num in tqdm(range(self.gridder.predictions.shape[0])):
-            # scipy implementation?
-            # slope, intercept, rs, p_values, std_errs = linregress(self.predictions[:,prediction_num], self.data)
-            # rsqs = rs**2
-            # numpy implementation is slower?
-            dm = np.vstack([np.ones_like(self.gridder.predictions[prediction_num]),
-                            self.gridder.predictions[prediction_num]]).T
+        def rsq_betas_for_pred(prediction, data, data_var, n_timepoints):
+            dm = np.vstack([np.ones_like(prediction), prediction]).T
             (intercept, slope), residual, _, _ = sp.linalg.lstsq(
-                dm.astype('float32'), self.data.T.astype('float32'))
-            rsqs = ((1 - residual / (self.n_timepoints * self.data_var)))
+                dm.astype('float32'), data.T.astype('float32'))
+            rsqs = ((1 - residual / (n_timepoints * data_var)))
+            return rsqs, intercept, slope
 
-            improved_fits = rsqs > self.gridsearch_r2
-            # fill in the improvements
-            self.best_fitting_prediction[improved_fits] = prediction_num
-            self.gridsearch_r2[improved_fits] = rsqs[improved_fits]
-            self.best_fitting_baseline[improved_fits] = intercept[improved_fits]
-            self.best_fitting_beta[improved_fits] = slope[improved_fits]
+        grid_search_rbs = Parallel(self.n_jobs, verbose=self.verbose)(
+            delayed(rsq_betas_for_pred)(prediction=prediction,
+                                        data=self.data,
+                                        data_var=self.data_var,
+                                        n_timepoints=self.n_timepoints)
+            for prediction in self.gridder.predictions)
+        grid_search_rbs = np.array(grid_search_rbs).astype(np.float32)
+
+        max_rsqs = np.argmax(grid_search_rbs[:, 0], axis=0)
+        self.best_fitting_baseline = grid_search_rbs[max_rsqs, 1]
+        self.best_fitting_beta = grid_search_rbs[max_rsqs, 2]
+        self.gridsearch_r2 = np.max(grid_search_rbs[:, 0], axis=0)
 
         self.gridsearch_params = np.array([
-            self.gridder.xs.ravel()[self.best_fitting_prediction],
-            self.gridder.ys.ravel()[self.best_fitting_prediction],
-            self.gridder.sizes.ravel()[self.best_fitting_prediction],
+            self.gridder.xs.ravel()[max_rsqs],
+            self.gridder.ys.ravel()[max_rsqs],
+            self.gridder.sizes.ravel()[max_rsqs],
             self.best_fitting_beta,
             self.best_fitting_baseline,
-            self.gridder.ns.ravel()[self.best_fitting_prediction],
+            self.gridder.ns.ravel()[max_rsqs],
             self.gridsearch_r2
         ]).T
+
+        # for prediction_num in tqdm(range(self.gridder.predictions.shape[0])):
+        #     # scipy implementation?
+        #     # slope, intercept, rs, p_values, std_errs = linregress(self.predictions[:,prediction_num], self.data)
+        #     # rsqs = rs**2
+        #     # numpy implementation is slower?
+        #     dm = np.vstack([np.ones_like(self.gridder.predictions[prediction_num]),
+        #                     self.gridder.predictions[prediction_num]]).T
+        #     (intercept, slope), residual, _, _ = sp.linalg.lstsq(
+        #         dm.astype('float32'), self.data.T.astype('float32'))
+        #     rsqs = ((1 - residual / (self.n_timepoints * self.data_var)))
+
+        #     improved_fits = rsqs > self.gridsearch_r2
+        #     # fill in the improvements
+        #     self.best_fitting_prediction[improved_fits] = prediction_num
+        #     self.gridsearch_r2[improved_fits] = rsqs[improved_fits]
+        #     self.best_fitting_baseline[improved_fits] = intercept[improved_fits]
+        #     self.best_fitting_beta[improved_fits] = slope[improved_fits]
+
+        # self.gridsearch_params = np.array([
+        #     self.gridder.xs.ravel()[self.best_fitting_prediction],
+        #     self.gridder.ys.ravel()[self.best_fitting_prediction],
+        #     self.gridder.sizes.ravel()[self.best_fitting_prediction],
+        #     self.best_fitting_beta,
+        #     self.best_fitting_baseline,
+        #     self.gridder.ns.ravel()[self.best_fitting_prediction],
+        #     self.gridsearch_r2
+        # ]).T
 
     def iterative_fit(self,
                       rsq_threshold,
@@ -300,7 +331,7 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
     Class that implements a grid fit on a two-dimensional isotropic
     Gaussian pRF model, leveraging a Gridder object.
-    The gridder result is used as starting guess to fit the Normalization model 
+    The gridder result is used as starting guess to fit the Normalization model
     with an iterative fitting procedure
 
     """
@@ -365,7 +396,7 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
     Class that implements a grid fit on a two-dimensional isotropic
     difference of Gaussians pRF model, leveraging a Gridder object.
-    The gridder result is used as starting guess to fit the DoG model 
+    The gridder result is used as starting guess to fit the DoG model
     with an iterative fitting procedure
 
     """
