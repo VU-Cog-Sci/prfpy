@@ -202,7 +202,7 @@ class Iso2DGaussianFitter(Fitter):
                  polar_grid,
                  size_grid,
                  n_grid=[1],
-                 n_batches=1):
+                 verbose=False):
         """grid_fit
 
         performs grid fit using provided grids and predictor definitions
@@ -234,25 +234,25 @@ class Iso2DGaussianFitter(Fitter):
         # self.best_fitting_baseline = np.zeros(
         #     self.n_units, dtype=float)
 
-        def rsq_betas_for_pred(prediction, data, data_var, n_timepoints):
-            dm = np.vstack([np.ones_like(prediction), prediction]).T
+        def rsq_betas_for_pred(prediction, data):
+            dm = np.vstack([np.ones_like(prediction), prediction]).T.astype('float32')
             (intercept, slope), residual, _, _ = sp.linalg.lstsq(
-                dm.astype('float32'), data.T.astype('float32'))
-            rsqs = ((1 - residual / (n_timepoints * data_var)))
+                dm, data)
+            rsqs = ((1 - residual / (self.n_timepoints * self.data_var)))
+            
             return rsqs, intercept, slope
 
-        grid_search_rbs = Parallel(self.n_jobs, verbose=self.verbose)(
+        grid_search_rbs = np.array(Parallel(self.n_jobs, verbose=verbose)(
             delayed(rsq_betas_for_pred)(prediction=prediction,
-                                        data=self.data,
-                                        data_var=self.data_var,
-                                        n_timepoints=self.n_timepoints)
-            for prediction in self.gridder.predictions)
-        grid_search_rbs = np.array(grid_search_rbs).astype(np.float32)
+                                       data=self.data.astype('float32').T)
+            for prediction in self.gridder.predictions)).astype('float32')
 
         max_rsqs = np.argmax(grid_search_rbs[:, 0], axis=0)
-        self.best_fitting_baseline = grid_search_rbs[max_rsqs, 1]
-        self.best_fitting_beta = grid_search_rbs[max_rsqs, 2]
-        self.gridsearch_r2 = np.max(grid_search_rbs[:, 0], axis=0)
+        self.gridsearch_r2 = grid_search_rbs[max_rsqs, 0, np.arange(self.n_units)]
+        self.best_fitting_baseline = grid_search_rbs[max_rsqs, 1, np.arange(self.n_units)]
+        self.best_fitting_beta = grid_search_rbs[max_rsqs, 2, np.arange(self.n_units)]
+        
+        del grid_search_rbs
 
         self.gridsearch_params = np.array([
             self.gridder.xs.ravel()[max_rsqs],
