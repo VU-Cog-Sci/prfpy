@@ -234,22 +234,41 @@ class Iso2DGaussianFitter(Fitter):
         # self.best_fitting_baseline = np.zeros(
         #     self.n_units, dtype=float)
 
-        def rsq_betas_for_pred(data, vox_num):
+        def rsq_betas_for_pred(data, vox_num, predictions, n_timepoints, data_var):
             dm = np.vstack([np.ones_like(data), data]).T.astype('float32')
             #print(predictions.shape)
             (intercept, slope), residual, _, _ = sp.linalg.lstsq(
-                dm, self.gridder.predictions.T)
-            rsqs = ((1 - residual / (self.n_timepoints * self.data_var[vox_num])))
+                dm, predictions.T)
+            rsqs = ((1 - residual / (n_timepoints * data_var[vox_num])))
             #print(rsqs.shape)
             best_rsq_voxel = np.argmax(rsqs)
             return best_rsq_voxel, rsqs[best_rsq_voxel], -intercept[best_rsq_voxel]/slope[best_rsq_voxel], 1/slope[best_rsq_voxel]
         
+        def rsq_betas_for_pred_analytic(data, vox_num, predictions, n_timepoints, data_var):
+            
+            slopes = (n_timepoints*np.dot(data,predictions.T)-np.sum(data)*self.sum_preds)/\
+            (n_timepoints*self.square_norm_preds-self.sum_preds**2)
+            baselines = (np.sum(data) - slopes*self.sum_preds)/n_timepoints
+            
+            resid = np.linalg.norm((data-slopes[...,np.newaxis]*predictions-baselines[...,np.newaxis]), axis=-1, ord=2)**2
+            
+            rsq = 1-resid/(n_timepoints*data_var[vox_num])
+            
+            best_pred_voxel = np.argmax(rsq)
+            
+            return best_pred_voxel, rsq[best_pred_voxel], baselines[best_pred_voxel], slopes[best_pred_voxel]
+            
         
-
+        self.sum_preds = np.sum(self.gridder.predictions, axis=-1)
+        self.square_norm_preds = np.linalg.norm(self.gridder.predictions,axis=-1,ord=2)**2
+        
         grid_search_rbs = Parallel(self.n_jobs, verbose=verbose, prefer='threads')(
-            delayed(rsq_betas_for_pred)(
+            delayed(rsq_betas_for_pred_analytic)(
                                        data=data,
-                                       vox_num=i)
+                                       vox_num=i,
+                                       predictions=self.gridder.predictions,
+                                       n_timepoints=self.n_timepoints,
+                                       data_var=self.data_var)
             for i, data in enumerate(self.data))
             
         grid_search_rbs = np.array(grid_search_rbs)
