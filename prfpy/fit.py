@@ -234,12 +234,11 @@ class Iso2DGaussianFitter(Fitter):
         # self.best_fitting_baseline = np.zeros(
         #     self.n_units, dtype=float)
 
-        def rsq_betas_for_pred(predictions, data, vox_num):
+        def rsq_betas_for_pred(data, vox_num):
             dm = np.vstack([np.ones_like(data), data]).T.astype('float32')
-            print(dm.shape)
             #print(predictions.shape)
             (intercept, slope), residual, _, _ = sp.linalg.lstsq(
-                dm, predictions)
+                dm, self.gridder.predictions.T)
             rsqs = ((1 - residual / (self.n_timepoints * self.data_var[vox_num])))
             #print(rsqs.shape)
             best_rsq_voxel = np.argmax(rsqs)
@@ -247,8 +246,8 @@ class Iso2DGaussianFitter(Fitter):
         
         
 
-        grid_search_rbs = Parallel(self.n_jobs, verbose=verbose)(
-            delayed(rsq_betas_for_pred)(predictions=self.gridder.predictions.T,
+        grid_search_rbs = Parallel(self.n_jobs, verbose=verbose, prefer='threads')(
+            delayed(rsq_betas_for_pred)(
                                        data=data,
                                        vox_num=i)
             for i, data in enumerate(self.data))
@@ -257,7 +256,7 @@ class Iso2DGaussianFitter(Fitter):
         
         print(grid_search_rbs.shape)
         
-        max_rsqs = grid_search_rbs[:,0]
+        max_rsqs = grid_search_rbs[:,0].astype('int')
         self.gridsearch_r2 = grid_search_rbs[:,1]
         self.best_fitting_baseline = grid_search_rbs[:,2]
         self.best_fitting_beta = grid_search_rbs[:,3]
