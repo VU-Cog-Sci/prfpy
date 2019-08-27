@@ -245,20 +245,21 @@ class Iso2DGaussianFitter(Fitter):
             return best_rsq_voxel, rsqs[best_rsq_voxel], -intercept[best_rsq_voxel]/slope[best_rsq_voxel], 1/slope[best_rsq_voxel]
         
         def rsq_betas_for_pred_analytic(data, vox_num, predictions, n_timepoints, data_var):
-            
-            slopes = (n_timepoints*np.dot(data,predictions.T)-np.sum(data)*self.sum_preds)/\
+            sumd=np.sum(data)
+            slopes = (n_timepoints*np.dot(data,predictions.T)-sumd*self.sum_preds)/\
             (n_timepoints*self.square_norm_preds-self.sum_preds**2)
-            baselines = (np.sum(data) - slopes*self.sum_preds)/n_timepoints
+            baselines = (sumd - slopes*self.sum_preds)/n_timepoints
             
-            resid = np.linalg.norm((data-slopes[...,np.newaxis]*predictions-baselines[...,np.newaxis]), axis=-1, ord=2)**2
-            
+            def find_min(something):
+                return np.min(something), np.argmin(something)
+
+            resid, best_pred_voxel = find_min(np.linalg.norm((data-slopes[...,np.newaxis]*predictions-baselines[...,np.newaxis]), axis=-1, ord=2)**2)
+
             rsq = 1-resid/(n_timepoints*data_var[vox_num])
             
-            best_pred_voxel = np.argmax(rsq)
+            return best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
             
-            return best_pred_voxel, rsq[best_pred_voxel], baselines[best_pred_voxel], slopes[best_pred_voxel]
-            
-        
+        self.counter=0
         self.sum_preds = np.sum(self.gridder.predictions, axis=-1)
         self.square_norm_preds = np.linalg.norm(self.gridder.predictions,axis=-1,ord=2)**2
         
