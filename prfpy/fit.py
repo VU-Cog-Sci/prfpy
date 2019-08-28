@@ -161,7 +161,7 @@ class Fitter:
         """
         assert len(data.shape) == 2, \
             "input data should be two-dimensional, with first dimension units and second dimension time"
-        self.data = data
+        self.data = data.astype('float32')
         self.gridder = gridder
         self.n_jobs = n_jobs
         self.__dict__.update(kwargs)
@@ -244,33 +244,46 @@ class Iso2DGaussianFitter(Fitter):
             best_rsq_voxel = np.argmax(rsqs)
             return best_rsq_voxel, rsqs[best_rsq_voxel], -intercept[best_rsq_voxel]/slope[best_rsq_voxel], 1/slope[best_rsq_voxel]
         
-        def rsq_betas_for_pred_analytic(data, vox_num, predictions, n_timepoints, data_var):
-            sumd=np.sum(data)
-            slopes = (n_timepoints*np.dot(data,predictions.T)-sumd*self.sum_preds)/\
-            (n_timepoints*self.square_norm_preds-self.sum_preds**2)
-            baselines = (sumd - slopes*self.sum_preds)/n_timepoints
-            
-            def find_min(something):
-                return np.min(something), np.argmin(something)
+        def rsq_betas_for_pred_analytic(data, vox_num, predictions, n_timepoints, data_var, sum_preds, square_norm_preds):
+            result=np.zeros((data.shape[0],4))
+            for vox_data, num, idx in zip(data, vox_num, np.arange(data.shape[0])):
+                sumd=np.sum(vox_data)
 
-            resid, best_pred_voxel = find_min(np.linalg.norm((data-slopes[...,np.newaxis]*predictions-baselines[...,np.newaxis]), axis=-1, ord=2)**2)
+                slopes = (n_timepoints*np.dot(vox_data,predictions.T)-sumd*sum_preds)/\
+                (n_timepoints*square_norm_preds-sum_preds**2)
+                baselines = (sumd - slopes*sum_preds)/n_timepoints
 
-            rsq = 1-resid/(n_timepoints*data_var[vox_num])
+
+                resid = np.linalg.norm((vox_data-slopes[...,np.newaxis]*predictions-baselines[...,np.newaxis]), axis=-1, ord=2)
+
+                best_pred_voxel = np.argmin(resid)
+
+                rsq = 1-resid[best_pred_voxel]**2/(n_timepoints*data_var[num])
+                
+                result[idx,:] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel] 
             
-            return best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
-            
-        self.counter=0
+            return result
+
+
+        self.gridder.predictions = self.gridder.predictions.astype('float32')
         self.sum_preds = np.sum(self.gridder.predictions, axis=-1)
         self.square_norm_preds = np.linalg.norm(self.gridder.predictions,axis=-1,ord=2)**2
         
-        grid_search_rbs = Parallel(self.n_jobs, verbose=verbose, prefer='threads')(
+        split_indices=np.array_split(np.arange(self.data.shape[0]), 1000)
+        self.data = np.array_split(self.data, 1000, axis=0)
+        
+        #undo the split after grid fitting
+        
+        grid_search_rbs = Parallel(self.n_jobs, verbose=11, prefer='threads')(
             delayed(rsq_betas_for_pred_analytic)(
                                        data=data,
-                                       vox_num=i,
+                                       vox_num=vox_num,
                                        predictions=self.gridder.predictions,
                                        n_timepoints=self.n_timepoints,
-                                       data_var=self.data_var)
-            for i, data in enumerate(self.data))
+                                       data_var=self.data_var,
+                                       sum_preds=self.sum_preds,
+                                       square_norm_preds=self.square_norm_preds)
+            for data, vox_num in zip(self.data, split_indices))
             
         grid_search_rbs = np.array(grid_search_rbs)
         
