@@ -261,6 +261,10 @@ class Iso2DGaussianFitter(Fitter):
 
                 rsq = 1-resid[best_pred_voxel]**2/(n_timepoints*data_var[num])
                 
+                if verbose:
+                    if rsq>0.4:
+                        print(rsq)
+                
                 result[idx,:] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel] 
                 
             return result
@@ -275,9 +279,8 @@ class Iso2DGaussianFitter(Fitter):
         if verbose:
             print("Each batch contains "+str(data_batches[0].shape[0])+" voxels.")
         
-        #undo the split after grid fitting
         
-        grid_search_rbs = Parallel(self.n_jobs, verbose=verbose)(
+        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
             delayed(rsq_betas_for_pred_analytic)(
                                        data=data,
                                        vox_num=vox_num,
