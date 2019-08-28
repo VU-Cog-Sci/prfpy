@@ -245,7 +245,7 @@ class Iso2DGaussianFitter(Fitter):
             return best_rsq_voxel, rsqs[best_rsq_voxel], -intercept[best_rsq_voxel]/slope[best_rsq_voxel], 1/slope[best_rsq_voxel]
         
         def rsq_betas_for_pred_analytic(data, vox_num, predictions, n_timepoints, data_var, sum_preds, square_norm_preds):
-            result=np.zeros((data.shape[0],4))
+            result=np.zeros((data.shape[0],4), dtype='float32')
             for vox_data, num, idx in zip(data, vox_num, np.arange(data.shape[0])):
                 sumd=np.sum(vox_data)
 
@@ -255,13 +255,13 @@ class Iso2DGaussianFitter(Fitter):
 
 
                 resid = np.linalg.norm((vox_data-slopes[...,np.newaxis]*predictions-baselines[...,np.newaxis]), axis=-1, ord=2)
-
+                
                 best_pred_voxel = np.argmin(resid)
 
                 rsq = 1-resid[best_pred_voxel]**2/(n_timepoints*data_var[num])
                 
                 result[idx,:] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel] 
-            
+                
             return result
 
 
@@ -274,7 +274,7 @@ class Iso2DGaussianFitter(Fitter):
         
         #undo the split after grid fitting
         
-        grid_search_rbs = Parallel(self.n_jobs, verbose=11, prefer='threads')(
+        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
             delayed(rsq_betas_for_pred_analytic)(
                                        data=data,
                                        vox_num=vox_num,
