@@ -202,7 +202,8 @@ class Iso2DGaussianFitter(Fitter):
                  polar_grid,
                  size_grid,
                  n_grid=[1],
-                 verbose=False):
+                 verbose=False,
+                 n_batches=1000):
         """grid_fit
 
         performs grid fit using provided grids and predictor definitions
@@ -269,12 +270,14 @@ class Iso2DGaussianFitter(Fitter):
         self.sum_preds = np.sum(self.gridder.predictions, axis=-1)
         self.square_norm_preds = np.linalg.norm(self.gridder.predictions,axis=-1,ord=2)**2
         
-        split_indices=np.array_split(np.arange(self.data.shape[0]), 1000)
-        self.data = np.array_split(self.data, 1000, axis=0)
+        split_indices=np.array_split(np.arange(self.data.shape[0]), n_batches)
+        data_batches = np.array_split(self.data, n_batches, axis=0)
+        if verbose:
+            print("Each batch contains "+str(data_batches[0].shape[0])+" voxels.")
         
         #undo the split after grid fitting
         
-        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
+        grid_search_rbs = Parallel(self.n_jobs, verbose=verbose)(
             delayed(rsq_betas_for_pred_analytic)(
                                        data=data,
                                        vox_num=vox_num,
@@ -283,11 +286,10 @@ class Iso2DGaussianFitter(Fitter):
                                        data_var=self.data_var,
                                        sum_preds=self.sum_preds,
                                        square_norm_preds=self.square_norm_preds)
-            for data, vox_num in zip(self.data, split_indices))
+            for data, vox_num in zip(data_batches, split_indices))
             
-        grid_search_rbs = np.array(grid_search_rbs)
+        grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
         
-        print(grid_search_rbs.shape)
         
         max_rsqs = grid_search_rbs[:,0].astype('int')
         self.gridsearch_r2 = grid_search_rbs[:,1]
