@@ -368,6 +368,8 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
         self.n_predictions=len(self.nb)
         
         self.gaussian_params = gaussian_params.astype('float32')
+        
+        self.gridsearch_rsq_mask = self.gaussian_params[:,-1]>rsq_threshold
 
         
         def rsq_betas_for_pred_analytic(data, vox_nums, n_predictions, n_timepoints, data_var,nb,sa,ss,sb, gaussian_params):
@@ -375,42 +377,39 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             for vox_data, vox_num, idx in zip(data, vox_nums, np.arange(data.shape[0])):
                 
-                #this is intended to be used after a previous grid or iterative gaussian fit
-                if gaussian_params[vox_num,-1]>rsq_threshold:
-                    # let the gridder create the timecourses
-                    predictions = self.gridder.create_grid_predictions(gaussian_params[vox_num,:-1],
+
+                # let the gridder create the timecourses
+                predictions = self.gridder.create_grid_predictions(gaussian_params[vox_num,:-1],
                                                                        n_predictions,
                                                                        n_timepoints,
-                                                                       nb,
-                                                                       sa,
-                                                                       ss,
-                                                                       sb)
+                                                                       nb,sa,ss,sb)
                     
-                    sum_preds = np.sum(predictions, axis=-1)
-                    square_norm_preds = np.linalg.norm(predictions,axis=-1,ord=2)**2
-                    
-                    sumd=np.sum(vox_data)
-                    
-                    slopes = (n_timepoints*np.dot(vox_data,predictions.T)-sumd*sum_preds)/\
+                sum_preds = np.sum(predictions, axis=-1)
+                square_norm_preds = np.linalg.norm(predictions,axis=-1,ord=2)**2
+                
+                sumd=np.sum(vox_data)
+                
+                slopes = (n_timepoints*np.dot(vox_data,predictions.T)-sumd*sum_preds)/\
                     (n_timepoints*square_norm_preds-sum_preds**2)
 
-                    baselines = (sumd - slopes*sum_preds)/n_timepoints
+                baselines = (sumd - slopes*sum_preds)/n_timepoints
     
-                    resid = np.linalg.norm((vox_data-slopes[...,np.newaxis]*predictions-baselines[...,np.newaxis]), ord=2, axis=-1)
+                resid = np.linalg.norm((vox_data-slopes[...,np.newaxis]*predictions-baselines[...,np.newaxis]), ord=2, axis=-1)
                     
-                    best_pred_voxel = np.argmin(resid)
+                best_pred_voxel = np.argmin(resid)
     
-                    rsq = 1-resid[best_pred_voxel]**2/(n_timepoints*data_var[vox_num])
+                rsq = 1-resid[best_pred_voxel]**2/(n_timepoints*data_var[vox_num])
                     
-                    result[idx,:] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
+                result[idx,:] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
                      
             return result
 
-        split_indices=np.array_split(np.arange(self.data.shape[0]), n_batches)
-        data_batches = np.array_split(self.data, n_batches, axis=0)
+
+        split_indices=np.array_split(np.arange(self.data.shape[0])[self.gridsearch_rsq_mask], n_batches)
+        data_batches = np.array_split(self.data[self.gridsearch_rsq_mask], n_batches, axis=0)
         
         if verbose:
-            print("Each batch contains "+str(data_batches[0].shape[0])+" voxels.")
+            print("Each batch contains approx. "+str(data_batches[0].shape[0])+" voxels.")
         
         
         grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
@@ -429,26 +428,28 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
             
         grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
         
-        
         max_rsqs = grid_search_rbs[:,0].astype('int')
         self.gridsearch_r2 = grid_search_rbs[:,1]
         self.best_fitting_baseline = grid_search_rbs[:,2]
         self.best_fitting_beta = grid_search_rbs[:,3]
         
+        #[n_units, model parameters +rsq]
+        self.gridsearch_params = np.zeros((self.n_units,10))
+        
+        self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
+                gaussian_params[self.gridsearch_rsq_mask,0],
+                gaussian_params[self.gridsearch_rsq_mask,1],
+                gaussian_params[self.gridsearch_rsq_mask,2],
+                self.best_fitting_beta,
+                self.best_fitting_baseline,
+                self.nb[max_rsqs]*self.best_fitting_beta,
+                self.sa[max_rsqs],
+                self.ss[max_rsqs],
+                self.sb[max_rsqs],
+                self.gridsearch_r2   
+                ]).T
+        
 
-        self.gridsearch_params = np.array([
-            gaussian_params[:,0],
-            gaussian_params[:,1],
-            gaussian_params[:,2],
-            self.best_fitting_beta,
-            self.best_fitting_baseline,
-            self.nb[max_rsqs]*self.best_fitting_beta,
-            self.sa[max_rsqs],
-            self.ss[max_rsqs],
-            self.sb[max_rsqs],
-            self.gridsearch_r2
-        ]).T
-    
     
     def iterative_fit(self,
                       rsq_threshold,
@@ -468,7 +469,7 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
         if self.gridsearch_params.shape[-1] < 8:
             # here I inject starting values for normalization model extra
-            # parameters
+            # parameters, if needed (outdated with grid)
 
             # neural baseline
             self.gridsearch_params = np.insert(
