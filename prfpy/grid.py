@@ -309,20 +309,19 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         """
 
         predictions = np.zeros((n_predictions, n_timepoints), dtype='float32')
-        
+
         for idx in range(n_predictions):
-            predictions[idx,:] = self.return_single_prediction(gaussian_params[0],
-                       gaussian_params[1],
-                       gaussian_params[2],
-                       1.0,
-                       0.0,
-                       nb[idx],
-                       sa[idx],
-                       ss[idx],
-                       sb[idx]).astype('float32')
+            predictions[idx, :] = self.return_single_prediction(gaussian_params[0],
+                                                                gaussian_params[1],
+                                                                gaussian_params[2],
+                                                                1.0,
+                                                                0.0,
+                                                                nb[idx],
+                                                                sa[idx],
+                                                                ss[idx],
+                                                                sb[idx]).astype('float32')
 
         return predictions
-
 
     def return_single_prediction(self,
                                  mu_x,
@@ -356,12 +355,12 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
             single prediction given the model
         """
 
-        #to avoid division by 0. in practice, probably never happens
+        # to avoid division by 0. in practice, probably never happens
         if srf_amplitude == 0.0 and surround_baseline == 0.0:
             print("Warning: srf amplitude and baseline = 0. Setting baseline to\
                   1e-6 to avoid division by zero")
             surround_baseline = 1e-6
-        
+
         # create the rfs
         # not sure why we need to take the transpose here but ok. following
         # parent method from Tomas
@@ -552,7 +551,7 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
         numpy.ndarray
             single prediction given the model
         """
-        
+
         # create the rfs
         # not sure why we need to take the transpose here but ok. following
         # parent method from Tomas
