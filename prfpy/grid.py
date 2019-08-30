@@ -282,9 +282,47 @@ class Iso2DGaussianGridder(Gridder):
 class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
     """Norm_Iso2DGaussianGridder
 
-    Redefining class to use normalization model in iterative fitting
+    Redefining class for normalization model
 
     """
+
+    def create_grid_predictions(self,
+                                gaussian_params,
+                                n_predictions,
+                                n_timepoints,
+                                nb,
+                                sa,
+                                ss,
+                                sb):
+        """create_predictions
+
+        creates predictions for a given set of parameters
+
+        [description]
+
+        Parameters
+        ----------
+        gaussian_params: array size (3), containing prf position and size.
+        n_predictions, n_timepoints: self explanatory, obtained from fitter
+        nb,sa,ss,sb: meshgrid, created in fitter.grid_fit
+
+        """
+
+        predictions = np.zeros((n_predictions, n_timepoints), dtype='float32')
+        
+        for idx in range(n_predictions):
+            predictions[idx,:] = self.return_single_prediction(gaussian_params[0],
+                       gaussian_params[1],
+                       gaussian_params[2],
+                       1.0,
+                       0.0,
+                       nb[idx],
+                       sa[idx],
+                       ss[idx],
+                       sb[idx]).astype('float32')
+
+        return predictions
+
 
     def return_single_prediction(self,
                                  mu_x,
@@ -318,12 +356,15 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
             single prediction given the model
         """
 
+        #to avoid division by 0. in practice, probably never happens
+        if srf_amplitude == 0.0 and surround_baseline == 0.0:
+            print("Warning: srf amplitude and baseline = 0. Setting baseline to\
+                  1e-6 to avoid division by zero")
+            surround_baseline = 1e-6
+        
         # create the rfs
         # not sure why we need to take the transpose here but ok. following
         # parent method from Tomas
-        if srf_amplitude == 0.0 and surround_baseline == 0.0:
-            surround_baseline = 1e-3
-            
 
         prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
