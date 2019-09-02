@@ -7,7 +7,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 
 
-def error_function(parameters, args, data, objective_function, gradient_objective_function=None):
+def error_function(parameters, args, data, objective_function):
     """error_function
 
     Generic error function.
@@ -88,7 +88,7 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
         first element: parameter values,
         second element: rsq value
     """
-    if kwargs['bounds'] is not None:
+    if 'bounds' in kwargs:
 
         if kwargs['gradient_method'] == 'analytic':
 
@@ -97,11 +97,10 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
                 raise IOError
 
             if verbose:
-                print('Using analytic gradientUa')
+                print('Using analytic gradient')
 
             output = minimize(error_function, grid_params, bounds=kwargs['bounds'],
-                              args=(args, data, gridder.return_single_prediction,
-                                    gridder.gradient_single_prediction),
+                              args=(args, data, gridder.return_single_prediction),
                               jac=gradient_error_function,
                               method='L-BFGS-B',
                               options=dict(disp=verbose, maxls=300, ftol=1e-80))
@@ -110,8 +109,7 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
                 print('Using numerical gradient')
 
             output = minimize(error_function, grid_params, bounds=kwargs['bounds'],
-                              args=(args, data,
-                                    gridder.return_single_prediction),
+                              args=(args, data, gridder.return_single_prediction),
                               method='L-BFGS-B',
                               options=dict(disp=verbose, maxls=300, ftol=1e-80))
         else:
