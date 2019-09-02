@@ -88,7 +88,7 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
         first element: parameter values,
         second element: rsq value
     """
-    if 'bounds' in kwargs:
+    if kwargs['bounds'] is not None:
 
         if kwargs['gradient_method'] == 'analytic':
 
@@ -460,10 +460,6 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
                       gridsearch_params=None,
                       args={}):
 
-        if 'bounds' not in self.__dict__:
-            print("Please specify bounds on parameters")
-            raise IOError
-
         if gridsearch_params is None:
             assert hasattr(
                 self, 'gridsearch_params'), 'First use self.grid_fit, or provide grid search parameters!'
@@ -525,9 +521,6 @@ class DoG_Iso2DGaussianFitter(Iso2DGaussianFitter):
                       gridsearch_params=None,
                       args={}):
 
-        if 'bounds' not in self.__dict__:
-            print("Please specify bounds on parameters")
-            raise IOError
 
         if gridsearch_params is None:
             assert hasattr(
