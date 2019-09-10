@@ -1,8 +1,6 @@
 import numpy as np
-import scipy as sp
 from scipy.optimize import fmin_powell, minimize
 import bottleneck as bn
-from tqdm import tqdm
 
 from joblib import Parallel, delayed
 
@@ -36,7 +34,7 @@ def error_function(parameters, args, data, objective_function):
 def gradient_error_function(parameters, args, data, objective_function, gradient_objective_function):
     """error_function
 
-    Generic error function.
+    Generic gradieht error function.
 
     [description]
 
@@ -60,7 +58,7 @@ def gradient_error_function(parameters, args, data, objective_function, gradient
                      * gradient_objective_function(*list(parameters), **args), axis=-1)
 
 
-def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
+def iterative_search(gridder, data, start_params, args, verbose=True, **kwargs):
     """iterative_search
 
     function to be called using joblib's Parallel function for the iterative search stage.
@@ -99,23 +97,23 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
             if verbose:
                 print('Using analytic gradient')
 
-            output = minimize(error_function, grid_params, bounds=kwargs['bounds'],
+            output = minimize(error_function, start_params, bounds=kwargs['bounds'],
                               args=(args, data, gridder.return_single_prediction),
                               jac=gradient_error_function,
                               method='L-BFGS-B',
                               options=dict(disp=verbose, maxls=300, ftol=1e-80))
         elif kwargs['gradient_method'] == 'numerical':
             if verbose:
-                print('Using numerical gradient')
+                print('Using numerical gradientu')
 
-            output = minimize(error_function, grid_params, bounds=kwargs['bounds'],
+            output = minimize(error_function, start_params, bounds=kwargs['bounds'],
                               args=(args, data, gridder.return_single_prediction),
                               method='L-BFGS-B',
                               options=dict(disp=verbose, maxls=300, ftol=1e-80))
         else:
             if verbose:
                 print('Using no-gradient minimization')
-            output = minimize(error_function, grid_params, bounds=kwargs['bounds'],
+            output = minimize(error_function, start_params, bounds=kwargs['bounds'],
                               args=(args, data,
                                     gridder.return_single_prediction),
                               method='trust-constr',
@@ -125,7 +123,7 @@ def iterative_search(gridder, data, grid_params, args, verbose=True, **kwargs):
 
     else:
 
-        output = fmin_powell(error_function, grid_params, xtol=1e-6, ftol=1e-6,
+        output = fmin_powell(error_function, start_params, xtol=1e-6, ftol=1e-6,
                              args=(args, data, gridder.return_single_prediction),
                              full_output=True, disp=verbose)
 
@@ -144,7 +142,10 @@ class Fitter:
 
     """
 
-    def __init__(self, data, gridder, n_jobs=1, **kwargs):
+    def __init__(self, data, gridder, n_jobs=1, bounds=None,
+                 gradient_method='numerical',
+                 fit_hrf=False,
+                 **kwargs):
         """__init__ sets up data and gridder
 
         Parameters
@@ -162,6 +163,9 @@ class Fitter:
         self.data = data.astype('float32')
         self.gridder = gridder
         self.n_jobs = n_jobs
+        self.bounds = bounds
+        self.gradient_method = gradient_method
+        self.fit_hrf = fit_hrf
         self.__dict__.update(kwargs)
 
         self.n_units = self.data.shape[0]
@@ -170,16 +174,6 @@ class Fitter:
         # immediately convert nans to nums
         self.data = np.nan_to_num(data)
         self.data_var = self.data.var(axis=-1)
-
-        if 'bounds' in self.__dict__:
-            self.bounds = self.__dict__['bounds']
-        else:
-            self.bounds = None
-
-        if 'gradient_method' in self.__dict__:
-            self.gradient_method = self.__dict__['gradient_method']
-        else:
-            self.gradient_method = 'numerical'
 
 
 class Iso2DGaussianFitter(Fitter):
@@ -191,15 +185,10 @@ class Iso2DGaussianFitter(Fitter):
 
     """
 
-    def __init__(self, data, gridder, n_jobs=1, fit_css=False, **kwargs):
-        self.fit_css = fit_css
-        super().__init__(data=data, gridder=gridder, n_jobs=n_jobs, **kwargs)
-
     def grid_fit(self,
                  ecc_grid,
                  polar_grid,
                  size_grid,
-                 n_grid=[1],
                  verbose=False,
                  n_batches=1000):
         """grid_fit
@@ -216,8 +205,150 @@ class Iso2DGaussianFitter(Fitter):
             to be filled in by user
         size_grid : list
             to be filled in by user
-        n_grid : list, optional
-            the default is [1]
+        """
+        # let the gridder create the timecourses
+        self.gridder.create_grid_predictions(ecc_grid=ecc_grid,
+                                             polar_grid=polar_grid,
+                                             size_grid=size_grid)
+
+        def rsq_betas_for_pred_analytic(data, vox_num, predictions, n_timepoints, data_var, sum_preds, square_norm_preds):
+            result = np.zeros((data.shape[0], 4), dtype='float32')
+            for vox_data, num, idx in zip(data, vox_num, np.arange(data.shape[0])):
+                sumd = np.sum(vox_data)
+
+                slopes = (n_timepoints*np.dot(vox_data, predictions.T)-sumd*sum_preds) /\
+                    (n_timepoints*square_norm_preds-sum_preds**2)
+                baselines = (sumd - slopes*sum_preds)/n_timepoints
+
+                resid = np.linalg.norm(
+                    (vox_data-slopes[..., np.newaxis]*predictions-baselines[..., np.newaxis]), axis=-1, ord=2)
+
+                best_pred_voxel = np.argmin(resid)
+
+                rsq = 1-resid[best_pred_voxel]**2/(n_timepoints*data_var[num])
+
+                result[idx, :] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
+
+            return result
+
+        self.gridder.predictions = self.gridder.predictions.astype('float32')
+        self.sum_preds = np.sum(self.gridder.predictions, axis=-1)
+        self.square_norm_preds = np.linalg.norm(
+            self.gridder.predictions, axis=-1, ord=2)**2
+
+        split_indices = np.array_split(
+            np.arange(self.data.shape[0]), n_batches)
+        data_batches = np.array_split(self.data, n_batches, axis=0)
+        if verbose:
+            print("Each batch contains " +
+                  str(data_batches[0].shape[0])+" voxels.")
+
+        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
+            delayed(rsq_betas_for_pred_analytic)(
+                data=data,
+                vox_num=vox_num,
+                predictions=self.gridder.predictions,
+                n_timepoints=self.n_timepoints,
+                data_var=self.data_var,
+                sum_preds=self.sum_preds,
+                square_norm_preds=self.square_norm_preds)
+            for data, vox_num in zip(data_batches, split_indices))
+
+        grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
+
+        max_rsqs = grid_search_rbs[:, 0].astype('int')
+        self.gridsearch_r2 = grid_search_rbs[:, 1]
+        self.best_fitting_baseline = grid_search_rbs[:, 2]
+        self.best_fitting_beta = grid_search_rbs[:, 3]
+
+        self.gridsearch_params = np.array([
+            self.gridder.xs.ravel()[max_rsqs],
+            self.gridder.ys.ravel()[max_rsqs],
+            self.gridder.sizes.ravel()[max_rsqs],
+            self.best_fitting_beta,
+            self.best_fitting_baseline,
+            self.gridsearch_r2
+        ]).T
+
+    def iterative_fit(self,
+                      rsq_threshold,
+                      verbose=False,
+                      starting_params=None,
+                      args={}):
+        if starting_params is None:
+            if hasattr(self, 'gridsearch_params'):
+                self.starting_params = self.gridsearch_params
+            else:
+                print('First use self.grid_fit, or provide starting parameters!')
+                raise IOError
+        else:
+            self.starting_params = starting_params
+
+        self.rsq_mask = self.starting_params[:, -1] > rsq_threshold
+
+
+        if self.fit_hrf:
+            self.starting_params = np.insert(
+                self.starting_params, -1, 1.0, axis=-1)
+            self.starting_params = np.insert(
+                self.starting_params, -1, 0.0, axis=-1)
+
+
+        # create output array
+        self.iterative_search_params = np.zeros_like(self.starting_params)
+
+        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
+            delayed(iterative_search)(self.gridder,
+                                      data,
+                                      start_params,
+                                      args=args,
+                                      verbose=verbose,
+                                      bounds=self.bounds,
+                                      gradient_method=self.gradient_method)
+            for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
+        self.iterative_search_params[self.rsq_mask] = np.array(
+            iterative_search_params)
+
+
+class CSS_Iso2DGaussianFitter(Iso2DGaussianFitter):
+
+    def __init__(self, data, gridder, n_jobs=1, bounds=None,
+                 gradient_method='numerical',
+                 fit_hrf=False,
+                 previous_gaussian_fitter=None,
+                 **kwargs):
+        if previous_gaussian_fitter is not None:
+            self.previous_gaussian_fitter = previous_gaussian_fitter
+
+        super().__init__(data, gridder, n_jobs=1, bounds=None,
+                 gradient_method='numerical',
+                 fit_hrf=False
+                 **kwargs)
+
+
+
+    def grid_fit(self,
+                 ecc_grid,
+                 polar_grid,
+                 size_grid,
+                 n_grid,
+                 verbose=False,
+                 n_batches=1000):
+        """grid_fit
+
+        performs grid fit using provided grids and predictor definitions
+
+        [description]
+
+        Parameters
+        ----------
+        ecc_grid : list
+            to be filled in by user
+        polar_grid : list
+            to be filled in by user
+        size_grid : list
+            to be filled in by user
+        n_grid : list, 
         """
         # let the gridder create the timecourses
         self.gridder.create_grid_predictions(ecc_grid=ecc_grid,
@@ -288,36 +419,52 @@ class Iso2DGaussianFitter(Fitter):
     def iterative_fit(self,
                       rsq_threshold,
                       verbose=False,
-                      gridsearch_params=None,
+                      starting_params=None,
                       args={}):
-        if gridsearch_params is None:
-            assert hasattr(
-                self, 'gridsearch_params'), 'First use self.grid_fit, or provide grid search parameters!'
+        if starting_params is None:
+            if hasattr(self, 'gridsearch_params'):
+                if self.fit_hrf:
+                    self.starting_params =  np.insert ...
+                else:
+                    self.starting_params = self.gridsearch_params
+
+            elif hasattr(self, 'previous_gaussian_fitter'):
+                if self.previous_gaussian_fitter.fit_hrf:
+                    if self.fit_hrf:
+                        self.starting_params =
+                    else:
+                        self.starting_params =
+
+                else:
+                    if self.fit_hrf:
+                        self.starting_params =
+                    else:
+                        self.starting_params =
+
+            else:
+                print('First use self.grid_fit, previous Iso2DGaussianFitter,\
+                      or provide explicit starting parameters!')
+                raise IOError
         else:
-            self.gridsearch_params = gridsearch_params
+            self.starting_params = starting_params
 
-        if not self.fit_css:  # if we don't want to fit the n, we take it out of the parameters
-            parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 2)
-        else:
-            parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 1)
+        self.rsq_mask = self.starting_params[:, -1] > rsq_threshold
 
-        self.rsq_mask = self.gridsearch_params[:, -1] > rsq_threshold
 
-        # create output array, knowing that iterative search adds rsq (+1)
-        self.iterative_search_params = np.zeros(
-            (self.n_units, len(parameter_mask) + 1))
+        # create output array
+        self.iterative_search_params = np.zeros_like(self.starting_params)
+
         iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
             delayed(iterative_search)(self.gridder,
                                       data,
-                                      grid_pars,
+                                      start_params,
                                       args=args,
                                       verbose=verbose,
                                       bounds=self.bounds,
                                       gradient_method=self.gradient_method)
-            for (data, grid_pars) in zip(self.data[self.rsq_mask], self.gridsearch_params[self.rsq_mask][:, parameter_mask]))
+            for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
         self.iterative_search_params[self.rsq_mask] = np.array(
             iterative_search_params)
-
 
 class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
     """Norm_Iso2DGaussianFitter
@@ -466,24 +613,8 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
         else:
             self.gridsearch_params = gridsearch_params
 
-        if self.gridsearch_params.shape[-1] < 8:
-            # here I inject starting values for normalization model extra
-            # parameters, if needed (unnecessary with norm grid)
 
-            # neural baseline
-            self.gridsearch_params = np.insert(
-                self.gridsearch_params, 5, 1e3, axis=-1)
-            # surround amplitude
-            self.gridsearch_params = np.insert(
-                self.gridsearch_params, 6, 1.0, axis=-1)  # self.gridsearch_params[:,3]/2
-            # surround size
-            self.gridsearch_params = np.insert(
-                self.gridsearch_params, 7, 2*self.gridder.stimulus.max_ecc, axis=-1)
-            # surround baseline
-            self.gridsearch_params = np.insert(
-                self.gridsearch_params, 8, 1.0, axis=-1)
-
-        # take rsq and exponent out of the parameters
+        # take rsq out of the parameters
         parameter_mask = np.arange(self.gridsearch_params.shape[-1] - 1)
 
         self.rsq_mask = self.gridsearch_params[:, -1] > rsq_threshold
