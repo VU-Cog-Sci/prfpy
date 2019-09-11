@@ -278,6 +278,13 @@ class Iso2DGaussianFitter(Fitter):
         if starting_params is None:
             if hasattr(self, 'gridsearch_params'):
                 self.starting_params = self.gridsearch_params
+
+                if self.fit_hrf:
+                    self.starting_params = np.insert(
+                        self.starting_params, -1, 1.0, axis=-1)
+                    self.starting_params = np.insert(
+                        self.starting_params, -1, 0.0, axis=-1)
+
             else:
                 print('First use self.grid_fit, or provide starting parameters!')
                 raise IOError
@@ -285,14 +292,6 @@ class Iso2DGaussianFitter(Fitter):
             self.starting_params = starting_params
 
         self.rsq_mask = self.starting_params[:, -1] > rsq_threshold
-
-
-        if self.fit_hrf:
-            self.starting_params = np.insert(
-                self.starting_params, -1, 1.0, axis=-1)
-            self.starting_params = np.insert(
-                self.starting_params, -1, 0.0, axis=-1)
-
 
         # create output array
         self.iterative_search_params = np.zeros_like(self.starting_params)
@@ -318,7 +317,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                  previous_gaussian_fitter=None,
                  **kwargs):
         """
-        
+        generic class to extend Gaussian model
 
         Parameters
         ----------
@@ -361,7 +360,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                 self.fit_hrf = self.previous_gaussian_fitter.fit_hrf
 
 
-    def insert_new_model_params(old_params):
+    def insert_new_model_params(self, old_params):
         """
         empty function, to be redefined for each model
 
@@ -388,7 +387,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
         if starting_params is None and not hasattr(self, 'gridsearch_params') and hasattr(self, 'previous_gaussian_fitter'):
 
-            self.starting_params = self.insert_new_model_params(self.previous_gaussian_fitter.iterative_search_params)
+            starting_params = self.insert_new_model_params(self.previous_gaussian_fitter.iterative_search_params)
 
         super().iterative_fit(rsq_threshold=rsq_threshold,
              verbose=verbose, starting_params=starting_params, args=args)
@@ -398,141 +397,44 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
 class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
-    def insert_new_model_params(old_params):
+    def insert_new_model_params(self, old_params):
+        #insert CSS exponent
         new_params = np.insert(old_params, 5, 1.0, axis=-1)
         return new_params
 
-    def grid_fit(self,
-                 ecc_grid,
-                 polar_grid,
-                 size_grid,
-                 n_grid,
-                 verbose=False,
-                 n_batches=1000):
-        """grid_fit
 
-        performs grid fit using provided grids and predictor definitions
 
-        [description]
+class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
+    """DoG_Iso2DGaussianFitter
+
+    Class that implements a grid fit on a two-dimensional isotropic
+    difference of Gaussians pRF model, leveraging a Gridder object.
+    The gridder result is used as starting guess to fit the DoG model
+    with an iterative fitting procedure
+    """
+
+    def insert_new_model_params(self, old_params):
+        """
+        This is for completeness, but in practice won't be used since there is an
+        efficient grid_fit for the normalization model (below)
 
         Parameters
         ----------
-        ecc_grid : list
-            to be filled in by user
-        polar_grid : list
-            to be filled in by user
-        size_grid : list
-            to be filled in by user
-        n_grid : list, 
+        old_params : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        new_params : TYPE
+            DESCRIPTION.
+
         """
-        # let the gridder create the timecourses
-        self.gridder.create_grid_predictions(ecc_grid=ecc_grid,
-                                             polar_grid=polar_grid,
-                                             size_grid=size_grid,
-                                             n_grid=n_grid)
+        #surround amplitude
+        new_params = np.insert(old_params, 5, 0.0, axis=-1)
+        #surround size
+        new_params = np.insert(new_params, 6, self.gridder.stimulus.max_ecc, axis=-1)
 
-        def rsq_betas_for_pred_analytic(data, vox_num, predictions, n_timepoints, data_var, sum_preds, square_norm_preds):
-            result = np.zeros((data.shape[0], 4), dtype='float32')
-            for vox_data, num, idx in zip(data, vox_num, np.arange(data.shape[0])):
-                sumd = np.sum(vox_data)
-
-                slopes = (n_timepoints*np.dot(vox_data, predictions.T)-sumd*sum_preds) /\
-                    (n_timepoints*square_norm_preds-sum_preds**2)
-                baselines = (sumd - slopes*sum_preds)/n_timepoints
-
-                resid = np.linalg.norm(
-                    (vox_data-slopes[..., np.newaxis]*predictions-baselines[..., np.newaxis]), axis=-1, ord=2)
-
-                best_pred_voxel = np.argmin(resid)
-
-                rsq = 1-resid[best_pred_voxel]**2/(n_timepoints*data_var[num])
-
-                result[idx, :] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
-
-            return result
-
-        self.gridder.predictions = self.gridder.predictions.astype('float32')
-        self.sum_preds = np.sum(self.gridder.predictions, axis=-1)
-        self.square_norm_preds = np.linalg.norm(
-            self.gridder.predictions, axis=-1, ord=2)**2
-
-        split_indices = np.array_split(
-            np.arange(self.data.shape[0]), n_batches)
-        data_batches = np.array_split(self.data, n_batches, axis=0)
-        if verbose:
-            print("Each batch contains " +
-                  str(data_batches[0].shape[0])+" voxels.")
-
-        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
-            delayed(rsq_betas_for_pred_analytic)(
-                data=data,
-                vox_num=vox_num,
-                predictions=self.gridder.predictions,
-                n_timepoints=self.n_timepoints,
-                data_var=self.data_var,
-                sum_preds=self.sum_preds,
-                square_norm_preds=self.square_norm_preds)
-            for data, vox_num in zip(data_batches, split_indices))
-
-        grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
-
-        max_rsqs = grid_search_rbs[:, 0].astype('int')
-        self.gridsearch_r2 = grid_search_rbs[:, 1]
-        self.best_fitting_baseline = grid_search_rbs[:, 2]
-        self.best_fitting_beta = grid_search_rbs[:, 3]
-
-        self.gridsearch_params = np.array([
-            self.gridder.xs.ravel()[max_rsqs],
-            self.gridder.ys.ravel()[max_rsqs],
-            self.gridder.sizes.ravel()[max_rsqs],
-            self.best_fitting_beta,
-            self.best_fitting_baseline,
-            self.gridder.ns.ravel()[max_rsqs],
-            self.gridsearch_r2
-        ]).T
-
-    def iterative_fit(self,
-                      rsq_threshold,
-                      verbose=False,
-                      starting_params=None,
-                      args={}):
-        if starting_params is None:
-            if hasattr(self, 'gridsearch_params'):
-                if self.fit_hrf:
-                    #insert hrf params
-                    self.starting_params =  np.insert(self.gridsearch_params, -1, 1.0, axis=-1)
-                    self.starting_params =  np.insert(self.starting_params, -1, 0.0, axis=-1)
-                else:
-                    self.starting_params = self.gridsearch_params
-
-            elif hasattr(self, 'previous_gaussian_fitter'):
-                #insert CSS exponent
-                self.starting_params = np.insert(self.previous_gaussian_fitter.iterative_search_params, 5, 1.0, axis=-1)
-
-            else:
-                print('First use self.grid_fit, Iso2DGaussianFitter.iterative_fit,\
-                      or provide explicit starting parameters!')
-                raise IOError
-        else:
-            self.starting_params = starting_params
-
-        self.rsq_mask = self.starting_params[:, -1] > rsq_threshold
-
-
-        # create output array
-        self.iterative_search_params = np.zeros_like(self.starting_params)
-
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
-            delayed(iterative_search)(self.gridder,
-                                      data,
-                                      start_params,
-                                      args=args,
-                                      verbose=verbose,
-                                      bounds=self.bounds,
-                                      gradient_method=self.gradient_method)
-            for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
-        self.iterative_search_params[self.rsq_mask] = np.array(
-            iterative_search_params)
+        return new_params
 
 class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     """Norm_Iso2DGaussianFitter
@@ -543,6 +445,33 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     with an iterative fitting procedure
 
     """
+
+    def insert_new_model_params(self, old_params):
+        """
+        This is for completeness, but in practice won't be used since there is an
+        efficient grid_fit for the normalization model (below)
+
+        Parameters
+        ----------
+        old_params : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        new_params : TYPE
+            DESCRIPTION.
+
+        """
+        #surround amplitude
+        new_params = np.insert(old_params, 5, 0.0, axis=-1)
+        #surround size
+        new_params = np.insert(new_params, 6, self.gridder.stimulus.max_ecc, axis=-1)
+        #neural baseline
+        new_params = np.insert(new_params, 7, 0.0, axis=-1)
+        #surround baseline
+        new_params = np.insert(new_params, 8, 1.0, axis=-1)
+
+        return new_params
 
     def grid_fit(self,
                  surround_amplitude_grid,
@@ -679,107 +608,6 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             self.gridsearch_r2
         ]).T
 
-    def iterative_fit(self,
-                      rsq_threshold,
-                      verbose=False,
-                      starting_params=None,
-                      args={}):
-        if starting_params is None:
-            if hasattr(self, 'gridsearch_params'):
-                if self.fit_hrf:
-                    #insert hrf params
-                    self.starting_params =  np.insert(self.gridsearch_params, -1, 1.0, axis=-1)
-                    self.starting_params =  np.insert(self.starting_params, -1, 0.0, axis=-1)
-                else:
-                    self.starting_params = self.gridsearch_params
-
-            elif hasattr(self, 'previous_gaussian_fitter'):
-                print("Warning: iterfitting normalization model without grid stage")
-                #surround amplitude
-                self.starting_params = np.insert(self.previous_gaussian_fitter.iterative_search_params, 5, 0.0, axis=-1)
-                #surround size
-                self.starting_params = np.insert(self.starting_params, 6, self.gridder.stimulus.max_ecc, axis=-1)
-                #neural baseline
-                self.starting_params = np.insert(self.starting_params, 7, 0.0, axis=-1)
-                #surround baseline
-                self.starting_params = np.insert(self.starting_params, 8, 1.0, axis=-1)
-
-            else:
-                print('First use self.grid_fit, Iso2DGaussianFitter.iterative_fit,\
-                      or provide explicit starting parameters!')
-                raise IOError
-        else:
-            self.starting_params = starting_params
-
-        self.rsq_mask = self.starting_params[:, -1] > rsq_threshold
 
 
-        # create output array
-        self.iterative_search_params = np.zeros_like(self.starting_params)
 
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
-            delayed(iterative_search)(self.gridder,
-                                      data,
-                                      start_params,
-                                      args=args,
-                                      verbose=verbose,
-                                      bounds=self.bounds,
-                                      gradient_method=self.gradient_method)
-            for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
-        self.iterative_search_params[self.rsq_mask] = np.array(
-            iterative_search_params)
-
-
-class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
-    """DoG_Iso2DGaussianFitter
-
-    Class that implements a grid fit on a two-dimensional isotropic
-    difference of Gaussians pRF model, leveraging a Gridder object.
-    The gridder result is used as starting guess to fit the DoG model
-    with an iterative fitting procedure
-
-    """
-    def iterative_fit(self,
-                      rsq_threshold,
-                      verbose=False,
-                      starting_params=None,
-                      args={}):
-        if starting_params is None:
-            if hasattr(self, 'gridsearch_params'):
-                if self.fit_hrf:
-                    #insert hrf params
-                    self.starting_params =  np.insert(self.gridsearch_params, -1, 1.0, axis=-1)
-                    self.starting_params =  np.insert(self.starting_params, -1, 0.0, axis=-1)
-                else:
-                    self.starting_params = self.gridsearch_params
-
-            elif hasattr(self, 'previous_gaussian_fitter'):
-                #surround amplitude
-                self.starting_params = np.insert(self.previous_gaussian_fitter.iterative_search_params, 5, 0.0, axis=-1)
-                #surround size
-                self.starting_params = np.insert(self.starting_params, 6, self.gridder.stimulus.max_ecc, axis=-1)
-
-            else:
-                print('First use self.grid_fit, Iso2DGaussianFitter.iterative_fit,\
-                      or provide explicit starting parameters!')
-                raise IOError
-        else:
-            self.starting_params = starting_params
-
-        self.rsq_mask = self.starting_params[:, -1] > rsq_threshold
-
-
-        # create output array
-        self.iterative_search_params = np.zeros_like(self.starting_params)
-
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
-            delayed(iterative_search)(self.gridder,
-                                      data,
-                                      start_params,
-                                      args=args,
-                                      verbose=verbose,
-                                      bounds=self.bounds,
-                                      gradient_method=self.gradient_method)
-            for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
-        self.iterative_search_params[self.rsq_mask] = np.array(
-            iterative_search_params)
