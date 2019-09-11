@@ -5,7 +5,7 @@ import bottleneck as bn
 from joblib import Parallel, delayed
 
 
-def error_function(parameters, args, data, objective_function):
+def error_function(parameters, args, data, objective_function, gradient_objective_function=None):
     """error_function
 
     Generic error function.
@@ -98,18 +98,18 @@ def iterative_search(gridder, data, start_params, args, verbose=True, **kwargs):
                 print('Using analytic gradient')
 
             output = minimize(error_function, start_params, bounds=kwargs['bounds'],
-                              args=(args, data, gridder.return_single_prediction),
+                              args=(args, data, gridder.return_single_prediction, gridder.gradient_single_prediction),
                               jac=gradient_error_function,
                               method='L-BFGS-B',
-                              options=dict(disp=verbose))
+                              options=dict(maxls=50, disp=verbose))
         elif kwargs['gradient_method'] == 'numerical':
             if verbose:
-                print('Using numerical gradientu')
+                print('Using numerical gradient')
 
             output = minimize(error_function, start_params, bounds=kwargs['bounds'],
                               args=(args, data, gridder.return_single_prediction),
                               method='L-BFGS-B',
-                              options=dict(disp=verbose))
+                              options=dict(maxls=50, disp=verbose))
         else:
             if verbose:
                 print('Using no-gradient minimization')
@@ -365,7 +365,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
     def insert_new_model_params(self, old_params):
         """
         function inserting new model parameters for iterfitting, 
-        to be redefined appropriately for each model
+        to be redefined appropriately for each model (see below for examples)
 
         Parameters
         ----------
@@ -432,6 +432,23 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     Divisive Normalization model
 
     """
+
+    def insert_new_model_params(self, old_params):
+        """
+        This function is mostly unused since there is an
+        efficient grid_fit for the normalization model (below)
+
+        """
+        #surround amplitude
+        new_params = np.insert(old_params, 5, 0.0, axis=-1)
+        #surround size
+        new_params = np.insert(new_params, 6, self.gridder.stimulus.max_ecc, axis=-1)
+        #neural baseline
+        new_params = np.insert(new_params, 7, 0.0, axis=-1)
+        #surround baseline
+        new_params = np.insert(new_params, 8, 1.0, axis=-1)
+
+        return new_params
 
     def grid_fit(self,
                  surround_amplitude_grid,
@@ -568,22 +585,5 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             self.gridsearch_r2
         ]).T
 
-
-    def insert_new_model_params(self, old_params):
-        """
-        This function is for completeness, mostly unused since there is an
-        efficient grid_fit for the normalization model (above)
-
-        """
-        #surround amplitude
-        new_params = np.insert(old_params, 5, 0.0, axis=-1)
-        #surround size
-        new_params = np.insert(new_params, 6, self.gridder.stimulus.max_ecc, axis=-1)
-        #neural baseline
-        new_params = np.insert(new_params, 7, 0.0, axis=-1)
-        #surround baseline
-        new_params = np.insert(new_params, 8, 1.0, axis=-1)
-
-        return new_params
 
 
