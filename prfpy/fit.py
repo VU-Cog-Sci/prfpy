@@ -101,7 +101,7 @@ def iterative_search(gridder, data, start_params, args, verbose=True, **kwargs):
                               args=(args, data, gridder.return_single_prediction),
                               jac=gradient_error_function,
                               method='L-BFGS-B',
-                              options=dict(disp=verbose, maxls=300, ftol=1e-80))
+                              options=dict(disp=verbose))
         elif kwargs['gradient_method'] == 'numerical':
             if verbose:
                 print('Using numerical gradientu')
@@ -109,7 +109,7 @@ def iterative_search(gridder, data, start_params, args, verbose=True, **kwargs):
             output = minimize(error_function, start_params, bounds=kwargs['bounds'],
                               args=(args, data, gridder.return_single_prediction),
                               method='L-BFGS-B',
-                              options=dict(disp=verbose, maxls=300, ftol=1e-80))
+                              options=dict(disp=verbose))
         else:
             if verbose:
                 print('Using no-gradient minimization')
@@ -317,16 +317,90 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                  fit_hrf=False,
                  previous_gaussian_fitter=None,
                  **kwargs):
+        """
+        
+
+        Parameters
+        ----------
+        data : TYPE
+            DESCRIPTION.
+        gridder : TYPE
+            DESCRIPTION.
+        n_jobs : TYPE, optional
+            DESCRIPTION. The default is 1.
+        bounds : TYPE, optional
+            DESCRIPTION. The default is None.
+        gradient_method : TYPE, optional
+            DESCRIPTION. The default is 'numerical'.
+        fit_hrf : TYPE, optional
+            DESCRIPTION. The default is False.
+        previous_gaussian_fitter : TYPE, optional
+            DESCRIPTION. The default is None.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
 
         if previous_gaussian_fitter is not None:
             self.previous_gaussian_fitter = previous_gaussian_fitter
 
-        super().__init__(data, gridder, n_jobs=1, bounds=None,
-                 gradient_method='numerical',
-                 fit_hrf=False
+
+        super().__init__(data, gridder, n_jobs=n_jobs, bounds=bounds,
+                 gradient_method=gradient_method,
+                 fit_hrf=fit_hrf,
                  **kwargs)
 
+        if hasattr(self, 'previous_gaussian_fitter'):
+            if self.previous_gaussian_fitter.fit_hrf != self.fit_hrf:
+                print("Warning: fit_hrf was "+str(self.previous_gaussian_fitter.fit_hrf)+" in previous_\
+                      gaussian_fitter, but not in current model. Overriding to match.")
+                self.fit_hrf = self.previous_gaussian_fitter.fit_hrf
+
+
+    def insert_new_model_params(old_params):
+        """
+        empty function, to be redefined for each model
+
+        Parameters
+        ----------
+        old_params : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        new_params : TYPE
+            DESCRIPTION.
+
+        """
+
+        new_params = old_params
+        return new_params
+
+    def iterative_fit(self,
+                      rsq_threshold,
+                      verbose=False,
+                      starting_params=None,
+                      args={}):
+
+        if starting_params is None and not hasattr(self, 'gridsearch_params') and hasattr(self, 'previous_gaussian_fitter'):
+
+            self.starting_params = self.insert_new_model_params(self.previous_gaussian_fitter.iterative_search_params)
+
+        super().iterative_fit(rsq_threshold=rsq_threshold,
+             verbose=verbose, starting_params=starting_params, args=args)
+
+
+
+
 class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
+
+    def insert_new_model_params(old_params):
+        new_params = np.insert(old_params, 5, 1.0, axis=-1)
+        return new_params
 
     def grid_fit(self,
                  ecc_grid,
