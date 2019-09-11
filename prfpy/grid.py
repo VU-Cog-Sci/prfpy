@@ -221,10 +221,10 @@ class Iso2DGaussianGridder(Gridder):
                                  mu_x,
                                  mu_y,
                                  size,
-                                 beta=1.0,
-                                 baseline=0.0,
-                                 hrf_1=1.0,
-                                 hrf_2=0.0):
+                                 beta,
+                                 baseline,
+                                 hrf_1=None,
+                                 hrf_2=None):
         """return_single_prediction
 
         returns the prediction for a single set of parameters.
@@ -249,6 +249,10 @@ class Iso2DGaussianGridder(Gridder):
         numpy.ndarray
             single prediction given the model
         """
+        if hrf_1 is None or hrf_2 is None:
+            current_hrf = self.hrf
+        else:
+            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
 
         # create the single rf
         rf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
@@ -261,7 +265,7 @@ class Iso2DGaussianGridder(Gridder):
         neural_tc = stimulus_through_prf(rf, dm)
 
         tc = signal.convolve(neural_tc[0, :],
-                                 self.create_hrf([1.0, hrf_1, hrf_2]),
+                                 current_hrf,
                                  mode='full')[:dm.shape[-1]].T
             
 
@@ -279,90 +283,15 @@ class Iso2DGaussianGridder(Gridder):
 
 class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
-
-    def create_rfs(self):
-        """create_rfs
-
-        creates rfs for the grid
-
-        """
-        assert hasattr(self, 'xs'), "please set up the grid first"
-        self.grid_rfs = gauss2D_iso_cart(
-            x=self.stimulus.x_coordinates[..., np.newaxis],
-            y=self.stimulus.y_coordinates[..., np.newaxis],
-            mu=np.array([self.xs.ravel(), self.ys.ravel()]),
-            sigma=self.sizes.ravel())
-        # won't have to perform exponentiation if all ns are one (the default
-        # value)
-        if len(np.unique(self.ns)) != 1:
-            self.grid_rfs **= self.ns.ravel()
-        self.grid_rfs = self.grid_rfs.T
-
-    def stimulus_times_prfs(self):
-        """stimulus_times_prfs
-
-        creates timecourses for each of the rfs in self.grid_rfs
-
-        """
-        assert hasattr(self, 'grid_rfs'), "please create the rfs first"
-        self.predictions = stimulus_through_prf(
-            self.grid_rfs, self.convolved_design_matrix)
-
-
-    def create_grid_predictions(self,
-                                ecc_grid,
-                                polar_grid,
-                                size_grid,
-                                n_grid=[1]):
-        """create_predictions
-
-        creates predictions for a given set of parameters
-
-        [description]
-
-        Parameters
-        ----------
-        ecc_grid : list
-            to be filled in by user
-        polar_grid : list
-            to be filled in by user
-        size_grid : list
-            to be filled in by user
-        n_grid : list, optional
-            to be filled in by user
-            (the default is [1])
-        """
-        assert ecc_grid is not None and polar_grid is not None and size_grid is not None, \
-            "please fill in all spatial grids"
-
-        self.eccs, self.polars, self.sizes, self.ns = np.meshgrid(
-            ecc_grid, polar_grid, size_grid, n_grid)
-        self.xs, self.ys = np.sin(self.polars) * \
-            self.eccs, np.cos(self.polars) * self.eccs
-
-        self.create_rfs()
-        self.stimulus_times_prfs()
-
-        if self.filter_predictions:
-            self.predictions = sgfilter_predictions(self.predictions,
-                                                    window_length=self.window_length,
-                                                    polyorder=self.polyorder,
-                                                    highpass=self.highpass,
-                                                    add_mean=self.add_mean,
-                                                    task_lengths=self.task_lengths)
-            self.filtered_predictions = True
-        else:
-            self.filtered_predictions = False
-
     def return_single_prediction(self,
                                  mu_x,
                                  mu_y,
                                  size,
-                                 beta=1.0,
-                                 baseline=0.0,
-                                 n=1.0,
-                                 hrf_1=1.0,
-                                 hrf_2=0.0):
+                                 beta,
+                                 baseline,
+                                 n,
+                                 hrf_1=None,
+                                 hrf_2=None):
         """return_single_prediction
 
         returns the prediction for a single set of parameters.
@@ -389,6 +318,12 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
         numpy.ndarray
             single prediction given the model
         """
+
+        if hrf_1 is None or hrf_2 is None:
+            current_hrf = self.hrf
+        else:
+            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
+
         # create the single rf
         rf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                               y=self.stimulus.y_coordinates[..., np.newaxis],
@@ -399,7 +334,7 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
         neural_tc = stimulus_through_prf(rf, dm)**n
 
         tc = signal.convolve(neural_tc[0, :],
-                                 self.create_hrf([1.0, hrf_1, hrf_2]),
+                                 current_hrf,
                                  mode='full')[:dm.shape[-1]].T
             
 
@@ -470,8 +405,8 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                  srf_size,
                                  neural_baseline,
                                  surround_baseline,
-                                 hrf_1=1.0,
-                                 hrf_2=0.0
+                                 hrf_1=None,
+                                 hrf_2=None
                                  ):
         """return_single_prediction
 
@@ -492,6 +427,11 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         numpy.ndarray
             single prediction given the model
         """
+
+        if hrf_1 is None or hrf_2 is None:
+            current_hrf = self.hrf
+        else:
+            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
 
         # to avoid division by 0. in practice, probably never happens
         if srf_amplitude == 0.0 and surround_baseline == 0.0:
@@ -521,7 +461,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
             (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline)
 
         tc = signal.convolve(neural_tc[0, :],
-                             self.create_hrf([1.0, hrf_1, hrf_2]),
+                             current_hrf,
                              mode='full')[:dm.shape[-1]].T
 
 
@@ -546,8 +486,8 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                    srf_size,
                                    neural_baseline,
                                    surround_baseline,
-                                   hrf_1=1.0,
-                                   hrf_2=0.0
+                                   hrf_1=None,
+                                   hrf_2=None
                                    ):
         """gradient_single_prediction
 
@@ -569,6 +509,10 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
             single prediction given the model
         """
 
+        if hrf_1 is None or hrf_2 is None:
+            current_hrf = self.hrf
+        else:
+            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
         # create the rfs
         # not sure why we need to take the transpose here but ok. following
         # parent method from Tomas
@@ -636,7 +580,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         for i in range(gradient.shape[0]):
             gradient[i, :] = signal.convolve(gradient[i, :],
-                                             self.create_hrf([1.0, hrf_1, hrf_2]),
+                                             current_hrf,
                                              mode='full')[:dm.shape[-1]]
 
         if not self.filter_predictions:
@@ -669,8 +613,8 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
                                  srf_amplitude,
                                  srf_size,
-                                 hrf_1=1.0,
-                                 hrf_2=0.0
+                                 hrf_1=None,
+                                 hrf_2=None
                                  ):
         """return_single_prediction
 
@@ -693,7 +637,10 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
         numpy.ndarray
             single prediction given the model
         """
-
+        if hrf_1 is None or hrf_2 is None:
+            current_hrf = self.hrf
+        else:
+            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
         # create the rfs
         # not sure why we need to take the transpose here but ok. following
         # parent method from Tomas
@@ -714,7 +661,7 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
             srf_amplitude* stimulus_through_prf(srf, dm)
 
         tc = signal.convolve(neural_tc[0, :],
-                                 self.create_hrf([1.0, hrf_1, hrf_2]),
+                                 current_hrf,
                                  mode='full')[:dm.shape[-1]].T
 
         if not self.filter_predictions:

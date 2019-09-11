@@ -309,7 +309,12 @@ class Iso2DGaussianFitter(Fitter):
             iterative_search_params)
 
 class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
+    """
 
+    generic superclass to extend Gaussian model. An existing
+    Iso2DGaussianFitter object with iterative_search_params may be provided.
+
+    """
 
     def __init__(self, data, gridder, n_jobs=1, bounds=None,
                  gradient_method='numerical',
@@ -317,23 +322,22 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                  previous_gaussian_fitter=None,
                  **kwargs):
         """
-        generic class to extend Gaussian model
 
         Parameters
         ----------
-        data : TYPE
+        data : ndarray
             DESCRIPTION.
-        gridder : TYPE
+        gridder : Gridder object
             DESCRIPTION.
-        n_jobs : TYPE, optional
+        n_jobs : int, optional
             DESCRIPTION. The default is 1.
-        bounds : TYPE, optional
+        bounds : List of tuples, optional
             DESCRIPTION. The default is None.
-        gradient_method : TYPE, optional
+        gradient_method : String, optional
             DESCRIPTION. The default is 'numerical'.
-        fit_hrf : TYPE, optional
+        fit_hrf : Boolean, optional
             DESCRIPTION. The default is False.
-        previous_gaussian_fitter : TYPE, optional
+        previous_gaussian_fitter : Iso2DGaussianFitter, optional
             DESCRIPTION. The default is None.
         **kwargs : TYPE
             DESCRIPTION.
@@ -347,22 +351,21 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
         if previous_gaussian_fitter is not None:
             self.previous_gaussian_fitter = previous_gaussian_fitter
 
+            if self.previous_gaussian_fitter.fit_hrf != fit_hrf:
+                print("Warning: fit_hrf was "+str(self.previous_gaussian_fitter.fit_hrf)+" in previous_\
+                      gaussian_fit. Overriding current input to avoid inconsistency.")
+                fit_hrf = self.previous_gaussian_fitter.fit_hrf
 
         super().__init__(data, gridder, n_jobs=n_jobs, bounds=bounds,
                  gradient_method=gradient_method,
                  fit_hrf=fit_hrf,
                  **kwargs)
 
-        if hasattr(self, 'previous_gaussian_fitter'):
-            if self.previous_gaussian_fitter.fit_hrf != self.fit_hrf:
-                print("Warning: fit_hrf was "+str(self.previous_gaussian_fitter.fit_hrf)+" in previous_\
-                      gaussian_fitter, but not in current model. Overriding to match.")
-                self.fit_hrf = self.previous_gaussian_fitter.fit_hrf
-
 
     def insert_new_model_params(self, old_params):
         """
-        empty function, to be redefined for each model
+        function inserting new model parameters for iterfitting, 
+        to be redefined appropriately for each model
 
         Parameters
         ----------
@@ -378,6 +381,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
         new_params = old_params
         return new_params
+
 
     def iterative_fit(self,
                       rsq_threshold,
@@ -396,82 +400,38 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
 
 class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
+    """CSS_Iso2DGaussianFitter
 
+    Compressive Spatial Summation model
+    """
     def insert_new_model_params(self, old_params):
         #insert CSS exponent
         new_params = np.insert(old_params, 5, 1.0, axis=-1)
         return new_params
 
 
-
 class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     """DoG_Iso2DGaussianFitter
 
-    Class that implements a grid fit on a two-dimensional isotropic
-    difference of Gaussians pRF model, leveraging a Gridder object.
-    The gridder result is used as starting guess to fit the DoG model
-    with an iterative fitting procedure
+    Difference of Gaussians model
     """
 
     def insert_new_model_params(self, old_params):
-        """
-        This is for completeness, but in practice won't be used since there is an
-        efficient grid_fit for the normalization model (below)
 
-        Parameters
-        ----------
-        old_params : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        new_params : TYPE
-            DESCRIPTION.
-
-        """
         #surround amplitude
         new_params = np.insert(old_params, 5, 0.0, axis=-1)
         #surround size
         new_params = np.insert(new_params, 6, self.gridder.stimulus.max_ecc, axis=-1)
 
         return new_params
+
 
 class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     """Norm_Iso2DGaussianFitter
 
-    Class that implements a grid fit on a two-dimensional isotropic
-    Gaussian pRF model, leveraging a Gridder object.
-    The gridder result is used as starting guess to fit the Normalization model
-    with an iterative fitting procedure
+    Divisive Normalization model
 
     """
-
-    def insert_new_model_params(self, old_params):
-        """
-        This is for completeness, but in practice won't be used since there is an
-        efficient grid_fit for the normalization model (below)
-
-        Parameters
-        ----------
-        old_params : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        new_params : TYPE
-            DESCRIPTION.
-
-        """
-        #surround amplitude
-        new_params = np.insert(old_params, 5, 0.0, axis=-1)
-        #surround size
-        new_params = np.insert(new_params, 6, self.gridder.stimulus.max_ecc, axis=-1)
-        #neural baseline
-        new_params = np.insert(new_params, 7, 0.0, axis=-1)
-        #surround baseline
-        new_params = np.insert(new_params, 8, 1.0, axis=-1)
-
-        return new_params
 
     def grid_fit(self,
                  surround_amplitude_grid,
@@ -596,9 +556,9 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         self.gridsearch_params = np.zeros((self.n_units, 10))
 
         self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
-            gaussian_params[self.gridsearch_rsq_mask, 0],
-            gaussian_params[self.gridsearch_rsq_mask, 1],
-            gaussian_params[self.gridsearch_rsq_mask, 2],
+            self.gaussian_params[self.gridsearch_rsq_mask, 0],
+            self.gaussian_params[self.gridsearch_rsq_mask, 1],
+            self.gaussian_params[self.gridsearch_rsq_mask, 2],
             self.best_fitting_beta,
             self.best_fitting_baseline,
             self.sa[max_rsqs],
@@ -609,5 +569,21 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         ]).T
 
 
+    def insert_new_model_params(self, old_params):
+        """
+        This function is for completeness, mostly unused since there is an
+        efficient grid_fit for the normalization model (above)
+
+        """
+        #surround amplitude
+        new_params = np.insert(old_params, 5, 0.0, axis=-1)
+        #surround size
+        new_params = np.insert(new_params, 6, self.gridder.stimulus.max_ecc, axis=-1)
+        #neural baseline
+        new_params = np.insert(new_params, 7, 0.0, axis=-1)
+        #surround baseline
+        new_params = np.insert(new_params, 8, 1.0, axis=-1)
+
+        return new_params
 
 
