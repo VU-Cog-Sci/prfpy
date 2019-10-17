@@ -100,44 +100,38 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     if window_length % 2 != 1:
         raise ValueError  # window_length should be odd
 
-    if task_lengths != None:
-        # first assess that the number and sizes of chunks are compatible with the predictions
-        if np.sum(task_lengths) != predictions.shape[-1]:
-            print(
-                "Specified condition lengths are incompatible with the number prediction timepoints.")
-            raise ValueError
-        else:
-            lp_filtered_predictions = np.zeros_like(predictions)
-            start = 0
-            for task_length in task_lengths:
+    if task_lengths == None:
+        task_lengths = [predictions.shape[-1]]
 
-                stop = start+task_length
+    # first assess that the number and sizes of chunks are compatible with the predictions
+    assert np.sum(task_lengths) == predictions.shape[-1], "Task lengths \
+    are incompatible with the number of prediction timepoints."
 
-                lp_filtered_predictions[..., start:stop] = signal.savgol_filter(
-                    predictions[..., start:stop], window_length=window_length, polyorder=polyorder, **kwargs)
+    lp_filtered_predictions = np.zeros_like(predictions)
+    start = 0
+    for task_length in task_lengths:
 
-                if add_mean:
-                    if highpass:
-                        lp_filtered_predictions[..., start:stop] -= np.mean(
-                            predictions[..., start:stop], axis=-1)[..., np.newaxis]
-                    else:
-                        lp_filtered_predictions[..., start:stop] += np.mean(
-                            predictions[..., start:stop], axis=-1)[..., np.newaxis]
+        stop = start+task_length
 
-                start += task_length
-
-    else:
-
-        lp_filtered_predictions = signal.savgol_filter(
-            predictions, window_length=window_length, polyorder=polyorder, **kwargs)
+        try:
+            lp_filtered_predictions[..., start:stop] = signal.savgol_filter(
+            predictions[..., start:stop], window_length=window_length,
+            polyorder=polyorder, **kwargs)
+        except:
+            print("Error occurred during predictions savgol filtering.\
+                  Using unfiltered prediction instead")
+            lp_filtered_predictions[..., start:stop] = predictions[..., start:stop]
 
         if add_mean:
             if highpass:
-                lp_filtered_predictions -= np.mean(
-                    predictions, axis=-1)[..., np.newaxis]
+                lp_filtered_predictions[..., start:stop] -= np.mean(
+                    predictions[..., start:stop], axis=-1)[..., np.newaxis]
             else:
-                lp_filtered_predictions += np.mean(
-                    predictions, axis=-1)[..., np.newaxis]
+                lp_filtered_predictions[..., start:stop] += np.mean(
+                    predictions[..., start:stop], axis=-1)[..., np.newaxis]
+
+        start += task_length
+
 
     if highpass:
         return predictions - lp_filtered_predictions

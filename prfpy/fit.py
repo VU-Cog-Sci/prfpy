@@ -263,7 +263,7 @@ class Fitter:
         """
 
         self.bounds = bounds
-        self.gradient_method = gradient_method
+        self.gradient_method = gradient_method.lower()
         self.fit_hrf = fit_hrf
 
         if starting_params is None:
