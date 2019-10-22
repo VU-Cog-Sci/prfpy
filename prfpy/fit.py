@@ -33,7 +33,7 @@ def error_function(parameters, args, data, objective_function):
     return bn.nansum((data - objective_function(*list(parameters), **args))**2)
 
 
-def iterative_search(gridder, data, grid_params, args, verbose=True):
+def iterative_search(gridder, data, grid_params, args, xtol=1e-6, ftol=1e-3, verbose=True):
     """iterative_search
 
     function to be called using joblib's Parallel function for the iterative search stage.
@@ -52,6 +52,10 @@ def iterative_search(gridder, data, grid_params, args, verbose=True):
         initial values for the fit
     args : dictionary, arguments to gridder.return_single_prediction that
         are not optimized
+    xtol : float, passed to fitting routine
+        numerical tolerance on x
+    ftol : float, passed to fitting routine
+        numerical tolerance on function
     verbose : bool, optional
         whether to have fminpowell puke everything out.
 
@@ -61,7 +65,7 @@ def iterative_search(gridder, data, grid_params, args, verbose=True):
         first element: parameter values,
         second element: rsq value
     """
-    output = fmin_powell(error_function, grid_params, xtol=1e-6, ftol=1e-3,  # maxfun=1e15,
+    output = fmin_powell(error_function, grid_params, xtol=xtol, ftol=ftol,  # maxfun=1e15,
                          args=(args, data, gridder.return_single_prediction),
                          full_output=True, disp=verbose)
     return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
@@ -220,7 +224,7 @@ class Norm_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
     Class that implements a grid fit on a two-dimensional isotropic
     Gaussian pRF model, leveraging a Gridder object.
-    The result is used as starting guess to fit the Normalization model 
+    The result is used as starting guess to fit the Normalization model
     with an iterative fitting procedure
 
     """

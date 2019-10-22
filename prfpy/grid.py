@@ -261,7 +261,7 @@ class Iso2DGaussianGridder(Gridder):
 class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
     """Norm_Iso2DGaussianGridder
 
-    Redefining class to use 2DIsoGaussianGridder in grid fit, 
+    Redefining class to use 2DIsoGaussianGridder in grid fit,
     normalization model in iterative fitting
     """
 
@@ -271,13 +271,12 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                  prf_size,
                                  prf_amplitude,
                                  bold_baseline,
-
                                  neural_baseline,
                                  srf_amplitude,
                                  srf_size,
                                  surround_baseline
                                  ):
-        """return_single_prediction
+        """return_single_prediction [summary]
 
         returns the prediction for a single set of parameters.
         As this is to be used during iterative search, it also
@@ -285,12 +284,24 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         Parameters
         ----------
-        mu_x : float
-            x-position of pRF
-        mu_y : float
-            y-position of pRF
-        prf_size : float
-            size of pRF
+        mu_x : [type]
+            [description]
+        mu_y : [type]
+            [description]
+        prf_size : [type]
+            [description]
+        prf_amplitude : [type]
+            [description]
+        bold_baseline : [type]
+            [description]
+        neural_baseline : [type]
+            [description]
+        srf_amplitude : [type]
+            [description]
+        srf_size : [type]
+            [description]
+        surround_baseline : [type]
+            [description]
 
 
         Returns
