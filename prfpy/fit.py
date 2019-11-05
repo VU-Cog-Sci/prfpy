@@ -70,7 +70,7 @@ def gradient_error_function(
                      * gradient_objective_function(*list(parameters), **args), axis=-1)
 
 
-def iterative_search(gridder, data, start_params, args, verbose=True,
+def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, verbose=True,
                      bounds=None, gradient_method='numerical', **kwargs):
     """iterative_search
 
@@ -91,6 +91,10 @@ def iterative_search(gridder, data, start_params, args, verbose=True,
         initial values for the fit
     args : dictionary, arguments to gridder.return_single_prediction that
         are not optimized
+    xtol : float, passed to fitting routine
+        numerical tolerance on x
+    ftol : float, passed to fitting routine
+        numerical tolerance on function
     verbose : bool, optional
         whether to have minimizer output.
     bounds : list of tuples, optional
@@ -177,7 +181,7 @@ def iterative_search(gridder, data, start_params, args, verbose=True,
             full_output=True,
             disp=verbose)
 
-        return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
+    return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
 
 
 class Fitter:
@@ -219,8 +223,8 @@ class Fitter:
         # immediately convert nans to nums
         self.data = np.nan_to_num(data)
         self.data_var = self.data.var(axis=-1)
-
     def iterative_fit(self,
+
                       rsq_threshold,
                       verbose=False,
                       starting_params=None,
@@ -618,7 +622,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     """
 
     def insert_new_model_params(self, old_params):
-        """
+    """
         Note: this function is generally unused since there is an
         efficient grid_fit for the normalization model (below)
 
@@ -633,9 +637,9 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             Starting parameters and rsq for norm iterative fit.
 
         """
-        # surround amplitude
+            # surround amplitude
         new_params = np.insert(old_params, 5, 0.0, axis=-1)
-        # surround size
+            # surround size
         new_params = np.insert(
             new_params,
             6,
@@ -643,7 +647,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             axis=-1)
         # neural baseline
         new_params = np.insert(new_params, 7, 0.0, axis=-1)
-        # surround baseline
+            # surround baseline
         new_params = np.insert(new_params, 8, 1.0, axis=-1)
 
         return new_params
