@@ -456,9 +456,10 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
         """
 
         if previous_gaussian_fitter is not None:
-            assert hasattr(previous_gaussian_fitter,
-                           'iterative_search_params'),\
-                'Please perform Gaussian iterative_fit first.'
+            if not hasattr(previous_gaussian_fitter,
+                           'iterative_search_params'):
+                print('Warning: gaussian iter fit not performed. Explicit\
+                      starting parameters or grid params will be needed.')
 
             self.previous_gaussian_fitter = previous_gaussian_fitter
 
