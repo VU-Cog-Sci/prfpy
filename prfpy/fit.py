@@ -622,7 +622,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     """
 
     def insert_new_model_params(self, old_params):
-    """
+        """
         Note: this function is generally unused since there is an
         efficient grid_fit for the normalization model (below)
 
