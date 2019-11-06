@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.optimize import fmin_powell, minimize
-import bottleneck as bn
 
 from joblib import Parallel, delayed
 
@@ -32,7 +31,12 @@ def error_function(
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    return bn.nansum((data - objective_function(*list(parameters), **args))**2)
+    error = np.sum((data - objective_function(*list(parameters), **args))**2)
+
+    if np.isnan(error):
+        return np.inf
+    else:
+        return error
 
 
 def gradient_error_function(
@@ -63,11 +67,15 @@ def gradient_error_function(
         the model objective function.
     Returns
     -------
-    error : float
+    gradient : float
         The gradient of the sum of squared errors between the prediction and data.
     """
-    return bn.nansum(-2 * (data - objective_function(*list(parameters), **args))[np.newaxis, ...]
+    gradient = np.sum(-2 * (data - objective_function(*list(parameters), **args))[np.newaxis, ...]
                      * gradient_objective_function(*list(parameters), **args), axis=-1)
+    if np.isnan(gradient):
+        return np.inf
+    else:
+        return gradient
 
 
 def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, verbose=True,
@@ -172,8 +180,8 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
         output = fmin_powell(
             error_function,
             start_params,
-            xtol=1e-6,
-            ftol=1e-6,
+            xtol=xtol,
+            ftol=ftol,
             args=(
                 args,
                 data,
@@ -181,7 +189,7 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
             full_output=True,
             disp=verbose)
 
-    return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
+        return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
 
 
 class Fitter:
@@ -220,9 +228,8 @@ class Fitter:
         self.n_units = self.data.shape[0]
         self.n_timepoints = self.data.shape[-1]
 
-        # immediately convert nans to nums
-        self.data = np.nan_to_num(data)
         self.data_var = self.data.var(axis=-1)
+
     def iterative_fit(self,
 
                       rsq_threshold,
