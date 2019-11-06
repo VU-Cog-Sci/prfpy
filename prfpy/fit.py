@@ -297,17 +297,18 @@ class Fitter:
 
         self.iterative_search_params = np.zeros_like(self.starting_params)
 
-        iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
-            delayed(iterative_search)(self.gridder,
-                                      data,
-                                      start_params,
-                                      args=args,
-                                      verbose=verbose,
-                                      bounds=self.bounds,
-                                      gradient_method=self.gradient_method)
-            for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
-        self.iterative_search_params[self.rsq_mask] = np.array(
-            iterative_search_params)
+        if self.rsq_mask.sum()>0:
+            iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
+                delayed(iterative_search)(self.gridder,
+                                          data,
+                                          start_params,
+                                          args=args,
+                                          verbose=verbose,
+                                          bounds=self.bounds,
+                                          gradient_method=self.gradient_method)
+                for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
+            self.iterative_search_params[self.rsq_mask] = np.array(
+                iterative_search_params)
 
 
 class Iso2DGaussianFitter(Fitter):
