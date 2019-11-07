@@ -79,7 +79,7 @@ def gradient_error_function(
 
 
 def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, verbose=True,
-                     bounds=None, gradient_method='numerical', **kwargs):
+                     bounds=None, gradient_method='numerical', constraints=[], **kwargs):
     """iterative_search
 
     Generic minimization function called by iterative_fit.
@@ -166,10 +166,12 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
         else:
             if verbose:
                 print('Using no-gradient minimization')
+
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(args, data,
                                     gridder.return_single_prediction),
                               method='trust-constr',
+                              constraints=constraints,
                               options=dict(disp=verbose))
 
         return np.r_[output['x'], 1 -
@@ -238,7 +240,8 @@ class Fitter:
                       bounds=None,
                       gradient_method='numerical',
                       fit_hrf=False,
-                      args={}):
+                      args={},
+                      constraints=[]):
         """
         Generic function for iterative fitting. Does not need to be
         redefined for new models. It is sufficient to define
@@ -305,7 +308,8 @@ class Fitter:
                                           args=args,
                                           verbose=verbose,
                                           bounds=self.bounds,
-                                          gradient_method=self.gradient_method)
+                                          gradient_method=self.gradient_method,
+                                          constraints=constraints)
                 for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
             self.iterative_search_params[self.rsq_mask] = np.array(
                 iterative_search_params)
@@ -507,7 +511,8 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                       bounds=None,
                       gradient_method='numerical',
                       fit_hrf=False,
-                      args={}):
+                      args={},
+                      constraints=[]):
         """
         Iterative_fit for models building on top of the Gaussian. Does not need to be
         redefined for new models. It is sufficient to define either
@@ -564,7 +569,8 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                               bounds=bounds,
                               gradient_method=gradient_method,
                               fit_hrf=fit_hrf,
-                              args=args)
+                              args=args,
+                              constraints=constraints)
 
 
 class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
@@ -616,7 +622,7 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         new_params = np.insert(
             new_params,
             6,
-            self.gridder.stimulus.max_ecc,
+            1.5*old_params[:,2],
             axis=-1)
 
         return new_params
@@ -645,13 +651,13 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             Starting parameters and rsq for norm iterative fit.
 
         """
-            # surround amplitude
+        # surround amplitude
         new_params = np.insert(old_params, 5, 0.0, axis=-1)
-            # surround size
+        # surround size
         new_params = np.insert(
             new_params,
             6,
-            self.gridder.stimulus.max_ecc,
+            1.5*old_params[:,2],
             axis=-1)
         # neural baseline
         new_params = np.insert(new_params, 7, 0.0, axis=-1)
