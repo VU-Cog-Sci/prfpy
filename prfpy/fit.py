@@ -72,7 +72,7 @@ def gradient_error_function(
     """
     gradient = np.sum(-2 * (data - objective_function(*list(parameters), **args))[np.newaxis, ...]
                      * gradient_objective_function(*list(parameters), **args), axis=-1)
-    if np.isnan(gradient):
+    if np.any(np.isnan(gradient)):
         return np.inf
     else:
         return gradient
