@@ -385,6 +385,10 @@ class Iso2DGaussianFitter(Fitter):
                                         baselines[..., np.newaxis]), axis=-
                                        1, ord=2)
 
+                #to enforce, if possible, positive prf amplitude
+                if np.any(slopes>0):
+                    resid[slopes<=0] = +np.inf
+
                 best_pred_voxel = np.argmin(resid)
 
                 rsq = 1 - resid[best_pred_voxel]**2 / \
@@ -775,6 +779,10 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                                         predictions -
                                         baselines[..., np.newaxis]), ord=2, axis=-
                                        1)
+
+                #to enforce, if possible, positive prf amplitude & neural baseline
+                if np.any(slopes>0):
+                    resid[slopes<=0] = +np.inf
 
                 best_pred_voxel = np.argmin(resid)
 
