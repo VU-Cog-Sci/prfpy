@@ -120,7 +120,7 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
         except:
             print("Error occurred during predictions savgol filtering.\
                   Using unfiltered prediction instead")
-            lp_filtered_predictions[..., start:stop] = predictions[..., start:stop]
+            #lp_filtered_predictions[..., start:stop] = predictions[..., start:stop]
 
         if add_mean:
             if highpass:
