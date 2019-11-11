@@ -173,6 +173,9 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
                               method='trust-constr',
                               constraints=constraints,
                               options=dict(disp=verbose))
+                                           #maxiter=3000,
+                                           #xtol=1e-10,
+                                           #gtol=1e-10))
 
         return np.r_[output['x'], 1 -
                      (output['fun'] / (len(data) * data.var()))]
