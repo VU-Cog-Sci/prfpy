@@ -332,7 +332,8 @@ class Iso2DGaussianFitter(Fitter):
                  polar_grid,
                  size_grid,
                  verbose=False,
-                 n_batches=1000):
+                 n_batches=1000,
+                 pos_prfs_only=True):
         """grid_fit
 
         performs grid fit using provided grids and predictor definitions
@@ -389,8 +390,9 @@ class Iso2DGaussianFitter(Fitter):
                                        1, ord=2)
 
                 #to enforce, if possible, positive prf amplitude
-                if np.any(slopes>0):
-                    resid[slopes<=0] = +np.inf
+                if pos_prfs_only:
+                    if np.any(slopes>0):
+                        resid[slopes<=0] = +np.inf
 
                 best_pred_voxel = np.argmin(resid)
 
@@ -681,7 +683,8 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  gaussian_params=None,
                  verbose=False,
                  n_batches=1000,
-                 rsq_threshold=0.1):
+                 rsq_threshold=0.1,
+                 pos_prfs_only=True):
         """
         This function performs a grid_fit for the normalization model new parameters.
         The fit is parallel over batches of voxels, and separate predictions are
@@ -784,8 +787,9 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                                        1)
 
                 #to enforce, if possible, positive prf amplitude & neural baseline
-                if np.any(slopes>0):
-                    resid[slopes<=0] = +np.inf
+                if pos_prfs_only:
+                    if np.any(slopes>0):
+                        resid[slopes<=0] = +np.inf
 
                 best_pred_voxel = np.argmin(resid)
 
