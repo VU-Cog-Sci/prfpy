@@ -31,7 +31,7 @@ def error_function(
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    error = np.sum((data - objective_function(*list(parameters), **args))**2)
+    error = np.sum((data - objective_function(*list(parameters), **args))**2)/(len(data) * data.var())
 
     if np.isnan(error):
         return np.inf
@@ -178,7 +178,7 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
                                            #gtol=1e-10))
 
         return np.r_[output['x'], 1 -
-                     (output['fun'] / (len(data) * data.var()))]
+                     (output['fun'])]
 
     else:
 
@@ -194,7 +194,7 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
             full_output=True,
             disp=verbose)
 
-        return np.r_[output[0], 1 - (output[1] / (len(data) * data.var()))]
+        return np.r_[output[0], 1 - (output[1])]
 
 
 class Fitter:
