@@ -626,7 +626,7 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
         """
         # surround amplitude
-        new_params = np.insert(old_params, 5, 0.0, axis=-1)
+        new_params = np.insert(old_params, 5, 0.5*old_params[:,3], axis=-1)
         # surround size
         new_params = np.insert(
             new_params,
