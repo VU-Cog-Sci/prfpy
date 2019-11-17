@@ -394,7 +394,7 @@ class Iso2DGaussianFitter(Fitter):
                     if np.any(slopes>0):
                         resid[slopes<=0] = +np.inf
 
-                best_pred_voxel = np.argmin(resid)
+                best_pred_voxel = np.nanargmin(resid)
 
                 rsq = 1 - resid[best_pred_voxel]**2 / \
                     (n_timepoints * data_var[num])
@@ -791,7 +791,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                     if np.any(slopes>0):
                         resid[slopes<=0] = +np.inf
 
-                best_pred_voxel = np.argmin(resid)
+                best_pred_voxel = np.nanargmin(resid)
 
                 rsq = 1 - resid[best_pred_voxel]**2 / \
                     (n_timepoints * data_var[vox_num])
