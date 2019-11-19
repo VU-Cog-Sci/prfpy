@@ -31,7 +31,7 @@ def error_function(
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    error = np.sum((data - objective_function(*list(parameters), **args))**2)/(len(data) * data.var())
+    error = np.sum((data - objective_function(*list(parameters), **args))**2)
 
     if np.isnan(error):
         return np.inf
@@ -152,7 +152,7 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
                               jac=gradient_error_function,
                               method='L-BFGS-B',
                               # default max line searches is 20
-                              options=dict(maxls=40, disp=verbose))
+                              options=dict(maxls=60, disp=verbose))
         elif gradient_method == 'numerical':
             if verbose:
                 print('Using numerical gradient')
@@ -162,7 +162,7 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
                                   args, data, gridder.return_single_prediction),
                               method='L-BFGS-B',
                               # default max line searches is 20
-                              options=dict(maxls=40, disp=verbose))
+                              options=dict(maxls=60, disp=verbose))
         else:
             if verbose:
                 print('Using no-gradient minimization')
@@ -178,7 +178,7 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
                                            #gtol=1e-10))
 
         return np.r_[output['x'], 1 -
-                     (output['fun'])]
+                     (output['fun'])/(len(data) * data.var())]
 
     else:
 
@@ -194,7 +194,7 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
             full_output=True,
             disp=verbose)
 
-        return np.r_[output[0], 1 - (output[1])]
+        return np.r_[output[0], 1 - (output[1])/(len(data) * data.var())]
 
 
 class Fitter:
