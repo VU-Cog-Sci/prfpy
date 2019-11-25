@@ -100,6 +100,7 @@ class Iso2DGaussianGridder(Gridder):
                  highpass=True,
                  add_mean=True,
                  task_lengths=None,
+                 normalize_RFs=False,
                  **kwargs):
         """__init__ for Iso2DGaussianGridder
 
@@ -158,6 +159,7 @@ class Iso2DGaussianGridder(Gridder):
         self.highpass = highpass
         self.add_mean = add_mean
         self.task_lengths = task_lengths
+        self.normalize_RFs = normalize_RFs
 
     def create_rfs(self):
         """create_rfs
@@ -170,7 +172,8 @@ class Iso2DGaussianGridder(Gridder):
             x=self.stimulus.x_coordinates[..., np.newaxis],
             y=self.stimulus.y_coordinates[..., np.newaxis],
             mu=np.array([self.xs.ravel(), self.ys.ravel()]),
-            sigma=self.sizes.ravel())
+            sigma=self.sizes.ravel(),
+            normalize_RFs=self.normalize_RFs)
 
         self.grid_rfs = self.grid_rfs.T
 
@@ -270,7 +273,8 @@ class Iso2DGaussianGridder(Gridder):
         rf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                               y=self.stimulus.y_coordinates[..., np.newaxis],
                               mu=(mu_x, mu_y),
-                              sigma=size).T
+                              sigma=size,
+                              normalize_RFs=self.normalize_RFs).T
 
         dm = self.stimulus.design_matrix
         neural_tc = stimulus_through_prf(rf, dm)
@@ -338,7 +342,8 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
         rf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                               y=self.stimulus.y_coordinates[..., np.newaxis],
                               mu=(mu_x, mu_y),
-                              sigma=size).T
+                              sigma=size,
+                              normalize_RFs=self.normalize_RFs).T
 
         dm = self.stimulus.design_matrix
         neural_tc = stimulus_through_prf(rf, dm)**n
@@ -468,13 +473,15 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
-                               sigma=prf_size).T
+                               sigma=prf_size,
+                               normalize_RFs=self.normalize_RFs).T
 
         # surround receptive field (denominator)
         srf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
-                               sigma=srf_size).T
+                               sigma=srf_size,
+                               normalize_RFs=self.normalize_RFs).T
 
         dm = self.stimulus.design_matrix
 
@@ -544,13 +551,15 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         prf = gauss2D_iso_cart(x=x_coord,
                                y=y_coord,
                                mu=(mu_x, mu_y),
-                               sigma=prf_size).T
+                               sigma=prf_size,
+                              normalize_RFs=self.normalize_RFs).T
 
         # surround receptive field (denominator)
         srf = gauss2D_iso_cart(x=x_coord,
                                y=y_coord,
                                mu=(mu_x, mu_y),
-                               sigma=srf_size).T
+                               sigma=srf_size,
+                              normalize_RFs=self.normalize_RFs).T
 
         dm = self.stimulus.design_matrix
 
@@ -677,13 +686,15 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
         prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
-                               sigma=prf_size).T
+                               sigma=prf_size,
+                              normalize_RFs=self.normalize_RFs).T
 
         # surround receptive field
         srf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
-                               sigma=srf_size).T
+                               sigma=srf_size,
+                              normalize_RFs=self.normalize_RFs).T
 
         dm = self.stimulus.design_matrix
 
