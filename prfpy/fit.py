@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import fmin_powell, minimize
+from scipy.optimize import fmin_powell, minimize, basinhopping, shgo, dual_annealing
 
 from joblib import Parallel, delayed
 
@@ -173,9 +173,25 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
                               method='trust-constr',
                               constraints=constraints,
                               options=dict(disp=verbose))
-                                           #maxiter=3000,
-                                           #xtol=1e-10,
-                                           #gtol=1e-10))
+
+
+            # output = basinhopping(error_function, start_params,
+            #                       niter=10, T=0.01*(len(data) * data.var()), stepsize=2,
+            #                       minimizer_kwargs=dict(method='L-BFGS-B',
+            #                                             bounds=bounds,
+            #                                             options=dict(maxls=60, disp=verbose),
+            #                                             args=(args, data, gridder.return_single_prediction)))
+
+            # output = shgo(error_function, bounds=bounds,
+            #               args=(args, data, gridder.return_single_prediction),
+            #                       options=dict(disp=verbose),
+            #                       minimizer_kwargs=dict(method='L-BFGS-B',
+            #                                             bounds=bounds,
+            #                                             args=(args, data, gridder.return_single_prediction)))
+
+            # output = dual_annealing(error_function, bounds=bounds,
+            #               args=(args, data, gridder.return_single_prediction),
+            #                       x0=start_params)
 
         return np.r_[output['x'], 1 -
                      (output['fun'])/(len(data) * data.var())]
