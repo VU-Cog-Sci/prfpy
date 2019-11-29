@@ -172,7 +172,8 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
                                     gridder.return_single_prediction),
                               method='trust-constr',
                               constraints=constraints,
-                              options=dict(disp=verbose))
+                              options=dict(disp=verbose,
+                                           maxiter=5000))
 
 
             # output = basinhopping(error_function, start_params,
