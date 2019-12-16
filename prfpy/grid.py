@@ -168,14 +168,12 @@ class Iso2DGaussianGridder(Gridder):
 
         """
         assert hasattr(self, 'xs'), "please set up the grid first"
-        self.grid_rfs = gauss2D_iso_cart(
+        self.grid_rfs = np.rot90(gauss2D_iso_cart(
             x=self.stimulus.x_coordinates[..., np.newaxis],
             y=self.stimulus.y_coordinates[..., np.newaxis],
             mu=np.array([self.xs.ravel(), self.ys.ravel()]),
             sigma=self.sizes.ravel(),
-            normalize_RFs=self.normalize_RFs)
-
-        self.grid_rfs = self.grid_rfs.T
+            normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
     def stimulus_times_prfs(self):
         """stimulus_times_prfs
@@ -270,11 +268,11 @@ class Iso2DGaussianGridder(Gridder):
             current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
 
         # create the single rf
-        rf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+        rf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                               y=self.stimulus.y_coordinates[..., np.newaxis],
                               mu=(mu_x, mu_y),
                               sigma=size,
-                              normalize_RFs=self.normalize_RFs).T
+                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
         neural_tc = stimulus_through_prf(rf, dm)
@@ -339,11 +337,11 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
             current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
 
         # create the single rf
-        rf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+        rf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                               y=self.stimulus.y_coordinates[..., np.newaxis],
                               mu=(mu_x, mu_y),
                               sigma=size,
-                              normalize_RFs=self.normalize_RFs).T
+                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
         neural_tc = stimulus_through_prf(rf, dm)**n
@@ -459,29 +457,20 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         else:
             current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
 
-        # to avoid division by 0. in practice, probably never happens
-        if srf_amplitude == 0.0 and surround_baseline == 0.0:
-            print(
-                "Warning: srf amplitude and baseline = 0. Setting baseline to\
-                  1e-6 to avoid division by zero")
-            surround_baseline = 1e-6
-
         # create the rfs
-        # not sure why we need to take the transpose here but ok. following
-        # parent method from Tomas
 
-        prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+        prf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
                                sigma=prf_size,
-                               normalize_RFs=self.normalize_RFs).T
+                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         # surround receptive field (denominator)
-        srf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+        srf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
                                sigma=srf_size,
-                               normalize_RFs=self.normalize_RFs).T
+                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
 
@@ -543,23 +532,22 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         else:
             current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
         # create the rfs
-        # not sure why we need to take the transpose here but ok. following
-        # parent method from Tomas
+
         x_coord = self.stimulus.x_coordinates[..., np.newaxis]
         y_coord = self.stimulus.y_coordinates[..., np.newaxis]
 
-        prf = gauss2D_iso_cart(x=x_coord,
+        prf = np.rot90(gauss2D_iso_cart(x=x_coord,
                                y=y_coord,
                                mu=(mu_x, mu_y),
                                sigma=prf_size,
-                              normalize_RFs=self.normalize_RFs).T
+                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         # surround receptive field (denominator)
-        srf = gauss2D_iso_cart(x=x_coord,
+        srf = np.rot90(gauss2D_iso_cart(x=x_coord,
                                y=y_coord,
                                mu=(mu_x, mu_y),
                                sigma=srf_size,
-                              normalize_RFs=self.normalize_RFs).T
+                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
 
@@ -683,18 +671,18 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
         # create the rfs
         # not sure why we need to take the transpose here but ok. following
         # parent method from Tomas
-        prf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+        prf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
                                sigma=prf_size,
-                              normalize_RFs=self.normalize_RFs).T
+                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         # surround receptive field
-        srf = gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+        srf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
                                sigma=srf_size,
-                              normalize_RFs=self.normalize_RFs).T
+                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
 
