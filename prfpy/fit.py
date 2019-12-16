@@ -78,7 +78,7 @@ def gradient_error_function(
         return gradient
 
 
-def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, verbose=True,
+def iterative_search(gridder, data, start_params, args, xtol=1e-4, ftol=1e-3, verbose=True,
                      bounds=None, gradient_method='numerical', constraints=[], **kwargs):
     """iterative_search
 
@@ -160,7 +160,8 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-6, ftol=1e-3, ve
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(
                                   args, data, gridder.return_single_prediction),
-                              method='L-BFGS-B',
+                            #   method='L-BFGS-B',
+                              method='Powell',
                               # default max line searches is 20
                               options=dict(maxls=60, disp=verbose))
         else:
