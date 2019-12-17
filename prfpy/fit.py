@@ -78,7 +78,7 @@ def gradient_error_function(
         return gradient
 
 
-def iterative_search(gridder, data, start_params, args, xtol=1e-4, ftol=1e-3, verbose=True,
+def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True,
                      bounds=None, gradient_method='numerical', constraints=[], **kwargs):
     """iterative_search
 
@@ -152,7 +152,10 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-4, ftol=1e-3, ve
                               jac=gradient_error_function,
                               method='L-BFGS-B',
                               # default max line searches is 20
-                              options=dict(maxls=60, disp=verbose))
+                              options=dict(xtol=xtol,
+                                           ftol=ftol,
+                                           maxls=60,
+                                           disp=verbose))
         elif gradient_method == 'numerical':
             if verbose:
                 print('Using numerical gradient')
@@ -162,7 +165,10 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-4, ftol=1e-3, ve
                                   args, data, gridder.return_single_prediction),
                                method='L-BFGS-B',
                               # default max line searches is 20
-                              options=dict(maxls=60, disp=verbose))
+                              options=dict(xtol=xtol,
+                                           ftol=ftol,
+                                           maxls=60,
+                                           disp=verbose))
         else:
             if verbose:
                 print('Using no-gradient minimization')
@@ -172,8 +178,10 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-4, ftol=1e-3, ve
                                     gridder.return_single_prediction),
                               method='trust-constr',
                               constraints=constraints,
-                              options=dict(disp=verbose,
-                                           maxiter=5000))
+                              options=dict(xtol=xtol,
+                                           ftol=ftol,
+                                           maxiter=5000,
+                                           disp=verbose))
 
 
             # output = basinhopping(error_function, start_params,
@@ -253,7 +261,6 @@ class Fitter:
         self.data_var = self.data.var(axis=-1)
 
     def iterative_fit(self,
-
                       rsq_threshold,
                       verbose=False,
                       starting_params=None,
@@ -261,7 +268,9 @@ class Fitter:
                       gradient_method='numerical',
                       fit_hrf=False,
                       args={},
-                      constraints=[]):
+                      constraints=[],
+                      xtol=1e-4,
+                      ftol=1e-3):
         """
         Generic function for iterative fitting. Does not need to be
         redefined for new models. It is sufficient to define
@@ -326,6 +335,8 @@ class Fitter:
                                           data,
                                           start_params,
                                           args=args,
+                                          xtol=xtol,
+                                          ftol=ftol,
                                           verbose=verbose,
                                           bounds=self.bounds,
                                           gradient_method=self.gradient_method,
