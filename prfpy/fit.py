@@ -160,8 +160,7 @@ def iterative_search(gridder, data, start_params, args, xtol=1e-4, ftol=1e-3, ve
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(
                                   args, data, gridder.return_single_prediction),
-                            #   method='L-BFGS-B',
-                              method='Powell',
+                               method='L-BFGS-B',
                               # default max line searches is 20
                               options=dict(maxls=60, disp=verbose))
         else:
