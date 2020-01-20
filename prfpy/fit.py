@@ -38,46 +38,6 @@ def error_function(
     else:
         return error
 
-
-def gradient_error_function(
-        parameters,
-        args,
-        data,
-        objective_function,
-        gradient_objective_function):
-    """error_function
-
-    Generic gradieht error function.
-
-    [description]
-
-    Parameters
-    ----------
-    parameters : tuple
-        A tuple of values representing a model setting.
-    args : dictionary
-        Extra arguments to `objective_function` beyond those in `parameters`.
-    data : ndarray
-       The actual, measured time-series against which the model is fit.
-    objective_function : callable
-        The objective function that takes `parameters` and `args` and
-        produces a model time-series.
-    gradient_objective_function : callable
-        Takes `parameters` and `args` and computes the explicit gradient of
-        the model objective function.
-    Returns
-    -------
-    gradient : float
-        The gradient of the sum of squared errors between the prediction and data.
-    """
-    gradient = np.sum(-2 * (data - objective_function(*list(parameters), **args))[np.newaxis, ...]
-                     * gradient_objective_function(*list(parameters), **args), axis=-1)
-    if np.any(np.isnan(gradient)):
-        return np.inf
-    else:
-        return gradient
-
-
 def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True,
                      bounds=None, gradient_method='numerical', constraints=[], **kwargs):
     """iterative_search
@@ -91,13 +51,13 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
     ----------
     gridder : Gridder
         Object that provides the predictions using its
-        `return_single_prediction` method
+        `return_prediction` method
     data : 1D numpy.ndarray
         the data to fit, same dimensions as are returned by
-        Gridder's `return_single_prediction` method
+        Gridder's `return_prediction` method
     start_params : list or 1D numpy.ndarray
         initial values for the fit
-    args : dictionary, arguments to gridder.return_single_prediction that
+    args : dictionary, arguments to gridder.return_prediction that
         are not optimized
     xtol : float, passed to fitting routine
         numerical tolerance on x
@@ -147,7 +107,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
                               args=(
                                   args,
                                   data,
-                                  gridder.return_single_prediction,
+                                  gridder.return_prediction,
                                   gridder.gradient_single_prediction),
                               jac=gradient_error_function,
                               method='L-BFGS-B',
@@ -162,7 +122,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
 
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(
-                                  args, data, gridder.return_single_prediction),
+                                  args, data, gridder.return_prediction),
                                method='L-BFGS-B',
                               # default max line searches is 20
                               options=dict(xtol=xtol,
@@ -175,7 +135,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
 
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(args, data,
-                                    gridder.return_single_prediction),
+                                    gridder.return_prediction),
                               method='trust-constr',
                               constraints=constraints,
                               options=dict(xtol=xtol,
@@ -189,17 +149,17 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
             #                       minimizer_kwargs=dict(method='L-BFGS-B',
             #                                             bounds=bounds,
             #                                             options=dict(maxls=60, disp=verbose),
-            #                                             args=(args, data, gridder.return_single_prediction)))
+            #                                             args=(args, data, gridder.return_prediction)))
 
             # output = shgo(error_function, bounds=bounds,
-            #               args=(args, data, gridder.return_single_prediction),
+            #               args=(args, data, gridder.return_prediction),
             #                       options=dict(disp=verbose),
             #                       minimizer_kwargs=dict(method='L-BFGS-B',
             #                                             bounds=bounds,
-            #                                             args=(args, data, gridder.return_single_prediction)))
+            #                                             args=(args, data, gridder.return_prediction)))
 
             # output = dual_annealing(error_function, bounds=bounds,
-            #               args=(args, data, gridder.return_single_prediction),
+            #               args=(args, data, gridder.return_prediction),
             #                       x0=start_params)
 
         return np.r_[output['x'], 1 -
@@ -215,7 +175,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
             args=(
                 args,
                 data,
-                gridder.return_single_prediction),
+                gridder.return_prediction),
             full_output=True,
             disp=verbose)
 
