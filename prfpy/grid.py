@@ -1,5 +1,5 @@
 import numpy as np
-import scipy.signal as signal
+import scipy.ndimage as ndimage
 from nistats.hemodynamic_models import spm_hrf, spm_time_derivative, spm_dispersion_derivative
 
 from .rf import gauss2D_iso_cart   # import required RF shapes
@@ -230,7 +230,7 @@ class Iso2DGaussianGridder(Gridder):
         else:
             self.filtered_predictions = False
 
-    def return_single_prediction(self,
+    def return_prediction(self,
                                  mu_x,
                                  mu_y,
                                  size,
@@ -238,7 +238,7 @@ class Iso2DGaussianGridder(Gridder):
                                  baseline,
                                  hrf_1=None,
                                  hrf_2=None):
-        """return_single_prediction
+        """return_prediction
 
         returns the prediction for a single set of parameters.
         As this is to be used during iterative search, it also
@@ -277,25 +277,25 @@ class Iso2DGaussianGridder(Gridder):
         dm = self.stimulus.design_matrix
         neural_tc = stimulus_through_prf(rf, dm)
 
-        tc = signal.convolve(neural_tc[0, :],
+        tc = ndimage.convolve1d(neural_tc,
                              current_hrf,
-                             mode='full')[:dm.shape[-1]].T
+                             mode='reflect')
 
         if not self.filter_predictions:
-            return baseline + beta * tc
+            return baseline[..., np.newaxis] + beta[..., np.newaxis] * tc
         else:
-            return baseline + beta * sgfilter_predictions(
+            return baseline[..., np.newaxis] + beta[..., np.newaxis] * sgfilter_predictions(
                 tc,
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
                 add_mean=self.add_mean,
-                task_lengths=self.task_lengths).T
+                task_lengths=self.task_lengths)
 
 
 class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
-    def return_single_prediction(self,
+    def return_prediction(self,
                                  mu_x,
                                  mu_y,
                                  size,
@@ -304,7 +304,7 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                  n,
                                  hrf_1=None,
                                  hrf_2=None):
-        """return_single_prediction
+        """return_prediction
 
         returns the prediction for a single set of parameters.
         As this is to be used during iterative search, it also
@@ -344,22 +344,22 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
-        neural_tc = stimulus_through_prf(rf, dm)**n
+        neural_tc = stimulus_through_prf(rf, dm)**n[..., np.newaxis]
 
-        tc = signal.convolve(neural_tc[0, :],
+        tc = ndimage.convolve1d(neural_tc,
                              current_hrf,
-                             mode='full')[:dm.shape[-1]].T
+                             mode='reflect')
 
         if not self.filter_predictions:
-            return baseline + beta * tc
+            return baseline[..., np.newaxis] + beta[..., np.newaxis] * tc
         else:
-            return baseline + beta * sgfilter_predictions(
+            return baseline[..., np.newaxis] + beta[..., np.newaxis] * sgfilter_predictions(
                 tc,
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
                 add_mean=self.add_mean,
-                task_lengths=self.task_lengths).T
+                task_lengths=self.task_lengths)
 
 
 class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
@@ -395,7 +395,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         for idx in range(n_predictions):
             predictions[idx,
-                        :] = self.return_single_prediction(gaussian_params[0],
+                        :] = self.return_prediction(gaussian_params[0],
                                                            gaussian_params[1],
                                                            gaussian_params[2],
                                                            1.0,
@@ -407,7 +407,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         return predictions
 
-    def return_single_prediction(self,
+    def return_prediction(self,
                                  mu_x,
                                  mu_y,
                                  prf_size,
@@ -420,7 +420,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                  hrf_1=None,
                                  hrf_2=None
                                  ):
-        """return_single_prediction [summary]
+        """return_prediction [summary]
 
         returns the prediction for a single set of parameters.
 
@@ -475,163 +475,32 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         dm = self.stimulus.design_matrix
 
         # create normalization model timecourse
-        neural_tc = (prf_amplitude * stimulus_through_prf(prf, dm) + neural_baseline) /\
-            (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline)
+        neural_tc = (prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm) + neural_baseline[..., np.newaxis]) /\
+            (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm) + surround_baseline[..., np.newaxis])
 
-        tc = signal.convolve(neural_tc[0, :],
+        tc = ndimage.convolve1d(neural_tc,
                              current_hrf,
-                             mode='full')[:dm.shape[-1]].T
+                             mode='reflect')
+
 
         if not self.filter_predictions:
-            return bold_baseline + tc
+            return bold_baseline[..., np.newaxis] + tc
         else:
-            return bold_baseline + sgfilter_predictions(
+            return bold_baseline[..., np.newaxis] + sgfilter_predictions(
                 tc,
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
                 add_mean=self.add_mean,
-                task_lengths=self.task_lengths).T
+                task_lengths=self.task_lengths)
 
-    def gradient_single_prediction(self,
-                                   mu_x,
-                                   mu_y,
-                                   prf_size,
-                                   prf_amplitude,
-                                   bold_baseline,
-
-                                   srf_amplitude,
-                                   srf_size,
-                                   neural_baseline,
-                                   surround_baseline,
-                                   hrf_1=None,
-                                   hrf_2=None
-                                   ):
-        """gradient_single_prediction
-
-        returns the prediction gradient for a single set of parameters.
-
-        Parameters
-        ----------
-        mu_x : float
-            x-position of pRF
-        mu_y : float
-            y-position of pRF
-        prf_size : float
-            size of pRF
-
-
-        Returns
-        -------
-        numpy.ndarray
-            single prediction given the model
-        """
-
-        if hrf_1 is None or hrf_2 is None:
-            current_hrf = self.hrf
-        else:
-            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
-        # create the rfs
-
-        x_coord = self.stimulus.x_coordinates[..., np.newaxis]
-        y_coord = self.stimulus.y_coordinates[..., np.newaxis]
-
-        prf = np.rot90(gauss2D_iso_cart(x=x_coord,
-                               y=y_coord,
-                               mu=(mu_x, mu_y),
-                               sigma=prf_size,
-                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
-
-        # surround receptive field (denominator)
-        srf = np.rot90(gauss2D_iso_cart(x=x_coord,
-                               y=y_coord,
-                               mu=(mu_x, mu_y),
-                               sigma=srf_size,
-                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
-
-        dm = self.stimulus.design_matrix
-
-        gradient = np.zeros((9, dm.shape[-1]))
-
-        # mu_x gradient
-        gradient[0,
-                 :] = 2 * prf_amplitude * stimulus_through_prf((x_coord.T - mu_x) * prf,
-                                                               dm) / (2 * prf_size**2 * (srf_amplitude * stimulus_through_prf(srf,
-                                                                                                                              dm) + surround_baseline)) - (2 * (prf_amplitude * stimulus_through_prf((x_coord.T - mu_x) * prf,
-                                                                                                                                                                                                     dm) + neural_baseline) * srf_amplitude * stimulus_through_prf(srf,
-                                                                                                                                                                                                                                                                   dm)) / (2 * srf_size**2 * (srf_amplitude * stimulus_through_prf(srf,
-                                                                                                                                                                                                                                                                                                                                   dm) + surround_baseline)**2)
-
-        # mu_y gradient
-        gradient[1,
-                 :] = 2 * prf_amplitude * stimulus_through_prf((y_coord.T - mu_y) * prf,
-                                                               dm) / (2 * prf_size**2 * (srf_amplitude * stimulus_through_prf(srf,
-                                                                                                                              dm) + surround_baseline)) - (2 * (prf_amplitude * stimulus_through_prf((y_coord.T - mu_y) * prf,
-                                                                                                                                                                                                     dm) + neural_baseline) * srf_amplitude * stimulus_through_prf(srf,
-                                                                                                                                                                                                                                                                   dm)) / (2 * srf_size**2 * (srf_amplitude * stimulus_through_prf(srf,
-                                                                                                                                                                                                                                                                                                                                   dm) + surround_baseline)**2)
-
-        # prf_size gradient
-        gradient[2, :] = (prf_amplitude * stimulus_through_prf(((x_coord.T - mu_x)**2 + (y_coord.T - mu_y)**2)
-                                                               * prf, dm)) / (prf_size**3 * (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline))
-
-        # prf_amplitude gradient
-        gradient[3, :] = stimulus_through_prf(prf, dm) /\
-            (srf_amplitude * stimulus_through_prf(srf, dm) + surround_baseline)
-
-        # neural_baseline gradient
-        gradient[5, :] = 1 / (srf_amplitude *
-                              stimulus_through_prf(srf, dm) + surround_baseline)
-
-        # srf_amplitude gradient
-        gradient[6,
-                 :] = -(prf_amplitude * stimulus_through_prf(prf,
-                                                             dm) + neural_baseline) * stimulus_through_prf(srf,
-                                                                                                           dm) / (srf_amplitude * stimulus_through_prf(srf,
-                                                                                                                                                       dm) + surround_baseline)**2
-
-        # srf_size gradient
-        gradient[7,
-                 :] = srf_amplitude * stimulus_through_prf((-(x_coord.T - mu_x)**2 - (y_coord.T - mu_y)**2) * srf,
-                                                           dm) * (prf_amplitude * stimulus_through_prf(prf,
-                                                                                                       dm) + neural_baseline) / (srf_size**3 * (srf_amplitude * stimulus_through_prf(srf,
-                                                                                                                                                                                     dm) + surround_baseline)**2)
-
-        # surround_baseline gradient
-        gradient[8,
-                 :] = - (prf_amplitude * stimulus_through_prf(prf,
-                                                              dm) + neural_baseline) / (srf_amplitude * stimulus_through_prf(srf,
-                                                                                                                             dm) + surround_baseline)**2
-
-        for i in range(gradient.shape[0]):
-            gradient[i, :] = signal.convolve(gradient[i, :],
-                                             current_hrf,
-                                             mode='full')[:dm.shape[-1]]
-
-        if not self.filter_predictions:
-            # BOLD baseline is the only parameter outside HRF convolution and
-            # SG filter
-            gradient[4, :] = np.ones(dm.shape[-1])
-            return gradient
-        else:
-            gradient = sgfilter_predictions(gradient,
-                                            window_length=self.window_length,
-                                            polyorder=self.polyorder,
-                                            highpass=self.highpass,
-                                            add_mean=self.add_mean,
-                                            task_lengths=self.task_lengths)
-
-            # BOLD baseline is the only parameter outside HRF convolution and
-            # SG filter
-            gradient[4, :] = np.ones(dm.shape[-1])
-            return gradient
 
 
 class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
     """redefining class for difference of Gaussians in iterative fit.
     """
 
-    def return_single_prediction(self,
+    def return_prediction(self,
                                  mu_x,
                                  mu_y,
                                  prf_size,
@@ -643,7 +512,7 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                  hrf_1=None,
                                  hrf_2=None
                                  ):
-        """return_single_prediction
+        """return_prediction
 
         returns the prediction for a single set of parameters.
         As this is to be used during iterative search, it also
@@ -686,20 +555,20 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         dm = self.stimulus.design_matrix
 
-        neural_tc = prf_amplitude * stimulus_through_prf(prf, dm) - \
-            srf_amplitude * stimulus_through_prf(srf, dm)
+        neural_tc = prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm) - \
+            srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm)
 
-        tc = signal.convolve(neural_tc[0, :],
+        tc = ndimage.convolve1d(neural_tc,
                              current_hrf,
-                             mode='full')[:dm.shape[-1]].T
+                             mode='reflect')
 
         if not self.filter_predictions:
-            return bold_baseline + tc
+            return bold_baseline[..., np.newaxis] + tc
         else:
-            return bold_baseline + sgfilter_predictions(
+            return bold_baseline[..., np.newaxis] + sgfilter_predictions(
                 tc,
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
                 add_mean=self.add_mean,
-                task_lengths=self.task_lengths).T
+                task_lengths=self.task_lengths)
