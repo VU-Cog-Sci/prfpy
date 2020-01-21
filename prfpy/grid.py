@@ -100,6 +100,8 @@ class Iso2DGaussianGridder(Gridder):
                  highpass=True,
                  add_mean=True,
                  task_lengths=None,
+                 task_names=None,
+                 late_iso_dict=None,
                  normalize_RFs=False,
                  **kwargs):
         """__init__ for Iso2DGaussianGridder
@@ -159,6 +161,8 @@ class Iso2DGaussianGridder(Gridder):
         self.highpass = highpass
         self.add_mean = add_mean
         self.task_lengths = task_lengths
+        self.task_names = task_names
+        self.late_iso_dict = late_iso_dict
         self.normalize_RFs = normalize_RFs
 
     def create_rfs(self):
@@ -185,8 +189,6 @@ class Iso2DGaussianGridder(Gridder):
         self.predictions = stimulus_through_prf(
             self.grid_rfs, self.convolved_design_matrix)
 
-        # normalize the resulting predictions to peak value of 1
-        # self.predictions /= self.predictions.max(axis=-1)[:, np.newaxis]
 
     def create_grid_predictions(self,
                                 ecc_grid,
@@ -225,7 +227,7 @@ class Iso2DGaussianGridder(Gridder):
                 polyorder=self.polyorder,
                 highpass=self.highpass,
                 add_mean=self.add_mean,
-                task_lengths=self.task_lengths)
+                task_lengths=self.task_lengths, task_names=self.task_names, late_iso_dict=self.late_iso_dict)
             self.filtered_predictions = True
         else:
             self.filtered_predictions = False
@@ -290,7 +292,7 @@ class Iso2DGaussianGridder(Gridder):
                 polyorder=self.polyorder,
                 highpass=self.highpass,
                 add_mean=self.add_mean,
-                task_lengths=self.task_lengths)
+                task_lengths=self.task_lengths, task_names=self.task_names, late_iso_dict=self.late_iso_dict)
 
 
 class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
@@ -359,7 +361,7 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
                 polyorder=self.polyorder,
                 highpass=self.highpass,
                 add_mean=self.add_mean,
-                task_lengths=self.task_lengths)
+                task_lengths=self.task_lengths, task_names=self.task_names, late_iso_dict=self.late_iso_dict)
 
 
 class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
@@ -492,7 +494,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                 polyorder=self.polyorder,
                 highpass=self.highpass,
                 add_mean=self.add_mean,
-                task_lengths=self.task_lengths)
+                task_lengths=self.task_lengths, task_names=self.task_names, late_iso_dict=self.late_iso_dict)
 
 
 
@@ -571,4 +573,4 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
                 polyorder=self.polyorder,
                 highpass=self.highpass,
                 add_mean=self.add_mean,
-                task_lengths=self.task_lengths)
+                task_lengths=self.task_lengths, task_names=self.task_names, late_iso_dict=self.late_iso_dict)
