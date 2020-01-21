@@ -59,7 +59,9 @@ def stimulus_through_prf(prfs, stimulus, mask=None):
     return prf_r @ stim_r
 
 
-def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=True, add_mean=True, task_lengths=None, **kwargs):
+def sgfilter_predictions(predictions, window_length=201, polyorder=3,
+                         highpass=True, add_mean=True, task_lengths=None,
+                         task_names=None, late_iso_dict=None, **kwargs):
     """sgfilter_predictions
 
     savitzky golay filter predictions, to conform to data filtering
@@ -100,7 +102,7 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     if window_length % 2 != 1:
         raise ValueError  # window_length should be odd
 
-    if task_lengths == None:
+    if task_lengths is None:
         task_lengths = [predictions.shape[-1]]
 
     # first assess that the number and sizes of chunks are compatible with the predictions
@@ -108,8 +110,13 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
     are incompatible with the number of prediction timepoints."
 
     lp_filtered_predictions = np.zeros_like(predictions)
+    if highpass:
+        hp_filtered_predictions = np.zeros_like(predictions)
+
+    baselines = dict()
+
     start = 0
-    for task_length in task_lengths:
+    for i, task_length in enumerate(task_lengths):
 
         stop = start+task_length
 
@@ -130,13 +137,52 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3, highpass=T
                 lp_filtered_predictions[..., start:stop] += np.mean(
                     predictions[..., start:stop], axis=-1)[..., np.newaxis]
 
+        if highpass:
+            hp_filtered_predictions[..., start:stop] = predictions[..., start:stop]\
+                - lp_filtered_predictions[..., start:stop]
+
+            if late_iso_dict is not None:
+                baselines[task_names[i]] = np.mean(hp_filtered_predictions[..., start:stop][...,late_iso_dict[task_names[i]]],
+                                                   axis=-1)
+
         start += task_length
 
+    if late_iso_dict is not None and highpass:
+        baseline_full = np.mean([baselines[task_name] for task_name in task_names], axis=0)
+
+        start = 0
+        for i, task_length in enumerate(task_lengths):
+            stop = start+task_length
+            baseline_diff = baseline_full - baselines[task_names[i]]
+            hp_filtered_predictions[..., start:stop] += baseline_diff[...,np.newaxis]
+            start += task_length
 
     if highpass:
-        return predictions - lp_filtered_predictions
+        return hp_filtered_predictions
     else:
         return lp_filtered_predictions
+
+def equalize_task_baseline(predictions, task_lengths, late_iso_dict):
+    """
+    function to equalize baselines across tasks/conditions.
+    Will use timepoints in late_iso_dict as reference
+
+    Parameters
+    ----------
+    predictions : 2d or 1d predictions
+    late_iso_dict : dictionary with same keys as task_names. Each field
+        contains baseline timepoints to be used.
+
+    Returns
+    -------
+    None.
+
+    """
+
+    for task_name in late_iso_dict.keys():
+        baseline[task_name] = np.mean(predictions[hemi][task_name]['timecourse'][...,late_iso_dict[task_name]],
+                                                   axis=-1)
+
 
 
 def generate_random_legendre_drifts(dimensions=(1000, 120),

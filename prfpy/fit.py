@@ -8,8 +8,7 @@ def error_function(
         parameters,
         args,
         data,
-        objective_function,
-        gradient_objective_function=None):
+        objective_function):
     """
     Parameters
     ----------
@@ -22,10 +21,7 @@ def error_function(
     objective_function : callable
         The objective function that takes `parameters` and `args` and
         produces a model time-series.
-    gradient_objective_function : callable, optional
-        This argument is unused but needed because for explicit gradient minimizations,
-        the arguments passed to both error function and its gradient are the
-        same.
+
     Returns
     -------
     error : float
@@ -39,7 +35,7 @@ def error_function(
         return error
 
 def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True,
-                     bounds=None, gradient_method='numerical', constraints=[], **kwargs):
+                     bounds=None, constraints=[], **kwargs):
     """iterative_search
 
     Generic minimization function called by iterative_fit.
@@ -68,13 +64,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
     bounds : list of tuples, optional
         Bounds for parameter minimization. Must have the same
         length as start_params. The default is None.
-    gradient_method : string, optional.
-        Can be one of 'numerical' or 'analytic' or None. The default is 'numerical'.
 
-        gradient method for bounded minimization (unbounded minimization does
-        not use any gradient). If analytic is selected,
-        a suitable 'gradient_single_prediction' must
-        be defined in the model gridder.
 
     **kwargs : TYPE
         DESCRIPTION.
@@ -82,8 +72,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
     Raises
     ------
     AssertionError
-        Raised if parameters and bounds do not have the same length, or if
-        analytic gradient is selected but no gradient function can be found.
+        Raised if parameters and bounds do not have the same length.
 
     Returns
     -------
@@ -95,43 +84,22 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
         assert len(bounds) == len(
             start_params), "Unequal bounds and parameters"
 
-        if gradient_method == 'analytic':
 
-            assert hasattr(gridder, 'gradient_single_prediction'),\
-                "Analytic gradient selected but no gradient function provided"
-
+        if constraints == []:
             if verbose:
-                print('Using analytic gradient')
-
-            output = minimize(error_function, start_params, bounds=bounds,
-                              args=(
-                                  args,
-                                  data,
-                                  gridder.return_prediction,
-                                  gridder.gradient_single_prediction),
-                              jac=gradient_error_function,
-                              method='L-BFGS-B',
-                              # default max line searches is 20
-                              options=dict(xtol=xtol,
-                                           ftol=ftol,
-                                           maxls=60,
-                                           disp=verbose))
-        elif gradient_method == 'numerical':
-            if verbose:
-                print('Using numerical gradient')
+                print('Performing bounded, unconstrained minimization (Nelder-Mead).')
 
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(
                                   args, data, gridder.return_prediction),
-                               method='L-BFGS-B',
+                               method='Nelder-Mead',
                               # default max line searches is 20
                               options=dict(xtol=xtol,
                                            ftol=ftol,
-                                           maxls=60,
                                            disp=verbose))
         else:
             if verbose:
-                print('Using no-gradient minimization')
+                print('Performing bounded, constrained minimization (trust-constr).')
 
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(args, data,
@@ -140,7 +108,6 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
                               constraints=constraints,
                               options=dict(xtol=xtol,
                                            ftol=ftol,
-                                           maxiter=5000,
                                            disp=verbose))
 
 
@@ -166,6 +133,8 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
                      (output['fun'])/(len(data) * data.var())]
 
     else:
+        if verbose:
+            print('Performing unbounded, unconstrained minimization (Powell).')
 
         output = fmin_powell(
             error_function,
@@ -225,7 +194,6 @@ class Fitter:
                       verbose=False,
                       starting_params=None,
                       bounds=None,
-                      gradient_method='numerical',
                       fit_hrf=False,
                       args={},
                       constraints=[],
@@ -249,7 +217,7 @@ class Fitter:
             Explicit start for iterative fit. The default is None.
         bounds : list of tuples, optional
             Bounds for parameter minimization. The default is None.
-        gradient_method : string, optional.
+        return_predictionthod : string, optional.
             Can be one of 'numerical' or 'analytic' or None. The default is 'numerical'.
             If analytic, a gradient_single_prediction function must be found
             in the model Gridder class.
@@ -266,8 +234,8 @@ class Fitter:
         """
 
         self.bounds = bounds
-        self.gradient_method = gradient_method.lower()
         self.fit_hrf = fit_hrf
+        self.constraints = constraints
 
         if starting_params is None:
             assert hasattr(
@@ -299,8 +267,7 @@ class Fitter:
                                           ftol=ftol,
                                           verbose=verbose,
                                           bounds=self.bounds,
-                                          gradient_method=self.gradient_method,
-                                          constraints=constraints)
+                                          constraints=self.constraints)
                 for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
             self.iterative_search_params[self.rsq_mask] = np.array(
                 iterative_search_params)
@@ -506,7 +473,6 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                       verbose=False,
                       starting_params=None,
                       bounds=None,
-                      gradient_method='numerical',
                       fit_hrf=False,
                       args={},
                       constraints=[]):
@@ -527,8 +493,6 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
             Explicit start for minimization. The default is None.
         bounds : list of tuples, optional
             Bounds for parameter minimization. The default is None.
-        gradient_method : string, optional.
-            Can be one of 'numerical' or 'analytic' or None. The default is 'numerical'.
         fit_hrf : boolean, optional
             Whether or not to fit 2 extra parameters for hrf derivative and
             dispersion. The default is False.
@@ -564,7 +528,6 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                               verbose=verbose,
                               starting_params=starting_params,
                               bounds=bounds,
-                              gradient_method=gradient_method,
                               fit_hrf=fit_hrf,
                               args=args,
                               constraints=constraints)
