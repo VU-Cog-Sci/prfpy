@@ -142,13 +142,13 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
                 - lp_filtered_predictions[..., start:stop]
 
             if late_iso_dict is not None:
-                baselines[task_names[i]] = np.mean(hp_filtered_predictions[..., start:stop][...,late_iso_dict[task_names[i]]],
+                baselines[task_names[i]] = np.median(hp_filtered_predictions[..., start:stop][...,late_iso_dict[task_names[i]]],
                                                    axis=-1)
 
         start += task_length
 
     if late_iso_dict is not None and highpass:
-        baseline_full = np.mean([baselines[task_name] for task_name in task_names], axis=0)
+        baseline_full = np.median([baselines[task_name] for task_name in task_names], axis=0)
 
         start = 0
         for i, task_length in enumerate(task_lengths):
@@ -161,27 +161,6 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
         return hp_filtered_predictions
     else:
         return lp_filtered_predictions
-
-def equalize_task_baseline(predictions, task_lengths, late_iso_dict):
-    """
-    function to equalize baselines across tasks/conditions.
-    Will use timepoints in late_iso_dict as reference
-
-    Parameters
-    ----------
-    predictions : 2d or 1d predictions
-    late_iso_dict : dictionary with same keys as task_names. Each field
-        contains baseline timepoints to be used.
-
-    Returns
-    -------
-    None.
-
-    """
-
-    for task_name in late_iso_dict.keys():
-        baseline[task_name] = np.mean(predictions[hemi][task_name]['timecourse'][...,late_iso_dict[task_name]],
-                                                   axis=-1)
 
 
 
