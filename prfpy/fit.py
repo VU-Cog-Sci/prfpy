@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import fmin_powell, minimize, basinhopping, shgo, dual_annealing
-
+from copy import deepcopy
 from joblib import Parallel, delayed
 
 
@@ -92,7 +92,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(
                                   args, data, gridder.return_prediction),
-                               method='Nelder-Mead',
+                               method='L-BFGS-B',
                               # default max line searches is 20
                               options=dict(xtol=xtol,
                                            ftol=ftol,
@@ -157,7 +157,7 @@ class Fitter:
     Superclass for classes that implement the different fitting methods,
     for a given model. It contains 2D-data and leverages a Gridder object.
 
-    Data should be two-dimensional so that all bookkeeping with regard to voxels,
+    data should be two-dimensional so that all bookkeeping with regard to voxels,
     electrodes, etc is done by the user. Generally, a Fitter class should implement
     both a `grid_fit` and an `interative_fit` method to be run in sequence.
 
@@ -177,8 +177,11 @@ class Fitter:
             number of jobs to use in parallelization (iterative search), by default 1
         """
         assert len(data.shape) == 2, \
-            "input data should be two-dimensional, with first dimension units and second dimension time"
+            "input data should be two-dimensional, with first dimension units and second dimension time"     
+
+            
         self.data = data.astype('float32')
+        
         self.gridder = gridder
         self.n_jobs = n_jobs
 
@@ -271,6 +274,47 @@ class Fitter:
                 for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
             self.iterative_search_params[self.rsq_mask] = np.array(
                 iterative_search_params)
+            
+                
+    def crossvalidate_fit(self,
+                          test_data,
+                          test_stimulus=None):
+        """
+        Simple function to crossvalidate results of previous iterative fitting.
+
+        Parameters
+        ----------
+        test_data : TYPE
+            DESCRIPTION.
+        test_stimulus : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
+        assert hasattr(
+                self, 'iterative_search_params'), 'First use self.iterative_fit,'      
+        
+        #to hande cases where test_data and fit_data have different stimuli
+        if test_stimulus is not None:
+            fit_stimulus = deepcopy(self.stimulus)        
+            self.stimulus = test_stimulus
+        
+        test_predictions = self.gridder.return_prediction(*list(self.iterative_search_params[self.rsq_mask,:-1].T))
+        self.stimulus = fit_stimulus
+        
+        #calculate CV-rsq        
+        CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
+        
+        self.iterative_search_params[self.rsq_mask,-1] = CV_rsq
+        
+        
+        
+        
+            
+    
 
 
 class Iso2DGaussianFitter(Fitter):
@@ -410,7 +454,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
     """
 
-    def __init__(self, data, gridder, n_jobs=1,
+    def __init__(self, gridder, data, n_jobs=1,
                  previous_gaussian_fitter=None,
                  **kwargs):
         """
@@ -443,7 +487,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             self.previous_gaussian_fitter = previous_gaussian_fitter
 
-        super().__init__(data, gridder, n_jobs=n_jobs, **kwargs)
+        super().__init__(gridder, data, n_jobs=n_jobs, **kwargs)
 
     def insert_new_model_params(self, old_params):
         """
@@ -475,7 +519,9 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                       bounds=None,
                       fit_hrf=False,
                       args={},
-                      constraints=[]):
+                      constraints=[],
+                      xtol=1e-4,
+                      ftol=1e-3):
         """
         Iterative_fit for models building on top of the Gaussian. Does not need to be
         redefined for new models. It is sufficient to define either
@@ -530,7 +576,9 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                               bounds=bounds,
                               fit_hrf=fit_hrf,
                               args=args,
-                              constraints=constraints)
+                              constraints=constraints,
+                              xtol=xtol,
+                              ftol=ftol)
 
 
 class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
