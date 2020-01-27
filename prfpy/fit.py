@@ -35,7 +35,7 @@ def error_function(
         return error
 
 def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True,
-                     bounds=None, constraints=[], **kwargs):
+                     bounds=None, constraints=None, **kwargs):
     """iterative_search
 
     Generic minimization function called by iterative_fit.
@@ -85,7 +85,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
             start_params), "Unequal bounds and parameters"
 
 
-        if constraints == []:
+        if constraints is None:
             if verbose:
                 print('Performing bounded, unconstrained minimization (Nelder-Mead).')
 
@@ -96,6 +96,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
                               # default max line searches is 20
                               options=dict(xtol=xtol,
                                            ftol=ftol,
+                                           maxls=40,
                                            disp=verbose))
         else:
             if verbose:
@@ -106,8 +107,8 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
                                     gridder.return_prediction),
                               method='trust-constr',
                               constraints=constraints,
+                              tol=ftol,
                               options=dict(xtol=xtol,
-                                           ftol=ftol,
                                            disp=verbose))
 
 
