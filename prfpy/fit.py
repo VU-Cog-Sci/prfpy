@@ -272,7 +272,7 @@ class Fitter:
                                           verbose=verbose,
                                           bounds=self.bounds,
                                           constraints=self.constraints)
-                for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask][:, :-1]))
+                for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1]))
             self.iterative_search_params[self.rsq_mask] = np.array(
                 iterative_search_params)
             
@@ -300,11 +300,11 @@ class Fitter:
         
         #to hande cases where test_data and fit_data have different stimuli
         if test_stimulus is not None:
-            fit_stimulus = deepcopy(self.stimulus)        
-            self.stimulus = test_stimulus
+            fit_stimulus = deepcopy(self.gridder.stimulus)        
+            self.gridder.stimulus = test_stimulus
         
         test_predictions = self.gridder.return_prediction(*list(self.iterative_search_params[self.rsq_mask,:-1].T))
-        self.stimulus = fit_stimulus
+        self.gridder.stimulus = fit_stimulus
         
         #calculate CV-rsq        
         CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
