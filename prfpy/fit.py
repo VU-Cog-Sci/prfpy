@@ -488,7 +488,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             self.previous_gaussian_fitter = previous_gaussian_fitter
 
-        super().__init__(gridder, data, n_jobs=n_jobs, **kwargs)
+        super().__init__(data, gridder, n_jobs=n_jobs, **kwargs)
 
     def insert_new_model_params(self, old_params):
         """
