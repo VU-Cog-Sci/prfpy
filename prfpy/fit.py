@@ -563,7 +563,10 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                 self.previous_gaussian_fitter.iterative_search_params)
             
             #fit exactly the same voxels/vertices as previous
-            self.rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
+                self.rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            else:
+                self.rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:,-1] > self.rsq_threshold
 
             # enforcing hrf_fit "consistency" with previous gaussian fit:
             if self.previous_gaussian_fitter.fit_hrf != fit_hrf:
@@ -746,7 +749,10 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             self.gaussian_params = np.concatenate(
                 (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
             
-            self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            else:
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > self.rsq_threshold
             
         else:
             print('Please provide suitable [n_units, 4] gaussian_params,\
