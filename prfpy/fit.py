@@ -94,8 +94,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
                                   args, data, gridder.return_prediction),
                                method='L-BFGS-B',
                               # default max line searches is 20
-                              options=dict(xtol=xtol,
-                                           ftol=ftol,
+                              options=dict(ftol=ftol,
                                            maxls=40,
                                            disp=verbose))
         else:
