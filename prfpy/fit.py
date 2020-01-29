@@ -256,8 +256,10 @@ class Fitter:
 
         else:
             self.starting_params = starting_params
-
-        self.rsq_mask = self.starting_params[:, -1] > rsq_threshold
+            
+        if not hasattr(self,'rsq_mask'):
+            #use the grid or explicitly provided params to select voxels to fit
+            self.rsq_mask = self.starting_params[:, -1] > rsq_threshold
 
         self.iterative_search_params = np.zeros_like(self.starting_params)
 
@@ -299,22 +301,24 @@ class Fitter:
                 self, 'iterative_search_params'), 'First use self.iterative_fit,'      
         
         #to hande cases where test_data and fit_data have different stimuli
-        if test_stimulus is not None:
-            fit_stimulus = deepcopy(self.gridder.stimulus)        
+        fit_stimulus = deepcopy(self.gridder.stimulus) 
+        if test_stimulus is not None:                  
             self.gridder.stimulus = test_stimulus
-        
-        test_predictions = self.gridder.return_prediction(*list(self.iterative_search_params[self.rsq_mask,:-1].T))
-        self.gridder.stimulus = fit_stimulus
-        
-        #calculate CV-rsq        
-        CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
-        
-        self.iterative_search_params[self.rsq_mask,-1] = CV_rsq
-        
-        
-        
-        
             
+        if self.rsq_mask.sum()>0:
+            test_predictions = self.gridder.return_prediction(*list(self.iterative_search_params[self.rsq_mask,:-1].T))
+            self.gridder.stimulus = fit_stimulus
+            
+            #calculate CV-rsq        
+            CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
+            
+            self.iterative_search_params[self.rsq_mask,-1] = CV_rsq
+        else:
+            print("No voxels/vertices above Rsq threshold were found.")
+
+            
+        
+        
     
 
 
@@ -558,11 +562,11 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             starting_params = self.insert_new_model_params(
                 self.previous_gaussian_fitter.iterative_search_params)
+            
+            #fit exactly the same voxels/vertices as previous
+            self.rsq_mask = self.previous_gaussian_fitter.rsq_mask
 
-            # handling fit_hrf discrepancy between previous and current fitter
-            # for now, i am enforcing "consistency" with previous gaussian fit:
-            # if hrf was fit, it will be fit for new model too, and vice
-            # versa. Could easily be changed for more flexibility.
+            # enforcing hrf_fit "consistency" with previous gaussian fit:
             if self.previous_gaussian_fitter.fit_hrf != fit_hrf:
 
                 print("Warning: fit_hrf was " + str(
@@ -736,16 +740,21 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         if gaussian_params is not None and gaussian_params.shape == (
                 self.n_units, 4):
             self.gaussian_params = gaussian_params.astype('float32')
+            self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
+            
         elif hasattr(self, 'previous_gaussian_fitter'):
             starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
             self.gaussian_params = np.concatenate(
                 (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
+            
+            self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            
         else:
             print('Please provide suitable [n_units, 4] gaussian_params,\
                   or previous_gaussian_fitter')
             raise ValueError
 
-        self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
+        
 
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
