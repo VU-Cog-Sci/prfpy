@@ -87,7 +87,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
 
         if constraints is None:
             if verbose:
-                print('Performing bounded, unconstrained minimization (Nelder-Mead).')
+                print('Performing bounded, unconstrained minimization (L-BFGS-B).')
 
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(
