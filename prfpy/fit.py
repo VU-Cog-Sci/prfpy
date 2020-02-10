@@ -566,7 +566,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
             if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                 self.rsq_mask = self.previous_gaussian_fitter.rsq_mask
             else:
-                self.rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:,-1] > self.rsq_threshold
+                self.rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:,-1] > rsq_threshold
 
             # enforcing hrf_fit "consistency" with previous gaussian fit:
             if self.previous_gaussian_fitter.fit_hrf != fit_hrf:
