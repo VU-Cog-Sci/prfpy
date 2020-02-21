@@ -27,12 +27,8 @@ def error_function(
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    error = np.sum((data - objective_function(*list(parameters), **args))**2)
+    return np.sum((data - np.nan_to_num(objective_function(*list(parameters), **args)))**2)
 
-    if np.isnan(error):
-        return np.inf
-    else:
-        return error
 
 def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True,
                      bounds=None, constraints=None, **kwargs):
