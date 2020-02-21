@@ -125,8 +125,8 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
             #               args=(args, data, gridder.return_prediction),
             #                       x0=start_params)
 
-        return np.r_[output['x'], 1 -
-                     (output['fun'])/(len(data) * data.var())]
+        return np.nan_to_num(np.r_[output['x'], 1 -
+                     (output['fun'])/(len(data) * data.var())])
 
     else:
         if verbose:
@@ -144,7 +144,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
             full_output=True,
             disp=verbose)
 
-        return np.r_[output[0], 1 - (output[1])/(len(data) * data.var())]
+        return np.nan_to_num(np.r_[output[0], 1 - (output[1])/(len(data) * data.var())])
 
 
 class Fitter:
