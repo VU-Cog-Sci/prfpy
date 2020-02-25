@@ -120,7 +120,10 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
     for i, task_length in enumerate(task_lengths):
 
         if window_length == 'adaptive':
-            current_window_length = task_length - 1
+            if task_length % 2 != 1:
+                current_window_length = task_length - 1
+            else:
+                current_window_length = task_length
         else:
             current_window_length = window_length
 
