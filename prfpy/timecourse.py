@@ -167,7 +167,10 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
             start += task_length
 
     if highpass:
-        return hp_filtered_predictions - baseline_full
+        if late_iso_dict is not None:
+            return hp_filtered_predictions - baseline_full
+        else:
+            return hp_filtered_predictions
     else:
         return lp_filtered_predictions
 
