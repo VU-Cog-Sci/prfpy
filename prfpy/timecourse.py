@@ -99,8 +99,9 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
     numpy.ndarray
         filtered version of the array
     """
-    if window_length % 2 != 1:
-        raise ValueError  # window_length should be odd
+    if window_length != 'adaptive':
+        if window_length % 2 != 1:
+            raise ValueError  # window_length should be odd
 
     if task_lengths is None:
         task_lengths = [predictions.shape[-1]]
@@ -118,11 +119,16 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
     start = 0
     for i, task_length in enumerate(task_lengths):
 
+        if window_length == 'adaptive':
+            current_window_length = task_length - 1
+        else:
+            current_window_length = window_length
+
         stop = start+task_length
 
         try:
             lp_filtered_predictions[..., start:stop] = signal.savgol_filter(
-            predictions[..., start:stop], window_length=window_length,
+            predictions[..., start:stop], window_length=current_window_length,
             polyorder=polyorder, **kwargs)
         except:
             print("Error occurred during predictions savgol filtering.\
@@ -158,7 +164,7 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
             start += task_length
 
     if highpass:
-        return hp_filtered_predictions
+        return hp_filtered_predictions - baseline_full
     else:
         return lp_filtered_predictions
 

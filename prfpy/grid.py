@@ -502,7 +502,10 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         hrf_shape = np.ones(len(neural_tc.shape), dtype=np.int)
         hrf_shape[-1] = current_hrf.shape[0]        
         tc = signal.fftconvolve(neural_tc,current_hrf.reshape(hrf_shape), axes=(-1))[..., :neural_tc.shape[-1]]
-
+        
+        #something like this could be used to avoid the initial dip caused by finite size effect with the convolution
+        #tc[...,:7] = neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
+        #different convolution methods (try oaconvolve when moving to scipy 1.4, its supposed to be faster)
         # tc = ndimage.convolve1d(neural_tc,
         #                      current_hrf,
         #                      mode='nearest')    
