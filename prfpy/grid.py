@@ -32,25 +32,25 @@ class Gridder(object):
         self.stimulus = stimulus
 
     def create_hrf(self, hrf_params=[1.0, 1.0, 0.0]):
-
+        
         hrf = np.array(
             [
-                hrf_params[0] *
+                np.ones_like(hrf_params[1])*hrf_params[0] *
                 spm_hrf(
                     tr=self.stimulus.TR,
                     oversampling=1,
-                    time_length=40),
+                    time_length=40)[...,np.newaxis],
                 hrf_params[1] *
                 spm_time_derivative(
                     tr=self.stimulus.TR,
                     oversampling=1,
-                    time_length=40),
+                    time_length=40)[...,np.newaxis],
                 hrf_params[2] *
                 spm_dispersion_derivative(
                     tr=self.stimulus.TR,
                     oversampling=1,
-                    time_length=40)]).sum(
-            axis=0)
+                    time_length=40)[...,np.newaxis]]).sum(
+            axis=0)                    
 
         return hrf
 
@@ -283,7 +283,10 @@ class Iso2DGaussianGridder(Gridder):
 
         # convolution of gauss grid is performed like so
         hrf_shape = np.ones(len(neural_tc.shape), dtype=np.int)
-        hrf_shape[-1] = current_hrf.shape[0]        
+        hrf_shape[-1] = current_hrf.shape[0]
+        if len(current_hrf.shape)>1:
+            hrf_shape[0] = current_hrf.shape[1]  
+            
         tc = signal.fftconvolve(neural_tc,current_hrf.reshape(hrf_shape), axes=(-1))[..., :neural_tc.shape[-1]]
 
         # tc = ndimage.convolve1d(neural_tc,
@@ -360,7 +363,10 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
         
         # convolution of gauss grid is performed like so
         hrf_shape = np.ones(len(neural_tc.shape), dtype=np.int)
-        hrf_shape[-1] = current_hrf.shape[0]        
+        hrf_shape[-1] = current_hrf.shape[0]
+        if len(current_hrf.shape)>1:
+            hrf_shape[0] = current_hrf.shape[1]
+            
         tc = signal.fftconvolve(neural_tc,current_hrf.reshape(hrf_shape), axes=(-1))[..., :neural_tc.shape[-1]]
 
         # tc = ndimage.convolve1d(neural_tc,
@@ -500,7 +506,10 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         # convolution of gauss grid is performed like so
         hrf_shape = np.ones(len(neural_tc.shape), dtype=np.int)
-        hrf_shape[-1] = current_hrf.shape[0]        
+        hrf_shape[-1] = current_hrf.shape[0]
+        if len(current_hrf.shape)>1:
+            hrf_shape[0] = current_hrf.shape[1]
+        
         tc = signal.fftconvolve(neural_tc,current_hrf.reshape(hrf_shape), axes=(-1))[..., :neural_tc.shape[-1]]
         
         #something like this could be used to avoid the initial dip caused by finite size effect with the convolution
@@ -587,7 +596,10 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         # convolution of gauss grid is performed like so
         hrf_shape = np.ones(len(neural_tc.shape), dtype=np.int)
-        hrf_shape[-1] = current_hrf.shape[0]        
+        hrf_shape[-1] = current_hrf.shape[0]
+        if len(current_hrf.shape)>1:
+            hrf_shape[0] = current_hrf.shape[1]  
+            
         tc = signal.fftconvolve(neural_tc,current_hrf.reshape(hrf_shape), axes=(-1))[..., :neural_tc.shape[-1]]
 
         # tc = ndimage.convolve1d(neural_tc,
