@@ -32,6 +32,21 @@ class Gridder(object):
         self.stimulus = stimulus
 
     def create_hrf(self, hrf_params=[1.0, 1.0, 0.0]):
+        """
+        
+        construct single or multiple HRFs        
+
+        Parameters
+        ----------
+        hrf_params : TYPE, optional
+            DESCRIPTION. The default is [1.0, 1.0, 0.0].
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
         
         hrf = np.array(
             [
@@ -52,7 +67,36 @@ class Gridder(object):
                     time_length=40)[...,np.newaxis]]).sum(
             axis=0)                    
 
-        return hrf
+        return hrf.T
+    
+    def convolve_timecourse_hrf(self, tc, hrf):
+        """
+        
+        Convolve neural timecourses with single or multiple hrfs.
+
+        Parameters
+        ----------
+        tc : TYPE
+            DESCRIPTION.
+        hrf : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        convolved_tc : TYPE
+            DESCRIPTION.
+
+        """
+        
+        if hrf.shape[0]>1:
+            assert hrf.shape[0] == tc.shape[0], f"{hrf.shape[0]} HRFs provided vs {tc.shape[0]} timecourses"
+            convolved_tc = np.zeros_like(tc)
+            for n_ in range(hrf.shape[0]):
+                convolved_tc[n_,:] = signal.fftconvolve(tc[n_,:],hrf[n_,:])[:tc.shape[-1]]
+        else:
+            convolved_tc = signal.fftconvolve(tc, hrf, axes=(-1))[..., :tc.shape[-1]]    
+            
+        return convolved_tc
 
     def create_drifts_and_noise(self,
                                 drift_ranges=[[0, 0]],
@@ -281,17 +325,8 @@ class Iso2DGaussianGridder(Gridder):
         dm = self.stimulus.design_matrix
         neural_tc = stimulus_through_prf(rf, dm)
 
-        # convolution of gauss grid is performed like so
-        hrf_shape = np.ones(len(neural_tc.shape), dtype=np.int)
-        hrf_shape[-1] = current_hrf.shape[0]
-        if len(current_hrf.shape)>1:
-            hrf_shape[0] = current_hrf.shape[1]  
-            
-        tc = signal.fftconvolve(neural_tc,current_hrf.reshape(hrf_shape), axes=(-1))[..., :neural_tc.shape[-1]]
 
-        # tc = ndimage.convolve1d(neural_tc,
-        #                      current_hrf,
-        #                      mode='reflect')
+        tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
         
 
         if not self.filter_predictions:
@@ -361,17 +396,7 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
         dm = self.stimulus.design_matrix
         neural_tc = stimulus_through_prf(rf, dm)**n[..., np.newaxis]
         
-        # convolution of gauss grid is performed like so
-        hrf_shape = np.ones(len(neural_tc.shape), dtype=np.int)
-        hrf_shape[-1] = current_hrf.shape[0]
-        if len(current_hrf.shape)>1:
-            hrf_shape[0] = current_hrf.shape[1]
-            
-        tc = signal.fftconvolve(neural_tc,current_hrf.reshape(hrf_shape), axes=(-1))[..., :neural_tc.shape[-1]]
-
-        # tc = ndimage.convolve1d(neural_tc,
-        #                      current_hrf,
-        #                      mode='reflect')
+        tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
 
         if not self.filter_predictions:
             return baseline[..., np.newaxis] + beta[..., np.newaxis] * tc
@@ -504,21 +529,8 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         neural_tc = (prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm) + neural_baseline[..., np.newaxis]) /\
             (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm) + surround_baseline[..., np.newaxis])
 
-        # convolution of gauss grid is performed like so
-        hrf_shape = np.ones(len(neural_tc.shape), dtype=np.int)
-        hrf_shape[-1] = current_hrf.shape[0]
-        if len(current_hrf.shape)>1:
-            hrf_shape[0] = current_hrf.shape[1]
-        
-        tc = signal.fftconvolve(neural_tc,current_hrf.reshape(hrf_shape), axes=(-1))[..., :neural_tc.shape[-1]]
-        
-        #something like this could be used to avoid the initial dip caused by finite size effect with the convolution
-        #tc[...,:7] = neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
-        #different convolution methods (try oaconvolve when moving to scipy 1.4, its supposed to be faster)
-        # tc = ndimage.convolve1d(neural_tc,
-        #                      current_hrf,
-        #                      mode='nearest')    
-        
+        tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
+                
         if not self.filter_predictions:
             return bold_baseline[..., np.newaxis] + tc
         else:
@@ -594,17 +606,7 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
         neural_tc = prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm) - \
             srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm)
 
-        # convolution of gauss grid is performed like so
-        hrf_shape = np.ones(len(neural_tc.shape), dtype=np.int)
-        hrf_shape[-1] = current_hrf.shape[0]
-        if len(current_hrf.shape)>1:
-            hrf_shape[0] = current_hrf.shape[1]  
-            
-        tc = signal.fftconvolve(neural_tc,current_hrf.reshape(hrf_shape), axes=(-1))[..., :neural_tc.shape[-1]]
-
-        # tc = ndimage.convolve1d(neural_tc,
-        #                      current_hrf,
-        #                      mode='reflect')
+        tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
 
         if not self.filter_predictions:
             return bold_baseline[..., np.newaxis] + tc
