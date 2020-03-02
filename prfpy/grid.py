@@ -88,14 +88,24 @@ class Gridder(object):
 
         """
         
+        # use median HRF when multiple are provided
         if hrf.shape[0]>1:
             assert hrf.shape[0] == tc.shape[0], f"{hrf.shape[0]} HRFs provided vs {tc.shape[0]} timecourses"
-            convolved_tc = np.zeros_like(tc)
-            for n_ in range(hrf.shape[0]):
-                convolved_tc[n_,:] = signal.fftconvolve(tc[n_,:],hrf[n_,:])[:tc.shape[-1]]
-        else:
-            convolved_tc = signal.fftconvolve(tc, hrf, axes=(-1))[..., :tc.shape[-1]]    
+            hrf = np.median(hrf, axis=0).reshape(1,-1)
             
+        #this block here uses all the provided HRFs, not median    
+        #     convolved_tc = np.zeros_like(tc)
+        #     for n_ in range(hrf.shape[0]):
+        #         convolved_tc[n_,:] = signal.fftconvolve(tc[n_,:],hrf[n_,:])[:tc.shape[-1]]
+        # else:
+        #     convolved_tc = signal.fftconvolve(tc, hrf, axes=(-1))[..., :tc.shape[-1]]
+        
+        #scipy fftconvolve does not have padding options so doing it manually
+        pad_length = 20
+        pad = np.tile(tc[:,0], (pad_length,1)).T
+        padded_tc = np.hstack((pad,tc))
+        convolved_tc = signal.fftconvolve(padded_tc, hrf, axes=(-1))[..., pad_length:tc.shape[-1]+pad_length] 
+
         return convolved_tc
 
     def create_drifts_and_noise(self,
@@ -448,7 +458,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                     gaussian_params[1],
                                     gaussian_params[2],
                                     1.0,
-                                    0.0,
+                                    100.0,
                                     sa[idx],
                                     ss[idx],
                                     nb[idx],
