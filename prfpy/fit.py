@@ -195,7 +195,7 @@ class Fitter:
                       bounds=None,
                       fit_hrf=False,
                       args={},
-                      constraints=[],
+                      constraints=None,
                       xtol=1e-4,
                       ftol=1e-3):
         """

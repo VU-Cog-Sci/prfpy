@@ -165,12 +165,11 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
             baseline_diff = baseline_full - baselines[task_names[i]]
             hp_filtered_predictions[..., start:stop] += baseline_diff[...,np.newaxis]
             start += task_length
+        
+        hp_filtered_predictions -= baseline_full[...,np.newaxis]
 
     if highpass:
-        if late_iso_dict is not None:
-            return hp_filtered_predictions - baseline_full[...,np.newaxis]
-        else:
-            return hp_filtered_predictions
+        return hp_filtered_predictions
     else:
         return lp_filtered_predictions
 
