@@ -458,7 +458,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                                     gaussian_params[1],
                                     gaussian_params[2],
                                     1.0,
-                                    100.0,
+                                    0.0,
                                     sa[idx],
                                     ss[idx],
                                     nb[idx],
