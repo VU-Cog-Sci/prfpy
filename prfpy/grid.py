@@ -92,13 +92,13 @@ class Gridder(object):
         pad = np.tile(tc[:,0], (pad_length,1)).T
         padded_tc = np.hstack((pad,tc))
         
-        multi_hrf = True
+        single_hrf = True
         
         # use median HRF when multiple are provided
         if hrf.shape[0]>1:           
             assert hrf.shape[0] == tc.shape[0], f"{hrf.shape[0]} HRFs provided vs {tc.shape[0]} timecourses"
             
-            if not multi_hrf:             
+            if single_hrf:             
                 hrf = np.median(hrf, axis=0).reshape(1,-1)
                 convolved_tc = signal.fftconvolve(padded_tc, hrf, axes=(-1))[..., pad_length:tc.shape[-1]+pad_length]
                 
