@@ -311,8 +311,15 @@ class Fitter:
         else:
             print("No voxels/vertices above Rsq threshold were found.")
 
+
+        if self.data.shape == test_data.shape:
+              
+            self.noise_ceiling = np.zeros(self.n_units)
             
-        
+            n_c = 1-np.sum((test_data[self.rsq_mask]-self.data[self.rsq_mask])**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
+            
+            self.noise_ceiling[self.rsq_mask] = n_c
+
         
     
 
