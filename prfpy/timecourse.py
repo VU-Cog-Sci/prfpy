@@ -1,4 +1,5 @@
 import numpy as np
+import scipy as sp
 import scipy.signal as signal
 from statsmodels.tsa.arima_process import arma_generate_sample
 
@@ -173,8 +174,86 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
     else:
         return lp_filtered_predictions
 
+def dcfilter_predictions(predictions, modes_to_remove=5,
+                         add_mean=True,
+                         task_lengths=None,
+                         task_names=None, late_iso_dict=None, **kwargs):
 
 
+    if task_lengths is None:
+        task_lengths = [predictions.shape[-1]]
+
+    # first assess that the number and sizes of chunks are compatible with the predictions
+    assert np.sum(task_lengths) == predictions.shape[-1], "Task lengths \
+    are incompatible with the number of prediction timepoints."
+
+    baselines = dict()
+    filtered_predictions = np.zeros_like(predictions)
+
+    start = 0
+    for i, task_length in enumerate(task_lengths):
+
+        stop = start+task_length
+
+        try:
+            coeffs = sp.fftpack.dct(predictions, norm='ortho', axis=-1)
+            coeffs[:, :modes_to_remove] = 0
+        
+            filtered_predictions[..., start:stop] = sp.fftpack.idct(coeffs, norm='ortho', axis=-1)
+        except:
+            print("Error occurred during predictions discrete cosine filtering.\
+                  Using unfiltered prediction instead")
+            filtered_predictions = predictions
+        
+        if add_mean:
+            filtered_predictions[..., start:stop] += np.mean(
+                    predictions[..., start:stop], axis=-1)[..., np.newaxis]
+            
+        
+        if late_iso_dict is not None:
+            baselines[task_names[i]] = np.median(filtered_predictions[..., start:stop][...,late_iso_dict[task_names[i]]],
+                                               axis=-1)
+
+        start += task_length
+
+    if late_iso_dict is not None:
+        baseline_full = np.median([baselines[task_name] for task_name in task_names], axis=0)
+
+        start = 0
+        for i, task_length in enumerate(task_lengths):
+            stop = start+task_length
+            baseline_diff = baseline_full - baselines[task_names[i]]
+            filtered_predictions[..., start:stop] += baseline_diff[...,np.newaxis]
+            start += task_length
+        
+        filtered_predictions -= baseline_full[...,np.newaxis]
+
+    return filtered_predictions
+
+
+def filter_predictions(predictions, 
+                       filter_type,
+                       modes_to_remove=5,
+                       window_length=201, polyorder=3,
+                       highpass=True, add_mean=True, task_lengths=None,
+                       task_names=None, late_iso_dict=None, **kwargs):
+    
+    if filter_type == 'sg':
+        return sgfilter_predictions(predictions,
+                                    window_length, polyorder,
+                       highpass, add_mean, task_lengths,
+                       task_names, late_iso_dict, **kwargs)
+    elif filter_type == 'dc':
+        return dcfilter_predictions(predictions,
+                                    modes_to_remove,
+                                    add_mean,
+                         task_lengths,
+                         task_names, late_iso_dict, **kwargs)
+    else:
+        print("unknown filter option selected, using unfiltered prediction")
+        return predictions
+    
+    
 def generate_random_legendre_drifts(dimensions=(1000, 120),
                                     amplitude_ranges=[[500, 600], [-50, 50], [-20, 20], [-10, 10], [-5, 5]]):
     """generate_random_legendre_drifts
