@@ -8,7 +8,7 @@ from .timecourse import stimulus_through_prf, \
     convolve_stimulus_dm, \
     generate_random_cosine_drifts, \
     generate_arima_noise, \
-    sgfilter_predictions
+    filter_predictions
 
 
 class Gridder(object):
@@ -155,6 +155,8 @@ class Iso2DGaussianGridder(Gridder):
                  stimulus,
                  hrf=None,
                  filter_predictions=False,
+                 filter_type='dc',
+                 modes_to_remove=5,
                  window_length=201,
                  polyorder=3,
                  highpass=True,
@@ -213,6 +215,12 @@ class Iso2DGaussianGridder(Gridder):
 
         # filtering and other stuff
         self.filter_predictions = filter_predictions
+        self.filter_type = filter_type
+        
+        #settings for discrete cosines filter
+        self.modes_to_remove = modes_to_remove
+        
+        #settings for savgol filter
         self.window_length = window_length
         self.polyorder = polyorder
         self.highpass = highpass
@@ -280,8 +288,10 @@ class Iso2DGaussianGridder(Gridder):
         self.stimulus_times_prfs()
 
         if self.filter_predictions:
-            self.predictions = sgfilter_predictions(
+            self.predictions = filter_predictions(
                 self.predictions,
+                self.filter_type,
+                modes_to_remove=self.modes_to_remove,
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -347,8 +357,10 @@ class Iso2DGaussianGridder(Gridder):
         if not self.filter_predictions:
             return baseline[..., np.newaxis] + beta[..., np.newaxis] * tc
         else:
-            return baseline[..., np.newaxis] + beta[..., np.newaxis] * sgfilter_predictions(
+            return baseline[..., np.newaxis] + beta[..., np.newaxis] * filter_predictions(
                 tc,
+                self.filter_type,
+                modes_to_remove=self.modes_to_remove,                
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -416,8 +428,10 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
         if not self.filter_predictions:
             return baseline[..., np.newaxis] + beta[..., np.newaxis] * tc
         else:
-            return baseline[..., np.newaxis] + beta[..., np.newaxis] * sgfilter_predictions(
+            return baseline[..., np.newaxis] + beta[..., np.newaxis] * filter_predictions(
                 tc,
+                self.filter_type,
+                modes_to_remove=self.modes_to_remove,                
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -549,8 +563,10 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
         if not self.filter_predictions:
             return bold_baseline[..., np.newaxis] + tc
         else:
-            return bold_baseline[..., np.newaxis] + sgfilter_predictions(
+            return bold_baseline[..., np.newaxis] + filter_predictions(
                 tc,
+                self.filter_type,
+                modes_to_remove=self.modes_to_remove,
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -626,8 +642,10 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
         if not self.filter_predictions:
             return bold_baseline[..., np.newaxis] + tc
         else:
-            return bold_baseline[..., np.newaxis] + sgfilter_predictions(
+            return bold_baseline[..., np.newaxis] + filter_predictions(
                 tc,
+                self.filter_type,
+                modes_to_remove=self.modes_to_remove,
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
