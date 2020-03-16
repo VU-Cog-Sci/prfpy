@@ -276,7 +276,8 @@ class Fitter:
                 
     def crossvalidate_fit(self,
                           test_data,
-                          test_stimulus=None):
+                          test_stimulus=None,
+                          single_hrf=True):
         """
         Simple function to crossvalidate results of previous iterative fitting.
 
@@ -301,6 +302,12 @@ class Fitter:
             self.gridder.stimulus = test_stimulus
             
         if self.rsq_mask.sum()>0:
+            if self.fit_hrf and single_hrf:
+                median_hrf_params = np.median(self.iterative_search_params[self.rsq_mask,-3:-1], axis=0)
+                
+                self.iterative_search_params[self.rsq_mask,-3:-1] = median_hrf_params
+                
+            
             test_predictions = self.gridder.return_prediction(*list(self.iterative_search_params[self.rsq_mask,:-1].T))
             self.gridder.stimulus = fit_stimulus
             
