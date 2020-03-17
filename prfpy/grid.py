@@ -154,7 +154,8 @@ class Iso2DGaussianGridder(Gridder):
                  hrf=None,
                  filter_predictions=False,
                  filter_type='dc',
-                 modes_to_remove=5,
+                 first_modes_to_remove=5,
+                 last_modes_to_remove=0,
                  window_length=201,
                  polyorder=3,
                  highpass=True,
@@ -216,7 +217,8 @@ class Iso2DGaussianGridder(Gridder):
         self.filter_type = filter_type
         
         #settings for discrete cosines filter
-        self.modes_to_remove = modes_to_remove
+        self.first_modes_to_remove = first_modes_to_remove
+        self.last_modes_to_remove = last_modes_to_remove
         
         #settings for savgol filter
         self.window_length = window_length
@@ -289,7 +291,8 @@ class Iso2DGaussianGridder(Gridder):
             self.predictions = filter_predictions(
                 self.predictions,
                 self.filter_type,
-                modes_to_remove=self.modes_to_remove,
+                first_modes_to_remove=self.first_modes_to_remove,
+                last_modes_to_remove=self.last_modes_to_remove,
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -358,7 +361,8 @@ class Iso2DGaussianGridder(Gridder):
             return baseline[..., np.newaxis] + beta[..., np.newaxis] * filter_predictions(
                 tc,
                 self.filter_type,
-                modes_to_remove=self.modes_to_remove,                
+                first_modes_to_remove=self.first_modes_to_remove,
+                last_modes_to_remove=self.last_modes_to_remove,                
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -429,7 +433,8 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
             return baseline[..., np.newaxis] + beta[..., np.newaxis] * filter_predictions(
                 tc,
                 self.filter_type,
-                modes_to_remove=self.modes_to_remove,                
+                first_modes_to_remove=self.first_modes_to_remove,
+                last_modes_to_remove=self.last_modes_to_remove,                
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -564,7 +569,8 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
             return bold_baseline[..., np.newaxis] + filter_predictions(
                 tc,
                 self.filter_type,
-                modes_to_remove=self.modes_to_remove,
+                first_modes_to_remove=self.first_modes_to_remove,
+                last_modes_to_remove=self.last_modes_to_remove, 
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -643,7 +649,8 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
             return bold_baseline[..., np.newaxis] + filter_predictions(
                 tc,
                 self.filter_type,
-                modes_to_remove=self.modes_to_remove,
+                first_modes_to_remove=self.first_modes_to_remove,
+                last_modes_to_remove=self.last_modes_to_remove, 
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
