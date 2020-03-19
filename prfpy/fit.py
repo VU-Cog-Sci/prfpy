@@ -303,7 +303,9 @@ class Fitter:
             
         if self.rsq_mask.sum()>0:
             if self.fit_hrf and single_hrf:
-                median_hrf_params = np.median(self.iterative_search_params[self.rsq_mask,-3:-1], axis=0)
+                median_hrf_params = np.average(self.iterative_search_params[self.rsq_mask,-3:-1],
+                                               axis=0,
+                                               weights=self.iterative_search_params[self.rsq_mask,-1])
                 
                 self.iterative_search_params[self.rsq_mask,-3:-1] = median_hrf_params
                 
