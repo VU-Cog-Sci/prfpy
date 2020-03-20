@@ -152,13 +152,13 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
                 - lp_filtered_predictions[..., start:stop]
 
             if late_iso_dict is not None:
-                baselines[task_names[i]] = np.mean(hp_filtered_predictions[..., start:stop][...,late_iso_dict[task_names[i]]],
+                baselines[task_names[i]] = np.median(hp_filtered_predictions[..., start:stop][...,late_iso_dict[task_names[i]]],
                                                    axis=-1)
 
         start += task_length
 
     if late_iso_dict is not None and highpass:
-        baseline_full = np.mean([baselines[task_name] for task_name in task_names], axis=0)
+        baseline_full = np.median([baselines[task_name] for task_name in task_names], axis=0)
 
         start = 0
         for i, task_length in enumerate(task_lengths):
@@ -213,13 +213,13 @@ def dcfilter_predictions(predictions, first_modes_to_remove=5,
             
         
         if late_iso_dict is not None:
-            baselines[task_names[i]] = np.mean(filtered_predictions[..., start:stop][...,late_iso_dict[task_names[i]]],
+            baselines[task_names[i]] = np.median(filtered_predictions[..., start:stop][...,late_iso_dict[task_names[i]]],
                                                axis=-1)
 
         start += task_length
 
     if late_iso_dict is not None:
-        baseline_full = np.mean([baselines[task_name] for task_name in task_names], axis=0)
+        baseline_full = np.median([baselines[task_name] for task_name in task_names], axis=0)
 
         start = 0
         for i, task_length in enumerate(task_lengths):
