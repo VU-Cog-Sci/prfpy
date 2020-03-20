@@ -559,7 +559,8 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
 
         # create normalization model timecourse
         neural_tc = (prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm) + neural_baseline[..., np.newaxis]) /\
-            (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm) + surround_baseline[..., np.newaxis])
+            (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm) + surround_baseline[..., np.newaxis]) \
+                - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
 
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
                 
