@@ -175,7 +175,7 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
         return lp_filtered_predictions
 
 def dcfilter_predictions(predictions, first_modes_to_remove=5,
-                         last_modes_to_remove=0,
+                         last_modes_to_remove_percent=0,
                          add_mean=True,
                          task_lengths=None,
                          task_names=None, late_iso_dict=None, **kwargs):
@@ -199,7 +199,9 @@ def dcfilter_predictions(predictions, first_modes_to_remove=5,
         try:
             coeffs = sp.fftpack.dct(predictions, norm='ortho', axis=-1)
             coeffs[:, :first_modes_to_remove] = 0
-            coeffs[:, -last_modes_to_remove:] = 0
+            if last_modes_to_remove_percent>0:
+                last_modes_to_remove = int(task_length*last_modes_to_remove_percent/100)
+                coeffs[:, -last_modes_to_remove:] = 0
         
             filtered_predictions[..., start:stop] = sp.fftpack.idct(coeffs, norm='ortho', axis=-1)
         except:
@@ -236,7 +238,7 @@ def dcfilter_predictions(predictions, first_modes_to_remove=5,
 def filter_predictions(predictions, 
                        filter_type,
                        first_modes_to_remove=5,
-                       last_modes_to_remove=0,
+                       last_modes_to_remove_percent=0,
                        window_length=201, polyorder=3,
                        highpass=True, add_mean=True, task_lengths=None,
                        task_names=None, late_iso_dict=None, **kwargs):
@@ -249,7 +251,7 @@ def filter_predictions(predictions,
     elif filter_type == 'dc':
         return dcfilter_predictions(predictions,
                                     first_modes_to_remove,
-                                    last_modes_to_remove,
+                                    last_modes_to_remove_percent,
                                     add_mean,
                          task_lengths,
                          task_names, late_iso_dict, **kwargs)

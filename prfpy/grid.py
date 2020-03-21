@@ -155,7 +155,7 @@ class Iso2DGaussianGridder(Gridder):
                  filter_predictions=False,
                  filter_type='dc',
                  first_modes_to_remove=5,
-                 last_modes_to_remove=0,
+                 last_modes_to_remove_percent=0,
                  window_length=201,
                  polyorder=3,
                  highpass=True,
@@ -218,7 +218,7 @@ class Iso2DGaussianGridder(Gridder):
         
         #settings for discrete cosines filter
         self.first_modes_to_remove = first_modes_to_remove
-        self.last_modes_to_remove = last_modes_to_remove
+        self.last_modes_to_remove_percent = last_modes_to_remove_percent
         
         #settings for savgol filter
         self.window_length = window_length
@@ -292,7 +292,7 @@ class Iso2DGaussianGridder(Gridder):
                 self.predictions,
                 self.filter_type,
                 first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove=self.last_modes_to_remove,
+                last_modes_to_remove_percent=self.last_modes_to_remove_percent,
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -362,7 +362,7 @@ class Iso2DGaussianGridder(Gridder):
                 tc,
                 self.filter_type,
                 first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove=self.last_modes_to_remove,                
+                last_modes_to_remove_percent=self.last_modes_to_remove_percent,                
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -434,7 +434,7 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
                 tc,
                 self.filter_type,
                 first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove=self.last_modes_to_remove,                
+                last_modes_to_remove_percent=self.last_modes_to_remove_percent,                
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -571,7 +571,7 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
                 tc,
                 self.filter_type,
                 first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove=self.last_modes_to_remove, 
+                last_modes_to_remove_percent=self.last_modes_to_remove_percent, 
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
@@ -651,7 +651,7 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
                 tc,
                 self.filter_type,
                 first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove=self.last_modes_to_remove, 
+                last_modes_to_remove_percent=self.last_modes_to_remove_percent, 
                 window_length=self.window_length,
                 polyorder=self.polyorder,
                 highpass=self.highpass,
