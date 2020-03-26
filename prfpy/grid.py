@@ -76,15 +76,15 @@ class Gridder(object):
 
         Parameters
         ----------
-        tc : TYPE
-            DESCRIPTION.
-        hrf : TYPE
-            DESCRIPTION.
+        tc : ndarray, 1D or 2D
+            The timecourse(s) to be convolved.
+        hrf : ndarray, 1D or 2D
+            The HRF. Can be single, or a different one for each timecourse.
 
         Returns
         -------
-        convolved_tc : TYPE
-            DESCRIPTION.
+        convolved_tc : ndarray
+            Convolved timecourse.
 
         """
         #scipy fftconvolve does not have padding options so doing it manually
@@ -228,8 +228,6 @@ class Iso2DGaussianGridder(Gridder):
         
         #normalizing RFs to have volume 1
         self.normalize_RFs = normalize_RFs
-        
-
         
 
     def create_rfs(self):

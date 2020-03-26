@@ -60,7 +60,8 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
     bounds : list of tuples, optional
         Bounds for parameter minimization. Must have the same
         length as start_params. The default is None.
-
+    constrains: list of  scipy.optimize.LinearConstraints and/or
+        scipy.optimize.NonLinearConstraints
 
     **kwargs : TYPE
         DESCRIPTION.
@@ -225,7 +226,8 @@ class Fitter:
             dispersion. The default is False.
         args : dictionary, optional
             Further arguments passed to iterative_search. The default is {}.
-
+        constrains: list of scipy.optimize.LinearConstraints and/or
+            scipy.optimize.NonLinearConstraints
         Returns
         -------
         None.
@@ -280,6 +282,7 @@ class Fitter:
                           single_hrf=True):
         """
         Simple function to crossvalidate results of previous iterative fitting.
+       
 
         Parameters
         ----------
@@ -287,12 +290,15 @@ class Fitter:
             DESCRIPTION.
         test_stimulus : TYPE, optional
             DESCRIPTION. The default is None.
+        single_hrf : TYPE, optional
+            DESCRIPTION. The default is True.
 
         Returns
         -------
         None.
 
         """
+
         assert hasattr(
                 self, 'iterative_search_params'), 'First use self.iterative_fit,'      
         
@@ -367,6 +373,8 @@ class Iso2DGaussianFitter(Fitter):
             The grid fit is performed in parallel over n_batches of units.
             Batch parallelization is faster than single-unit
             parallelization and of sequential computing.
+        pos_prfs_only : bool, optional
+            Enforce positive PRFs only.
 
         Returns
         -------
