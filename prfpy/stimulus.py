@@ -17,8 +17,8 @@ class PRFStimulus2D(object):
                  task_lengths=None,
                  task_names=None,
                  late_iso_dict=None, **kwargs):
-        """__init__
-
+        """
+        
 
         Parameters
         ----------
@@ -29,8 +29,29 @@ class PRFStimulus2D(object):
         design_matrix : numpy.ndarray
             an N by t matrix, where N is [x, x]. 
             represents a square screen evolving over time (time is last dimension)
+        TR : float
+            Repetition time, in seconds
+        task_lengths : list of ints, optional
+            If there are multiple tasks, specify their lengths in TRs. The default is None.
+        task_names : list of str, optional
+            Task names. The default is None.
+        late_iso_dict : dict, optional 
+            Dictionary whose keys correspond to task_names. Entries are ndarrays
+            containing the TR indices used to compute the BOLD baseline for each task.
+            The default is None.
+
+
+        Raises
+        ------
+        ValueError
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
 
         """
+
         self.screen_size_cm = screen_size_cm
         self.screen_distance_cm = screen_distance_cm
         self.design_matrix = design_matrix
@@ -90,7 +111,15 @@ class PRFStimulus1D(object):
             for each of the columns in design_matrix, the value in the encoding dimension
             for example, in a numerosity experiment these would be the numerosity of presented stimuli
         TR : float
-            repetition time of the design matrix
+            Repetition time, in seconds
+        task_lengths : list of ints, optional
+            If there are multiple tasks, specify their lengths in TRs. The default is None.
+        task_names : list of str, optional
+            Task names. The default is None.
+        late_iso_dict : dict, optional 
+            Dictionary whose keys correspond to task_names. Entries are ndarrays
+            containing the TR indices used to compute the BOLD baseline for each task.
+            The default is None.
 
         """
         self.design_matrix = design_matrix
