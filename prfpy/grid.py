@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.ndimage as ndimage
 import scipy.signal as signal
 from nistats.hemodynamic_models import spm_hrf, spm_time_derivative, spm_dispersion_derivative
 

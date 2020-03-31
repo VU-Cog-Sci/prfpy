@@ -160,7 +160,7 @@ class Fitter:
 
     """
 
-    def __init__(self, data, gridder, n_jobs=1, **kwargs):
+    def __init__(self, data, gridder, n_jobs=1, fit_hrf=False, **kwargs):
         """__init__ sets up data and gridder
 
         Parameters
@@ -172,6 +172,9 @@ class Fitter:
             predictions.
         n_jobs : int, optional
             number of jobs to use in parallelization (iterative search), by default 1
+        fit_hrf : boolean, optional
+            Whether or not to fit two extra parameters for hrf derivative and
+            dispersion. The default is False.
         """
         assert len(data.shape) == 2, \
             "input data should be two-dimensional, with first dimension units and second dimension time"     
@@ -181,6 +184,7 @@ class Fitter:
         
         self.gridder = gridder
         self.n_jobs = n_jobs
+        self.fit_hrf = fit_hrf
 
         self.__dict__.update(kwargs)
 
@@ -194,7 +198,6 @@ class Fitter:
                       verbose=False,
                       starting_params=None,
                       bounds=None,
-                      fit_hrf=False,
                       args={},
                       constraints=None,
                       xtol=1e-4,
@@ -217,13 +220,6 @@ class Fitter:
             Explicit start for iterative fit. The default is None.
         bounds : list of tuples, optional
             Bounds for parameter minimization. The default is None.
-        return_predictionthod : string, optional.
-            Can be one of 'numerical' or 'analytic' or None. The default is 'numerical'.
-            If analytic, a gradient_single_prediction function must be found
-            in the model Gridder class.
-        fit_hrf : boolean, optional
-            Whether or not to fit two extra parameters for hrf derivative and
-            dispersion. The default is False.
         args : dictionary, optional
             Further arguments passed to iterative_search. The default is {}.
         constrains: list of scipy.optimize.LinearConstraints and/or
@@ -235,7 +231,6 @@ class Fitter:
         """
 
         self.bounds = bounds
-        self.fit_hrf = fit_hrf
         self.constraints = constraints
 
         if starting_params is None:
@@ -477,7 +472,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
     """
 
-    def __init__(self, gridder, data, n_jobs=1,
+    def __init__(self, gridder, data, n_jobs=1, fit_hrf=False,
                  previous_gaussian_fitter=None,
                  **kwargs):
         """
@@ -510,7 +505,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             self.previous_gaussian_fitter = previous_gaussian_fitter
 
-        super().__init__(data, gridder, n_jobs=n_jobs, **kwargs)
+        super().__init__(data, gridder, n_jobs=n_jobs, fit_hrf=fit_hrf, **kwargs)
 
     def insert_new_model_params(self, old_params):
         """
@@ -540,7 +535,6 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                       verbose=False,
                       starting_params=None,
                       bounds=None,
-                      fit_hrf=False,
                       args={},
                       constraints=[],
                       xtol=1e-4,
@@ -562,9 +556,6 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
             Explicit start for minimization. The default is None.
         bounds : list of tuples, optional
             Bounds for parameter minimization. The default is None.
-        fit_hrf : boolean, optional
-            Whether or not to fit 2 extra parameters for hrf derivative and
-            dispersion. The default is False.
         args : dictionary, optional
             Further arguments passed to iterative_search. The default is {}.
 
@@ -588,19 +579,18 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                 self.rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:,-1] > rsq_threshold
 
             # enforcing hrf_fit "consistency" with previous gaussian fit:
-            if self.previous_gaussian_fitter.fit_hrf != fit_hrf:
+            if self.previous_gaussian_fitter.fit_hrf != self.fit_hrf:
 
                 print("Warning: fit_hrf was " + str(
                     self.previous_gaussian_fitter.fit_hrf) + " in previous_\
                       gaussian_fit. Overriding current fit_hrf to avoid inconsistency.")
 
-                fit_hrf = self.previous_gaussian_fitter.fit_hrf
+                self.fit_hrf = self.previous_gaussian_fitter.fit_hrf
 
         super().iterative_fit(rsq_threshold=rsq_threshold,
                               verbose=verbose,
                               starting_params=starting_params,
                               bounds=bounds,
-                              fit_hrf=fit_hrf,
                               args=args,
                               constraints=constraints,
                               xtol=xtol,
