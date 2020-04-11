@@ -10,8 +10,8 @@ from .timecourse import stimulus_through_prf, \
     filter_predictions
 
 
-class Gridder(object):
-    """Gridder
+class Model(object):
+    """Model
 
     Class that takes care of generating grids for pRF fitting and simulations
     """
@@ -19,7 +19,7 @@ class Gridder(object):
     def __init__(self, stimulus):
         """__init__
 
-        constructor for Gridder, takes stimulus object as argument
+        constructor for Model, takes stimulus object as argument
 
         Parameters
         ----------
@@ -142,8 +142,8 @@ class Gridder(object):
             self.random_noise = np.zeros_like(self.predictions)
 
 
-class Iso2DGaussianGridder(Gridder):
-    """Iso2DGaussianGridder
+class Iso2DGaussianModel(Model):
+    """Iso2DGaussianModel
     To extend please create a setup_XXX_grid function for any new way of
     defining grids.
     """
@@ -153,17 +153,12 @@ class Iso2DGaussianGridder(Gridder):
                  hrf=None,
                  filter_predictions=False,
                  filter_type='dc',
-                 first_modes_to_remove=5,
-                 last_modes_to_remove_percent=0,
-                 window_length=201,
-                 polyorder=3,
-                 highpass=True,
-                 add_mean=True,
+                 filter_params={},
                  normalize_RFs=False,
                  **kwargs):
-        """__init__ for Iso2DGaussianGridder
+        """__init__ for Iso2DGaussianModel
 
-        constructor, sets up stimulus and hrf for this gridder
+        constructor, sets up stimulus and hrf for this Model
 
         Parameters
         ----------
@@ -171,26 +166,14 @@ class Iso2DGaussianGridder(Gridder):
             Stimulus object specifying the information about the stimulus,
             and the space in which it lives.
         hrf : string, list or numpy.ndarray, optional
-            HRF shape for this gridder.
+            HRF shape for this Model.
             Can be 'direct', which implements nothing (for eCoG or later convolution),
             a list or array of 3, which are multiplied with the three spm HRF basis functions,
             and an array already sampled on the TR by the user.
             (the default is None, which implements standard spm HRF)
         filter_predictions : boolean, optional
             whether to high-pass filter the predictions, default False
-        window_length : int, odd number, optional
-            length of savgol filter, default 201 TRs
-        polyorder : int, optional
-            polynomial order of savgol filter, default 3
-        highpass : boolean, optional
-            whether to filter highpass or lowpass, default True
-        add_mean : boolean, optional
-            whether to add mean to filtered predictions, default True
-        task_lengths : list or numpy.ndarray, optional
-            specify length of each condition in TRs
-            If not None, the predictions are split in the time dimension in len(task_lengths) chunks,
-            and the savgol filter is applied to each chunk separately.
-            The i^th chunk has size task_lengths[i]
+        filter_params : see timecourse.py
         """
         super().__init__(stimulus)
         self.__dict__.update(kwargs)
@@ -215,16 +198,14 @@ class Iso2DGaussianGridder(Gridder):
         self.filter_predictions = filter_predictions
         self.filter_type = filter_type
         
-        #settings for discrete cosines filter
-        self.first_modes_to_remove = first_modes_to_remove
-        self.last_modes_to_remove_percent = last_modes_to_remove_percent
+        #settings for filter
+        self.filter_params = filter_params
         
-        #settings for savgol filter
-        self.window_length = window_length
-        self.polyorder = polyorder
-        self.highpass = highpass
-        self.add_mean = add_mean
-        
+        #adding stimulus parameters
+        self.filter_params['task_lengths'] = self.stimulus.task_lengths
+        self.filter_params['task_names'] = self.stimulus.task_names
+        self.filter_params['late_iso_dict'] = self.stimulus.late_iso_dict
+      
         #normalizing RFs to have volume 1
         self.normalize_RFs = normalize_RFs
         
@@ -288,15 +269,7 @@ class Iso2DGaussianGridder(Gridder):
             self.predictions = filter_predictions(
                 self.predictions,
                 self.filter_type,
-                first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove_percent=self.last_modes_to_remove_percent,
-                window_length=self.window_length,
-                polyorder=self.polyorder,
-                highpass=self.highpass,
-                add_mean=self.add_mean,
-                task_lengths=self.stimulus.task_lengths, 
-                task_names=self.stimulus.task_names, 
-                late_iso_dict=self.stimulus.late_iso_dict)
+                self.filter_params)
             self.filtered_predictions = True
         else:
             self.filtered_predictions = False
@@ -358,18 +331,10 @@ class Iso2DGaussianGridder(Gridder):
             return baseline[..., np.newaxis] + beta[..., np.newaxis] * filter_predictions(
                 tc,
                 self.filter_type,
-                first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove_percent=self.last_modes_to_remove_percent,                
-                window_length=self.window_length,
-                polyorder=self.polyorder,
-                highpass=self.highpass,
-                add_mean=self.add_mean,
-                task_lengths=self.stimulus.task_lengths,
-                task_names=self.stimulus.task_names,
-                late_iso_dict=self.stimulus.late_iso_dict)
+                self.filter_params)
 
 
-class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
+class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
 
     def return_prediction(self,
                                  mu_x,
@@ -430,19 +395,11 @@ class CSS_Iso2DGaussianGridder(Iso2DGaussianGridder):
             return baseline[..., np.newaxis] + beta[..., np.newaxis] * filter_predictions(
                 tc,
                 self.filter_type,
-                first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove_percent=self.last_modes_to_remove_percent,                
-                window_length=self.window_length,
-                polyorder=self.polyorder,
-                highpass=self.highpass,
-                add_mean=self.add_mean,
-                task_lengths=self.stimulus.task_lengths, 
-                task_names=self.stimulus.task_names, 
-                late_iso_dict=self.stimulus.late_iso_dict)
+                self.filter_params)
 
 
-class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
-    """Norm_Iso2DGaussianGridder
+class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
+    """Norm_Iso2DGaussianModel
 
     Redefining class for normalization model
 
@@ -567,19 +524,11 @@ class Norm_Iso2DGaussianGridder(Iso2DGaussianGridder):
             return bold_baseline[..., np.newaxis] + filter_predictions(
                 tc,
                 self.filter_type,
-                first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove_percent=self.last_modes_to_remove_percent, 
-                window_length=self.window_length,
-                polyorder=self.polyorder,
-                highpass=self.highpass,
-                add_mean=self.add_mean,
-                task_lengths=self.stimulus.task_lengths, 
-                task_names=self.stimulus.task_names, 
-                late_iso_dict=self.stimulus.late_iso_dict)
+                self.filter_params)
 
 
 
-class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
+class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
     """redefining class for difference of Gaussians in iterative fit.
     """
 
@@ -647,12 +596,4 @@ class DoG_Iso2DGaussianGridder(Iso2DGaussianGridder):
             return bold_baseline[..., np.newaxis] + filter_predictions(
                 tc,
                 self.filter_type,
-                first_modes_to_remove=self.first_modes_to_remove,
-                last_modes_to_remove_percent=self.last_modes_to_remove_percent, 
-                window_length=self.window_length,
-                polyorder=self.polyorder,
-                highpass=self.highpass,
-                add_mean=self.add_mean,
-                task_lengths=self.stimulus.task_lengths, 
-                task_names=self.stimulus.task_names, 
-                late_iso_dict=self.stimulus.late_iso_dict)
+                self.filter_params)
