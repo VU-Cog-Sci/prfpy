@@ -62,11 +62,7 @@ def stimulus_through_prf(prfs, stimulus, mask=None):
 
 def filter_predictions(predictions, 
                        filter_type,
-                       first_modes_to_remove=5,
-                       last_modes_to_remove_percent=0,
-                       window_length=201, polyorder=3,
-                       highpass=True, add_mean=True, task_lengths=None,
-                       task_names=None, late_iso_dict=None, **kwargs):
+                       filter_params):
     """
     Generic filtering function, calling the different types of filters implemented.
 
@@ -85,16 +81,10 @@ def filter_predictions(predictions,
     
     if filter_type == 'sg':
         return sgfilter_predictions(predictions,
-                                    window_length, polyorder,
-                       highpass, add_mean, task_lengths,
-                       task_names, late_iso_dict, **kwargs)
+                                    **filter_params)
     elif filter_type == 'dc':
         return dcfilter_predictions(predictions,
-                                    first_modes_to_remove,
-                                    last_modes_to_remove_percent,
-                                    add_mean,
-                         task_lengths,
-                         task_names, late_iso_dict, **kwargs)
+                                    **filter_params)
     else:
         print("unknown filter option selected, using unfiltered prediction")
         return predictions
@@ -222,8 +212,6 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
         containing the TR indices used to compute the BOLD baseline for each task.
         The default is None.
 
-    **kwargs are passed on to scipy.signal.savgol_filter
-
     Raises
     ------
     ValueError
@@ -267,7 +255,7 @@ def sgfilter_predictions(predictions, window_length=201, polyorder=3,
         try:
             lp_filtered_predictions[..., start:stop] = signal.savgol_filter(
             predictions[..., start:stop], window_length=current_window_length,
-            polyorder=polyorder, **kwargs)
+            polyorder=polyorder)
         except:
             print("Error occurred during predictions savgol filtering.\
                   Using unfiltered prediction instead")

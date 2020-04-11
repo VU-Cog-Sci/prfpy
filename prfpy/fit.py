@@ -30,7 +30,7 @@ def error_function(
     return np.sum((data - np.nan_to_num(objective_function(*list(parameters), **args)))**2)
 
 
-def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True,
+def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
                      bounds=None, constraints=None, **kwargs):
     """iterative_search
 
@@ -41,15 +41,15 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
 
     Parameters
     ----------
-    gridder : Gridder
+    model : Model
         Object that provides the predictions using its
         `return_prediction` method
     data : 1D numpy.ndarray
         the data to fit, same dimensions as are returned by
-        Gridder's `return_prediction` method
+        Model's `return_prediction` method
     start_params : list or 1D numpy.ndarray
         initial values for the fit
-    args : dictionary, arguments to gridder.return_prediction that
+    args : dictionary, arguments to model.return_prediction that
         are not optimized
     xtol : float, passed to fitting routine
         numerical tolerance on x
@@ -88,7 +88,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
 
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(
-                                  args, data, gridder.return_prediction),
+                                  args, data, model.return_prediction),
                                method='L-BFGS-B',
                               # default max line searches is 20
                               options=dict(ftol=ftol,
@@ -100,7 +100,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
 
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(args, data,
-                                    gridder.return_prediction),
+                                    model.return_prediction),
                               method='trust-constr',
                               constraints=constraints,
                               tol=ftol,
@@ -113,17 +113,17 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
             #                       minimizer_kwargs=dict(method='L-BFGS-B',
             #                                             bounds=bounds,
             #                                             options=dict(maxls=60, disp=verbose),
-            #                                             args=(args, data, gridder.return_prediction)))
+            #                                             args=(args, data, model.return_prediction)))
 
             # output = shgo(error_function, bounds=bounds,
-            #               args=(args, data, gridder.return_prediction),
+            #               args=(args, data, model.return_prediction),
             #                       options=dict(disp=verbose),
             #                       minimizer_kwargs=dict(method='L-BFGS-B',
             #                                             bounds=bounds,
-            #                                             args=(args, data, gridder.return_prediction)))
+            #                                             args=(args, data, model.return_prediction)))
 
             # output = dual_annealing(error_function, bounds=bounds,
-            #               args=(args, data, gridder.return_prediction),
+            #               args=(args, data, model.return_prediction),
             #                       x0=start_params)
 
         return np.nan_to_num(np.r_[output['x'], 1 -
@@ -141,7 +141,7 @@ def iterative_search(gridder, data, start_params, args, xtol, ftol, verbose=True
             args=(
                 args,
                 data,
-                gridder.return_prediction),
+                model.return_prediction),
             full_output=True,
             disp=verbose)
 
@@ -152,7 +152,7 @@ class Fitter:
     """Fitter
 
     Superclass for classes that implement the different fitting methods,
-    for a given model. It contains 2D-data and leverages a Gridder object.
+    for a given model. It contains 2D-data and leverages a Model object.
 
     data should be two-dimensional so that all bookkeeping with regard to voxels,
     electrodes, etc is done by the user. Generally, a Fitter class should implement
@@ -160,15 +160,15 @@ class Fitter:
 
     """
 
-    def __init__(self, data, gridder, n_jobs=1, fit_hrf=False, **kwargs):
-        """__init__ sets up data and gridder
+    def __init__(self, data, model, n_jobs=1, fit_hrf=False, **kwargs):
+        """__init__ sets up data and model
 
         Parameters
         ----------
         data : numpy.ndarray, 2D
             input data. First dimension units, Second dimension time
-        gridder : prfpy.Gridder
-            Gridder object that provides the grid and iterative search
+        model : prfpy.Model
+            Model object that provides the grid and iterative search
             predictions.
         n_jobs : int, optional
             number of jobs to use in parallelization (iterative search), by default 1
@@ -182,7 +182,7 @@ class Fitter:
             
         self.data = data.astype('float32')
         
-        self.gridder = gridder
+        self.model = model
         self.n_jobs = n_jobs
         self.fit_hrf = fit_hrf
 
@@ -257,7 +257,7 @@ class Fitter:
 
         if self.rsq_mask.sum()>0:
             iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
-                delayed(iterative_search)(self.gridder,
+                delayed(iterative_search)(self.model,
                                           data,
                                           start_params,
                                           args=args,
@@ -298,9 +298,9 @@ class Fitter:
                 self, 'iterative_search_params'), 'First use self.iterative_fit,'      
         
         #to hande cases where test_data and fit_data have different stimuli
-        fit_stimulus = deepcopy(self.gridder.stimulus) 
+        fit_stimulus = deepcopy(self.model.stimulus) 
         if test_stimulus is not None:                  
-            self.gridder.stimulus = test_stimulus
+            self.model.stimulus = test_stimulus
             
         if self.rsq_mask.sum()>0:
             if self.fit_hrf and single_hrf:
@@ -310,8 +310,8 @@ class Fitter:
                 self.iterative_search_params[self.rsq_mask,-3:-1] = median_hrf_params
                 
             
-            test_predictions = self.gridder.return_prediction(*list(self.iterative_search_params[self.rsq_mask,:-1].T))
-            self.gridder.stimulus = fit_stimulus
+            test_predictions = self.model.return_prediction(*list(self.iterative_search_params[self.rsq_mask,:-1].T))
+            self.model.stimulus = fit_stimulus
             
             #calculate CV-rsq        
             CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
@@ -338,7 +338,7 @@ class Iso2DGaussianFitter(Fitter):
 
     Class that implements the different fitting methods
     on a two-dimensional isotropic Gaussian pRF model,
-    leveraging a Gridder object.
+    leveraging a Model object.
 
     """
 
@@ -376,11 +376,11 @@ class Iso2DGaussianFitter(Fitter):
         None.
 
         """
-        # let the gridder create the timecourses
-        self.gridder.create_grid_predictions(ecc_grid=ecc_grid,
+        # let the model create the timecourses
+        self.model.create_grid_predictions(ecc_grid=ecc_grid,
                                              polar_grid=polar_grid,
                                              size_grid=size_grid)
-        self.gridder.predictions = self.gridder.predictions.astype('float32')
+        self.model.predictions = self.model.predictions.astype('float32')
 
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
@@ -421,9 +421,9 @@ class Iso2DGaussianFitter(Fitter):
             return result
 
         # bookkeeping
-        sum_preds = np.sum(self.gridder.predictions, axis=-1)
+        sum_preds = np.sum(self.model.predictions, axis=-1)
         square_norm_preds = np.linalg.norm(
-            self.gridder.predictions, axis=-1, ord=2)**2
+            self.model.predictions, axis=-1, ord=2)**2
 
         # split data in batches
         split_indices = np.array_split(
@@ -438,7 +438,7 @@ class Iso2DGaussianFitter(Fitter):
             delayed(rsq_betas_for_batch)(
                 data=data,
                 vox_num=vox_num,
-                predictions=self.gridder.predictions,
+                predictions=self.model.predictions,
                 n_timepoints=self.n_timepoints,
                 data_var=self.data_var,
                 sum_preds=sum_preds,
@@ -454,9 +454,9 @@ class Iso2DGaussianFitter(Fitter):
 
         # output
         self.gridsearch_params = np.array([
-            self.gridder.xs.ravel()[max_rsqs],
-            self.gridder.ys.ravel()[max_rsqs],
-            self.gridder.sizes.ravel()[max_rsqs],
+            self.model.xs.ravel()[max_rsqs],
+            self.model.ys.ravel()[max_rsqs],
+            self.model.sizes.ravel()[max_rsqs],
             self.best_fitting_beta,
             self.best_fitting_baseline,
             self.gridsearch_r2
@@ -472,7 +472,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
     """
 
-    def __init__(self, gridder, data, n_jobs=1, fit_hrf=False,
+    def __init__(self, model, data, n_jobs=1, fit_hrf=False,
                  previous_gaussian_fitter=None,
                  **kwargs):
         """
@@ -481,8 +481,8 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
         ----------
         data : numpy.ndarray, 2D
             input data. First dimension units, Second dimension time
-        gridder : prfpy.Gridder
-            Gridder object that provides the grid and iterative search
+        model : prfpy.Model
+            Model object that provides the grid and iterative search
             predictions.
         n_jobs : int, optional
             number of jobs to use in parallelization (iterative search), by default 1
@@ -505,7 +505,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             self.previous_gaussian_fitter = previous_gaussian_fitter
 
-        super().__init__(data, gridder, n_jobs=n_jobs, fit_hrf=fit_hrf, **kwargs)
+        super().__init__(data, model, n_jobs=n_jobs, fit_hrf=fit_hrf, **kwargs)
 
     def insert_new_model_params(self, old_params):
         """
@@ -786,10 +786,10 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 data, vox_nums, np.arange(
                     data.shape[0])):
 
-                # let the gridder create the timecourses, per voxel, since the
+                # let the model create the timecourses, per voxel, since the
                 # gridding is over new parameters, while size and position
                 # are obtained from previous Gaussian fit
-                predictions = self.gridder.create_grid_predictions(
+                predictions = self.model.create_grid_predictions(
                     gaussian_params[vox_num, :-1], n_predictions, n_timepoints, sa, ss, nb, sb)
                 # bookkeeping
                 sum_preds = np.sum(predictions, axis=-1)
