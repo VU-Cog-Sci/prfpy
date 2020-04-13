@@ -1,9 +1,8 @@
 import numpy as np
 import scipy.stats as stats
-from numba import autojit
 
 
-@autojit
+
 def gauss1D_cart(x, mu=0.0, sigma=1.0):
     """gauss1D_cart
 
@@ -28,7 +27,7 @@ def gauss1D_cart(x, mu=0.0, sigma=1.0):
     return np.exp(-((x-mu)**2)/(2*sigma**2))
 
 
-@autojit
+
 def gauss1D_log(x, mu=0.0, sigma=1.0):
     """gauss1D_log
 
@@ -53,7 +52,7 @@ def gauss1D_log(x, mu=0.0, sigma=1.0):
     return np.exp(-(np.log(x/mu)**2)/(2*sigma**2))
 
 
-@autojit
+
 def vonMises1D(x, mu=0.0, kappa=1.0):
     """vonMises1D
 
@@ -83,7 +82,7 @@ def vonMises1D(x, mu=0.0, kappa=1.0):
     return vm / np.max(vm)
 
 
-@autojit
+
 def gauss2D_iso_cart(x, y, mu=(0.0, 0.0), sigma=1.0, normalize_RFs=False):
     """gauss2D_iso_cart
 
@@ -113,7 +112,7 @@ def gauss2D_iso_cart(x, y, mu=(0.0, 0.0), sigma=1.0, normalize_RFs=False):
         return np.exp(-((x-mu[0])**2 + (y-mu[1])**2)/(2*sigma**2))
 
 
-@autojit
+
 def gauss2D_rot_cart(x, y, mu=(0.0, 0.0), sigma=1.0, theta=0.0, ar=1.0):
     """gauss2D_rot_cart
 
@@ -148,7 +147,7 @@ def gauss2D_rot_cart(x, y, mu=(0.0, 0.0), sigma=1.0, theta=0.0, ar=1.0):
     return np.exp(-(xr**2 + ar**2 * yr**2)/(2*sigma**2))
 
 
-@autojit
+
 def gauss2D_logpolar(ecc, polar, mu=(1.0, 0.0), sigma=1.0, kappa=1.0):
     """gauss2D_logpolar
 
