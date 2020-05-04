@@ -16,4 +16,7 @@ from .stimulus import PRFStimulus2D, PRFStimulus1D
 
 from .model import Iso2DGaussianModel
 from .fit import Iso2DGaussianFitter
-from .cnn import Gaussian2D_isoCart_pRF_Sequence, create_cnn
+
+# keras is a full dependency due to this pilot project.
+# scaling that back - can be imported specifically.
+# from .cnn import Gaussian2D_isoCart_pRF_Sequence, create_cnn
