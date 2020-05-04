@@ -6,8 +6,6 @@ statsmodels>=0.8
 sklearn
 joblib
 numba
-bottleneck 
+bottleneck
 tqdm
 nistats
-tensorflow
-keras
