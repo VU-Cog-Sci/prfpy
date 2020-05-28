@@ -29,7 +29,7 @@ def error_function(
         The residual sum of squared errors between the prediction and data.
     """
     #return np.sum((data - np.nan_to_num(objective_function(*list(parameters), **args)))**2)
-    return 1-np.nan_to_num(pearsonr(data,objective_function(*list(parameters), **args))[0])
+    return 1-np.nan_to_num(pearsonr(data,objective_function(*list(parameters)[0], **args))[0])
 
 
 def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
