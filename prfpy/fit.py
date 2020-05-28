@@ -316,7 +316,10 @@ class Fitter:
             self.model.stimulus = fit_stimulus
             
             #calculate CV-rsq        
-            CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
+            #CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
+            CV_rsq = np.zeros(self.rsq_mask.sum())
+            for i in range(len(CV_rsq)):
+                CV_rsq[i] = pearsonr(test_data[self.rsq_mask][i], test_predictions[i])
             
             self.iterative_search_params[self.rsq_mask,-1] = CV_rsq
         else:
