@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import fmin_powell, minimize, basinhopping, shgo, dual_annealing
-from sp.stats import pearsonr
+from scipy.stats import pearsonr
 from copy import deepcopy
 from joblib import Parallel, delayed
 
