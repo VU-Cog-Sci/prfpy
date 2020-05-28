@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import fmin_powell, minimize, basinhopping, shgo, dual_annealing
+from sp.stats import pearsonr
 from copy import deepcopy
 from joblib import Parallel, delayed
 
@@ -27,7 +28,8 @@ def error_function(
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    return np.sum((data - np.nan_to_num(objective_function(*list(parameters), **args)))**2)
+    #return np.sum((data - np.nan_to_num(objective_function(*list(parameters), **args)))**2)
+    return 1-np.nan_to_num(pearsonr(data,objective_function(*list(parameters), **args))[0])
 
 
 def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
