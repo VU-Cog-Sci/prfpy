@@ -28,7 +28,7 @@ def error_function(
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    return np.sum((data - np.nan_to_num(objective_function(*list(parameters), **args)))**2)
+    return np.nan_to_num(np.sum((data - objective_function(*list(parameters), **args))**2), nan=1)
     #return 1-np.nan_to_num(pearsonr(data,np.nan_to_num(objective_function(*list(parameters), **args)[0]))[0])
 
 
@@ -316,7 +316,7 @@ class Fitter:
             self.model.stimulus = fit_stimulus
             
             #calculate CV-rsq        
-            CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
+            CV_rsq = np.nan_to_num(1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1)))
             #calcualte CV-correlation
             #CV_rsq = np.zeros(self.rsq_mask.sum())
             #for i in range(len(CV_rsq)):
