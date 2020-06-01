@@ -28,8 +28,8 @@ def error_function(
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    #return np.sum((data - np.nan_to_num(objective_function(*list(parameters), **args)))**2)
-    return 1-np.nan_to_num(pearsonr(data,np.nan_to_num(objective_function(*list(parameters), **args)[0]))[0])
+    return np.sum((data - np.nan_to_num(objective_function(*list(parameters), **args)))**2)
+    #return 1-np.nan_to_num(pearsonr(data,np.nan_to_num(objective_function(*list(parameters), **args)[0]))[0])
 
 
 def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
@@ -316,10 +316,11 @@ class Fitter:
             self.model.stimulus = fit_stimulus
             
             #calculate CV-rsq        
-            #CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
-            CV_rsq = np.zeros(self.rsq_mask.sum())
-            for i in range(len(CV_rsq)):
-                CV_rsq[i] = np.nan_to_num(pearsonr(test_data[self.rsq_mask][i],np.nan_to_num(test_predictions[i]))[0])
+            CV_rsq = 1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
+            #calcualte CV-correlation
+            #CV_rsq = np.zeros(self.rsq_mask.sum())
+            #for i in range(len(CV_rsq)):
+            #    CV_rsq[i] = np.nan_to_num(pearsonr(test_data[self.rsq_mask][i],np.nan_to_num(test_predictions[i]))[0])
             
             self.iterative_search_params[self.rsq_mask,-1] = CV_rsq
         else:
