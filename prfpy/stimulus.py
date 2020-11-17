@@ -39,6 +39,8 @@ class PRFStimulus2D(object):
             Dictionary whose keys correspond to task_names. Entries are ndarrays
             containing the TR indices used to compute the BOLD baseline for each task.
             The default is None.
+        **kwargs : optional
+            Use normalize_integral_dx = True to normalize the prf*stim sum as an integral.
 
 
         Raises

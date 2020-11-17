@@ -62,7 +62,7 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
     bounds : list of tuples, optional
         Bounds for parameter minimization. Must have the same
         length as start_params. The default is None.
-    constrains: list of  scipy.optimize.LinearConstraints and/or
+    constraints: list of  scipy.optimize.LinearConstraints and/or
         scipy.optimize.NonLinearConstraints
 
     **kwargs : TYPE
@@ -224,7 +224,7 @@ class Fitter:
             Bounds for parameter minimization. The default is None.
         args : dictionary, optional
             Further arguments passed to iterative_search. The default is {}.
-        constrains: list of scipy.optimize.LinearConstraints and/or
+        constraints: list of scipy.optimize.LinearConstraints and/or
             scipy.optimize.NonLinearConstraints
         Returns
         -------
@@ -283,12 +283,13 @@ class Fitter:
 
         Parameters
         ----------
-        test_data : TYPE
-            DESCRIPTION.
-        test_stimulus : TYPE, optional
-            DESCRIPTION. The default is None.
-        single_hrf : TYPE, optional
-            DESCRIPTION. The default is True.
+        test_data : ndarray
+            Test data for crossvalidation.
+        test_stimulus : PRFStimulus, optional
+            PRF stimulus for test. If same as train data, not needed.
+        single_hrf : Bool
+            Only necessary when HRF params were fit during training. 
+            If True, uses the average-fit HRF params in crossvalidation
 
         Returns
         -------
@@ -717,13 +718,13 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         Parameters
         ----------
         surround_amplitude_grid : 1D ndarray
-            Array of surround amplitude values.
+            Array of surround amplitude values (Norm param C).
         surround_size_grid : 1D ndarray
-            Array of surround size values.
+            Array of surround size values (sigma_2).
         neural_baseline_grid : 1D ndarray
-            Array of neural baseline values.
+            Array of neural baseline values (Norm param B).
         surround_baseline_grid : 1D ndarray
-            Array of surround baseline values.
+            Array of surround baseline values (Norm param D).
         gaussian_params : ndarray [n_units, 4], optional
             The Gaussian parms [x position, y position, prf size, rsq] can be
             provided explicitly. If not, a previous_gaussian_fitter must be
@@ -796,7 +797,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 # gridding is over new parameters, while size and position
                 # are obtained from previous Gaussian fit
                 predictions = self.model.create_grid_predictions(
-                    gaussian_params[vox_num, :-1], n_predictions, n_timepoints, sa, ss, nb, sb)
+                    gaussian_params[vox_num, :-1], sa, ss, nb, sb)
                 # bookkeeping
                 sum_preds = np.sum(predictions, axis=-1)
                 square_norm_preds = np.linalg.norm(
