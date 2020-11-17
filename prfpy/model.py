@@ -42,8 +42,8 @@ class Model(object):
 
         Returns
         -------
-        TYPE
-            DESCRIPTION.
+        hrf : ndarray
+            the hrf.
 
         """
         
@@ -173,7 +173,8 @@ class Iso2DGaussianModel(Model):
             (the default is None, which implements standard spm HRF)
         filter_predictions : boolean, optional
             whether to high-pass filter the predictions, default False
-        filter_params : see timecourse.py
+        filter_type, filter_params : see timecourse.py
+        normalize_RFs : whether or not to normalize the RF volumes (generally not needed).
         """
         super().__init__(stimulus)
         self.__dict__.update(kwargs)
@@ -300,6 +301,8 @@ class Iso2DGaussianModel(Model):
             amplitude of pRF
         baseline : float
             baseline of pRF
+        hrf_1, hrf_2 : floats, optional
+            hrf parameters, specified only if hrf is being fit to data, otherwise not needed.
 
         Returns
         -------
@@ -365,6 +368,8 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
             baseline of pRF (the default is 0)
         n : float, optional
             exponent of pRF (the default is 1, which is a linear Gaussian)
+        hrf_1, hrf_2 : floats, optional
+            hrf parameters, specified only if hrf is being fit to data, otherwise not needed.
 
         Returns
         -------
@@ -407,8 +412,6 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
 
     def create_grid_predictions(self,
                                 gaussian_params,
-                                n_predictions,
-                                n_timepoints,
                                 sa,
                                 ss,
                                 nb,
@@ -421,28 +424,28 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
 
         Parameters
         ----------
-        gaussian_params: array size (3), containing prf position and size.
-        n_predictions, n_timepoints: self explanatory, obtained from fitter
-        nb,sa,ss,sb: meshgrid, created in fitter.grid_fit
+        gaussian_params: ndarray size (3)
+            containing prf position and size.
+        sa,ss,nb,sb: ndarrays
+            containing the range of grid values for other norm model parameters
+            (surroud amplitude (C), surround size (sigma_2), neural baseline (B), surround baseline (D))
+        
 
         """
-
-        predictions = np.zeros((n_predictions, n_timepoints), dtype='float32')    
+        n_predictions = len(sa)
         
-        for idx in range(n_predictions):
-            prediction_params = np.array([gaussian_params[0],
-                                    gaussian_params[1],
-                                    gaussian_params[2],
-                                    1.0,
-                                    0.0,
-                                    sa[idx],
-                                    ss[idx],
-                                    nb[idx],
-                                    sb[idx]]).T
-            predictions[idx,
-                        :] = self.return_prediction(*list(prediction_params)).astype('float32')
+        prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
+                                    gaussian_params[1]*np.ones(n_predictions),
+                                    gaussian_params[2]*np.ones(n_predictions),
+                                    1.0*np.ones(n_predictions),
+                                    0.0*np.ones(n_predictions),
+                                    sa,
+                                    ss,
+                                    nb,
+                                    sb])
+        
 
-        return predictions
+        return self.return_prediction(*list(prediction_params)).astype('float32')
 
     def return_prediction(self,
                                  mu_x,
@@ -463,30 +466,31 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
 
         Parameters
         ----------
-        mu_x : [type]
-            [description]
-        mu_y : [type]
-            [description]
-        prf_size : [type]
-            [description]
-        prf_amplitude : [type]
-            [description]
-        bold_baseline : [type]
-            [description]
-        neural_baseline : [type]
-            [description]
-        srf_amplitude : [type]
-            [description]
-        srf_size : [type]
-            [description]
-        surround_baseline : [type]
-            [description]
-
+        mu_x : float
+            x position
+        mu_y : float
+            y position
+        prf_size : float
+            sigma_1
+        prf_amplitude : float
+            Norm Param A
+        bold_baseline : float
+            BOLD baseline (generally kept fixed)
+        neural_baseline : float
+            Norm Param B
+        srf_amplitude : float
+            Norm Param C
+        srf_size : float
+            sigma_2
+        surround_baseline : float
+            Norm Param D
+        hrf_1, hrf_2 : floats, optional
+            hrf parameters, specified only if hrf is being fit to data, otherwise not needed.
 
         Returns
         -------
         numpy.ndarray
-            single prediction given the model
+            prediction(s) given the model
         """
 
         if hrf_1 is None or hrf_2 is None:
