@@ -81,6 +81,14 @@ class PRFStimulus2D(object):
 
         # construct a standard mask based on standard deviation over time
         self.mask = np.std(design_matrix, axis=-1) != 0
+        
+        # whether or not to normalize the stimulus_through_prf as an integral, np.sum(prf*stim)*dx**2
+        self.normalize_integral_dx = kwargs.pop('normalize_integral_dx', False)
+        
+        if self.normalize_integral_dx:
+            self.dx = self.screen_size_degrees/self.design_matrix.shape[0]
+        else:
+            self.dx = 1
 
 
 class PRFStimulus1D(object):

@@ -23,7 +23,7 @@ def convolve_stimulus_dm(stimulus, hrf):
     return signal.fftconvolve(stimulus, hrf.reshape(hrf_shape), mode='full', axes=(-1))[..., :stimulus.shape[-1]]
 
 
-def stimulus_through_prf(prfs, stimulus, mask=None):
+def stimulus_through_prf(prfs, stimulus, dx, mask=None):
     """stimulus_through_prf
 
     dot the stimulus and the prfs
@@ -57,7 +57,7 @@ def stimulus_through_prf(prfs, stimulus, mask=None):
                 stimdim=stimulus.shape[:-1])
         prf_r = prfs[:, mask]
         stim_r = stimulus[mask, :]
-    return prf_r @ stim_r
+    return prf_r @ stim_r * (dx ** len(stimulus.shape[:-1]))
 
 
 def filter_predictions(predictions, 

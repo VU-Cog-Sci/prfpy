@@ -231,7 +231,8 @@ class Iso2DGaussianModel(Model):
         """
         assert hasattr(self, 'grid_rfs'), "please create the rfs first"
         self.predictions = stimulus_through_prf(
-            self.grid_rfs, self.stimulus.convolved_design_matrix)
+            self.grid_rfs, self.stimulus.convolved_design_matrix,
+            self.stimulus.dx)
 
 
     def create_grid_predictions(self,
@@ -318,7 +319,7 @@ class Iso2DGaussianModel(Model):
                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
-        neural_tc = stimulus_through_prf(rf, dm)
+        neural_tc = stimulus_through_prf(rf, dm, self.stimulus.dx)
 
 
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
@@ -384,7 +385,7 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
-        neural_tc = stimulus_through_prf(rf, dm)**n[..., np.newaxis]
+        neural_tc = stimulus_through_prf(rf, dm, self.stimulus.dx)**n[..., np.newaxis]
         
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
 
@@ -511,8 +512,8 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
         dm = self.stimulus.design_matrix
 
         # create normalization model timecourse
-        neural_tc = (prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm) + neural_baseline[..., np.newaxis]) /\
-            (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm) + surround_baseline[..., np.newaxis]) \
+        neural_tc = (prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) + neural_baseline[..., np.newaxis]) /\
+            (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx) + surround_baseline[..., np.newaxis]) \
                 - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
 
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
@@ -584,8 +585,8 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
 
         dm = self.stimulus.design_matrix
 
-        neural_tc = prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm) - \
-            srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm)
+        neural_tc = prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) - \
+            srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx)
 
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
 
