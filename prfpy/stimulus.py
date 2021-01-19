@@ -140,3 +140,36 @@ class PRFStimulus1D(object):
         self.task_lengths = task_lengths
         self.task_names = task_names
         self.late_iso_dict = late_iso_dict
+
+        
+class CFStimulus(object):
+    
+    """CFStimulus
+
+    Minimal CF stimulus class. Returns design matrices.
+
+    """
+    
+    
+    def __init__(self,
+                 data,
+                 distances,
+                 vertinds, **kwargs):
+        
+        """__init__
+
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            a 2D matrix that contains the whole brain data (vertices by time). 
+
+        distances : numpy.ndarray
+            a matrix that contains the distances between each vertex in the source sub-surface.
+            
+            
+         vertinds : numpy.ndarray
+            a matrix of integers that define the whole-brain indices of the vertices in the source subsurface.
+            
+            
+        """
