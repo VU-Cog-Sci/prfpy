@@ -80,14 +80,8 @@ class subsurface_generator(object):
         """
         
         basic_plot(self.mask,vmax=1,subject=self.cx_sub,cmap=cmap)
-        fig=cortex.quickshow(light)
-    
     
 
-
-
-
-    
 def masked_plot(dat,noiseinds,vmax,subject='fsaverage',vmin=0,rois=False,colorbar=False,cmap='plasma',ax=None):
     maskdat=np.copy(dat)
     maskdat[noiseinds]=np.nan
