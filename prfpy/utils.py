@@ -92,21 +92,14 @@ class subsurface(object):
     def pad_distance_matrices(self,padval=np.Inf):
         
         """pad_distance_matrices
-        Takes the distance matrices for the left and right hemisphere and pads them with np.inf to be the same size.
+        Pads the distance matrices so that distances to the opposite hemisphere are np.inf
         Stack them on top of each other so they will have the same size as the design matrix
         """
         
-        hemdiff=self.dists_L.shape[-1]-self.dists_R.shape[-1]
+        padL=np.pad(self.dists_L, ((0, 0), (0, self.dists_R.shape[-1])),constant_values=np.Inf) # back pad the left hem .
+        padR=np.pad(self.dists_R, ((0, 0), (self.dists_L.shape[-1],0)),constant_values=np.Inf) # front pad the right hem.
         
-        if hemdiff<0: # If left hemisphere is smaller.
-        
-            self.dists_L=np.pad(self.dists_L, ((0, np.absolute(hemdiff)), (0, np.absolute(hemdiff))),constant_values=padval) # Pad with inf
-    
-        elif hemdiff>0: #If the right hemisphere is smaller
-    
-            self.dists_R=np.pad(self.dists_R, ((0, np.absolute(hemdiff)), (0, np.absolute(hemdiff))),constant_values=padval) # Pad with inf
-        
-        self.distance_matrix=np.vstack([self.dists_L,self.dists_R]) # Now stack.
+        self.distance_matrix=np.vstack([padL,padR]) # Now stack.
         
     def elaborate(self):
         
