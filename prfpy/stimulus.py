@@ -153,8 +153,8 @@ class CFStimulus(object):
     
     def __init__(self,
                  data,
-                 distances,
-                 vertinds, **kwargs):
+                 vertinds,
+                 distances,**kwargs):
         
         """__init__
 
@@ -173,3 +173,10 @@ class CFStimulus(object):
             
             
         """
+        self.data=data
+        
+        self.subsurface_verts=vertinds
+        
+        self.design_matrix=self.data[self.subsurface_verts,:]
+        
+        self.distance_matrix=distances

@@ -2,12 +2,13 @@ import numpy as np
 import scipy.signal as signal
 from nistats.hemodynamic_models import spm_hrf, spm_time_derivative, spm_dispersion_derivative
 
-from .rf import gauss2D_iso_cart   # import required RF shapes
+from .rf import gauss2D_iso_cart, gauss1D_cart # import required RF shapes
 from .timecourse import stimulus_through_prf, \
     convolve_stimulus_dm, \
     generate_random_cosine_drifts, \
     generate_arima_noise, \
     filter_predictions
+    
 
 
 class Model(object):
@@ -601,3 +602,88 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
                 tc,
                 self.filter_type,
                 self.filter_params)
+
+        
+        
+class CFGaussianModel():
+    
+    
+    def __init__(self,stimulus):
+        
+        
+        """__init__
+        Parameters
+        ----------
+        Stimulus A CFstimulus
+        Spacing: How to space the sigmas (default = log).
+        """
+        
+        self.stimulus=stimulus
+        
+        
+        
+    def create_rfs(self):
+        
+        assert hasattr(self, 'sigmas'), "please set up the grid first"
+        
+        if self.func=='cart':
+            
+            self.grid_rfs  = np.array([gauss1D_cart(self.stimulus.distance_matrix, 0, s) for s in self.sigmas])
+            
+        self.grid_rfs=self.grid_rfs.reshape(-1, self.grid_rfs.shape[-1])
+        
+        self.vert_centres_flat=np.tile(self.stimulus.subsurface_verts,self.sigmas.shape)
+        self.sigmas_flat=np.repeat(self.sigmas,self.stimulus.distance_matrix.shape[0])
+        
+        
+    def stimulus_times_prfs(self):
+        """stimulus_times_prfs
+
+        creates timecourses for each of the rfs in self.grid_rfs
+
+        """
+        assert hasattr(self, 'grid_rfs'), "please create the rfs first"
+        self.predictions = stimulus_through_prf(
+            self.grid_rfs, self.stimulus.design_matrix,
+            1)
+        
+        
+    def create_grid_predictions(self,sigmas,func='cart'):
+        
+        """Creates the grid rfs and rf predictions
+        """
+        
+        self.sigmas=sigmas
+        self.func=func
+        self.create_rfs()
+        self.stimulus_times_prfs()
+        
+        
+        
+    def return_prediction(self,sigma,beta,baseline,vert):
+        
+        """return_prediction
+
+        Creates a prediction given a sigma, beta, baseline and vertex centre.
+
+        """
+        
+        
+        beta=np.array(beta)
+        baseline=np.array(baseline)
+        
+        # Find the row of the distance matrix that corresponds to that vertex.
+        idx=np.where(self.stimulus.subsurface_verts==vert)[0][0]
+            
+        # We can grab the row of the distance matrix corresponding to this vertex and make the rf.
+        rf=np.array([gauss1D_cart(self.stimulus.distance_matrix[idx], 0, sigma)])
+            
+        # Dot with the data to make the predictions. 
+        neural_tc = stimulus_through_prf(rf, self.stimulus.design_matrix, 1)
+    
+
+        return baseline[..., np.newaxis] + beta[..., np.newaxis] * neural_tc
+        
+    
+        
+        
