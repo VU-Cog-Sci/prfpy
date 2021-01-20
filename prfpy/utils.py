@@ -1,16 +1,16 @@
-def get_subject_surfaces(sub,surf):
-    surfs = [cortex.polyutils.Surface(*d)
-    for d in cortex.db.get_surf(sub, surf)]
-    return surfs
+import cortex
+from scipy import stats
+import numpy as np
+
 
 def basic_plot(dat,vmax,subject='fsaverage',vmin=0,rois=False,colorbar=False,cmap='plasma',ax=None):
     light=cortex.Vertex(dat,subject=subject, vmin=vmin, vmax=vmax,cmap=cmap)
     mfig=cortex.quickshow(light,with_curvature=True,with_rois=rois,with_colorbar=colorbar,fig=ax)
 
-class subsurface_generator(object):
+class subsurface(object):
     
     """subsurface_generator
-        Used pycortex utilities to generate sub-surfaces.
+        Use pycortex utilities to generate info about sub-surfaces.
         
     """
 
@@ -23,26 +23,54 @@ class subsurface_generator(object):
         boolmasks: A list of boolean arrays that define the vertices that correspond to the ROI one wants to make a subsurface from [left hemisphere, right hemisphere].
         surftype: The surface (default = fiducial).
         """
+        
         self.cx_sub=cx_sub
-        self.surfaces=get_subject_surfaces(self.cx_sub,surftype) # Get the surfaces.
-        self.mask=np.concatenate([boolmasks[0],boolmasks[1]]).astype(int) # Put the mask into int format for plotting.
-        self.sourcelab=sourcelab
+        self.surftype=surftype
+        self.boolmasks=boolmasks
+        self.mask=np.concatenate([self.boolmasks[0],self.boolmasks[1]]).astype(int) # Put the mask into int format for plotting.
         
-        # Create subsurfaces.
+
+        
+    def create(self):
+        self.get_surfaces()
+        self.generate()
+        self.get_geometry()
+        self.pad_distance_matrices()
+        
+    def get_surfaces(self):
+        
+        """get_surfaces
+        Accesses the pycortex database to return the subject surfaces (left and right).
+        """
+        
+        self.surfaces = [cortex.polyutils.Surface(*d)
+        for d in cortex.db.get_surf(self.cx_sub, self.surftype)]
+                
+    def generate(self):
+        
+        """generate
+        Use the masks defined in boolmasks to define subsurfaces.
+        """
+        
         print('Generating subsurfaces')
-        self.subsurface_L = self.surfaces[0].create_subsurface(vertex_mask=boolmasks[0]) # Create sub-surfaces.
-        self.subsurface_R = self.surfaces[1].create_subsurface(vertex_mask=boolmasks[1])
+        self.subsurface_L = self.surfaces[0].create_subsurface(vertex_mask=self.boolmasks[0]) # Create sub-surfaces.
+        self.subsurface_R = self.surfaces[1].create_subsurface(vertex_mask=self.boolmasks[1])
         
-        # Get the vertex indices for those contained in the subsurface.
+        # Get the whole-brain indices for those vertices contained in the subsurface.
         self.subsurface_verts_L=np.where(self.subsurface_L.subsurface_vertex_map!=stats.mode(self.subsurface_L.subsurface_vertex_map)[0][0])[0]
         self.subsurface_verts_R=np.where(self.subsurface_R.subsurface_vertex_map!=stats.mode(self.subsurface_R.subsurface_vertex_map)[0][0])[0]+self.subsurface_L.subsurface_vertex_map.shape[-1]
+        
+
+    def get_geometry(self):
+        
+        """get_geometry
+        Returns geometric info about the sub-surfaces. Computes geodesic distances from each point of the sub-surface.
+        """
         
         # Assign some variables to determine where the boundary between the hemispheres is. 
         self.leftlim=np.max(self.subsurface_verts_L)
         self.n_leftverts=self.subsurface_verts_L.shape[-1]
         
-        
-        # Vertex indices across hems.
         self.subsurface_verts=np.concatenate([self.subsurface_verts_L,self.subsurface_verts_R])
         
         # Make the distance x distance matrix.
@@ -58,9 +86,27 @@ class subsurface_generator(object):
             rdists.append(self.subsurface_R.geodesic_distance([i]))
         self.dists_R=np.array(rdists)
         
-        # Here is where I try and make this into one big array.
+        self.surfaces,self.subsurface_L,self.subsurface_R=None,None,None # Get rid of these as they are harmful for pickling. We no longer need them.
         
         
+    def pad_distance_matrices(self,padval=np.Inf):
+        
+        """pad_distance_matrices
+        Takes the distance matrices for the left and right hemisphere and pads them with np.inf to be the same size.
+        Stack them on top of each other so they will have the same size as the design matrix
+        """
+        
+        hemdiff=self.dists_L.shape[-1]-self.dists_R.shape[-1]
+        
+        if hemdiff<0: # If left hemisphere is smaller.
+        
+            self.dists_L=np.pad(self.dists_L, ((0, np.absolute(hemdiff)), (0, np.absolute(hemdiff))),constant_values=padval) # Pad with inf
+    
+        elif hemdiff>0: #If the right hemisphere is smaller
+    
+            self.dists_R=np.pad(self.dists_R, ((0, np.absolute(hemdiff)), (0, np.absolute(hemdiff))),constant_values=padval) # Pad with inf
+        
+        self.distance_matrix=np.vstack([self.dists_L,self.dists_R]) # Now stack.
         
     def elaborate(self):
         
