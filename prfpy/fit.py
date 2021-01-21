@@ -1,8 +1,9 @@
 import numpy as np
 from scipy.optimize import fmin_powell, minimize, basinhopping, shgo, dual_annealing
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, zscore
 from copy import deepcopy
 from joblib import Parallel, delayed
+
 
 
 def error_function(
@@ -469,6 +470,191 @@ class Iso2DGaussianFitter(Fitter):
             self.gridsearch_r2
         ]).T
 
+        
+        
+class CFFitter(Fitter):
+    
+    """CFFitter
+
+    Class that implements the different fitting methods
+    on a gaussian CF model,
+    leveraging a Model object.
+
+    """
+    
+    
+    def grid_fit(self,sigma_grid,verbose=False,n_batches=1000):
+        
+        
+        """grid_fit
+
+        performs grid fit using provided grids and predictor definitions
+
+
+        Parameters
+        ----------
+        sigma_grid : 1D ndarray
+            to be filled in by user
+        verbose : boolean, optional
+            print output. The default is False.
+        n_batches : int, optional
+            The grid fit is performed in parallel over n_batches of units.
+            Batch parallelization is faster than single-unit
+            parallelization and of sequential computing.
+
+        Returns
+        -------
+        self.gridsearch_params: An array containing the gridsearch parameters.
+        self.vertex_centres_dict: An array containing the vertex centres.
+        self.vertex_centres_dict: A dictionary containing the vertex centres.
+
+        """
+        
+        
+        self.model.create_grid_predictions(sigma_grid)
+        self.model.predictions = self.model.predictions.astype('float32')
+        
+        def rsq_betas_for_batch(data, vox_num, predictions,
+                                n_timepoints, data_var,
+                                sum_preds, square_norm_preds):
+            result = np.zeros((data.shape[0], 4), dtype='float32')
+            for vox_data, num, idx in zip(
+                data, vox_num, np.arange(
+                    data.shape[0])):
+                # bookkeeping
+                sumd = np.sum(vox_data)
+
+                # best slopes and baselines for voxel for predictions
+                slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
+                          sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
+                baselines = (sumd - slopes * sum_preds) / n_timepoints
+
+                # resid and rsq
+                resid = np.linalg.norm((vox_data -
+                                        slopes[..., np.newaxis] *
+                                        predictions -
+                                        baselines[..., np.newaxis]), axis=-
+                                       1, ord=2)
+
+                #to enforce, if possible, positive prf amplitude
+                #if pos_prfs_only:
+                #    if np.any(slopes>0):
+                #        resid[slopes<=0] = +np.inf
+
+                best_pred_voxel = np.nanargmin(resid)
+
+                rsq = 1 - resid[best_pred_voxel]**2 / \
+                    (n_timepoints * data_var[num])
+
+                result[idx, :] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
+
+            return result
+
+        # bookkeeping
+        sum_preds = np.sum(self.model.predictions, axis=-1)
+        square_norm_preds = np.linalg.norm(
+            self.model.predictions, axis=-1, ord=2)**2
+
+        # split data in batches
+        split_indices = np.array_split(
+            np.arange(self.data.shape[0]), n_batches)
+        data_batches = np.array_split(self.data, n_batches, axis=0)
+        if verbose:
+            print("Each batch contains approx. " +
+                  str(data_batches[0].shape[0]) + " voxels.")
+
+        # perform grid fit
+        grid_search_rbs = Parallel(self.n_jobs, verbose=verbose)(
+            delayed(rsq_betas_for_batch)(
+                data=data,
+                vox_num=vox_num,
+                predictions=self.model.predictions,
+                n_timepoints=self.n_timepoints,
+                data_var=self.data_var,
+                sum_preds=sum_preds,
+                square_norm_preds=square_norm_preds)
+            for data, vox_num in zip(data_batches, split_indices))
+
+        grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
+
+        max_rsqs = grid_search_rbs[:, 0].astype('int')
+        self.gridsearch_r2 = grid_search_rbs[:, 1]
+        self.best_fitting_baseline = grid_search_rbs[:, 2]
+        self.best_fitting_beta = grid_search_rbs[:, 3]
+
+        # output
+        self.gridsearch_params = np.array([
+            self.model.vert_centres_flat[max_rsqs],
+            self.model.sigmas_flat[max_rsqs],
+            self.best_fitting_beta,
+            self.best_fitting_baseline,
+            self.gridsearch_r2
+        ]).T
+        
+        # Put the vertex centres into a dictionary.
+        self.vertex_centres=self.gridsearch_params[:,0].astype(int)
+        self.vertex_centres_dict = [{'vert':k} for k in self.vertex_centres]
+        
+    def quick_grid_fit(self,sigma_grid):
+        
+        
+        """quick_grid_fit
+
+        performs fast estimation of vertex centres and sizes using a simple dot product of zscored data.
+        Does not complete the regression equation (estimating beta and baseline).
+
+
+        Parameters
+        ----------
+        sigma_grid : 1D ndarray
+            to be filled in by user
+
+
+        Returns
+        -------
+        self.quick_gridsearch_params: An array containing the gridsearch parameters.
+        self.quick_vertex_centres_dict: An array containing the vertex centres.
+        self.quick_vertex_centres_dict: A dictionary containing the vertex centres.
+
+        """
+        
+        
+        
+        
+
+        # let the model create the timecourses
+        self.model.create_grid_predictions(sigma_grid)
+        
+        self.model.predictions = self.model.predictions.astype('float32')        
+        
+        # Z-score everything so we can use dot product.
+        zdat,zpreds=zscore(self.data.T),zscore(self.model.predictions.T)
+        
+        # Get all the dot products.
+        fits=np.tensordot(zdat,zpreds,axes=([0],[0]))
+        
+        # Get the maximum R2 and it's index. 
+        max_rsqs,idxs = (np.amax(fits, 1)/zdat.shape[0])**2, np.argmax(fits, axis=1)
+        
+        # Output centres, sizes, rsquareds 
+        self.quick_gridsearch_params = np.array([
+            self.model.vert_centres_flat[idxs].astype(int),
+            self.model.sigmas_flat[idxs],
+            max_rsqs]).T
+        
+        # Now just create some start paramaters for the iterative fitting 
+        #startbeta,startbase=np.repeat(1,self.gridsearch_params.shape[0]),np.repeat(0,self.gridsearch_params.shape[0])
+        
+        # We have the estimated sigma for the grid.
+        #self.starting_params=np.vstack([self.gridsearch_params[:,1],startbeta,startbase,self.gridsearch_params[:,-1]]).T
+        
+        # We don't want to submit the vertex_centres for the grid fitting - these are an additional argument.  
+        self.quick_vertex_centres=self.quick_gridsearch_params[:,0].astype(int)
+        
+        # Bundle this into a dictionary so that we can use this as one of the **args in the iterative fitter
+        self.quick_vertex_centres_dict = [{'vert':k} for k in self.quick_vertex_centres]
+
+        
 
 class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
     """
