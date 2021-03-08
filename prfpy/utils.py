@@ -45,7 +45,7 @@ class subsurface(object):
         
         Returns
         -------
-        subsurface_L, subsurface_R: A pycortex subsurfaces classes for each hemisphere.
+        subsurface_L, subsurface_R: A pycortex subsurfaces classes for each hemisphere (These are later deleted by 'get_geometry', but can be re-created with a call to this function).
         self.subsurface_verts_L,self.subsurface_verts_R : The whole brain indices of each vertex in the subsurfaces.
         
         """
