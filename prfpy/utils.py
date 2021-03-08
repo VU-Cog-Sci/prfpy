@@ -2,15 +2,12 @@ import cortex
 from scipy import stats
 import numpy as np
 
-
-def basic_plot(dat,vmax,subject='fsaverage',vmin=0,rois=False,colorbar=False,cmap='plasma',ax=None):
-    light=cortex.Vertex(dat,subject=subject, vmin=vmin, vmax=vmax,cmap=cmap)
-    mfig=cortex.quickshow(light,with_curvature=True,with_rois=rois,with_colorbar=colorbar,fig=ax)
-
+    
+    
 class subsurface(object):
     
-    """subsurface_generator
-        Use pycortex utilities to generate info about sub-surfaces.
+    """subsurface
+        This is a utility that uses pycortex for making sub-surfaces for CF fitting.
         
     """
 
@@ -20,7 +17,7 @@ class subsurface(object):
         Parameters
         ----------
         cx_sub : The name of the cx subject (string). This is used to get surfaces from the pycx database.
-        boolmasks: A list of boolean arrays that define the vertices that correspond to the ROI one wants to make a subsurface from [left hemisphere, right hemisphere].
+        boolmasks: A list of boolean arrays that define the vertices that correspond to the ROI one wants to make a subsurface from [left hem, right hem].
         surftype: The surface (default = fiducial).
         """
         
@@ -32,6 +29,10 @@ class subsurface(object):
 
         
     def create(self):
+        """get_surfaces
+        Function that creates the subsurfaces.
+        """
+        
         self.get_surfaces()
         self.generate()
         self.get_geometry()
@@ -41,6 +42,12 @@ class subsurface(object):
         
         """get_surfaces
         Accesses the pycortex database to return the subject surfaces (left and right).
+        
+        Returns
+        -------
+        subsurface_L, subsurface_R: A pycortex subsurfaces classes for each hemisphere.
+        self.subsurface_verts_L,self.subsurface_verts_R : The whole brain indices of each vertex in the subsurfaces.
+        
         """
         
         self.surfaces = [cortex.polyutils.Surface(*d)
@@ -53,8 +60,8 @@ class subsurface(object):
         """
         
         print('Generating subsurfaces')
-        self.subsurface_L = self.surfaces[0].create_subsurface(vertex_mask=self.boolmasks[0]) # Create sub-surfaces.
-        self.subsurface_R = self.surfaces[1].create_subsurface(vertex_mask=self.boolmasks[1])
+        self.subsurface_L = self.surfaces[0].create_subsurface(vertex_mask=self.boolmasks[0]) # Create sub-surface, left hem.
+        self.subsurface_R = self.surfaces[1].create_subsurface(vertex_mask=self.boolmasks[1]) # Create sub-surface, right hem.
         
         # Get the whole-brain indices for those vertices contained in the subsurface.
         self.subsurface_verts_L=np.where(self.subsurface_L.subsurface_vertex_map!=stats.mode(self.subsurface_L.subsurface_vertex_map)[0][0])[0]
@@ -64,13 +71,17 @@ class subsurface(object):
     def get_geometry(self):
         
         """get_geometry
-        Returns geometric info about the sub-surfaces. Computes geodesic distances from each point of the sub-surface.
+        Calculates geometric info about the sub-surfaces. Computes geodesic distances from each point of the sub-surface.
+        
+        Returns
+        -------
+        dists_L, dists_R: Matrices of size n vertices x n vertices that describes the distances between all vertices in each hemisphere of the subsurface.
+        subsurface_verts: The whole brain indices of each vertex in the subsurface.
+        leftlim: The index that indicates the boundary between the left and right hemisphere. 
         """
         
         # Assign some variables to determine where the boundary between the hemispheres is. 
-        self.leftlim=np.max(self.subsurface_verts_L)
-        self.n_leftverts=self.subsurface_verts_L.shape[-1]
-        
+        self.leftlim=np.max(self.subsurface_verts_L)        
         self.subsurface_verts=np.concatenate([self.subsurface_verts_L,self.subsurface_verts_R])
         
         # Make the distance x distance matrix.
@@ -94,10 +105,15 @@ class subsurface(object):
         """pad_distance_matrices
         Pads the distance matrices so that distances to the opposite hemisphere are np.inf
         Stack them on top of each other so they will have the same size as the design matrix
+       
+        
+        Returns
+        -------
+        distance_matrix: A matrix of size n vertices x n vertices that describes the distances between all vertices in the subsurface.
         """
         
-        padL=np.pad(self.dists_L, ((0, 0), (0, self.dists_R.shape[-1])),constant_values=np.Inf) # back pad the left hem .
-        padR=np.pad(self.dists_R, ((0, 0), (self.dists_L.shape[-1],0)),constant_values=np.Inf) # front pad the right hem.
+        padL=np.pad(self.dists_L, ((0, 0), (0, self.dists_R.shape[-1])),constant_values=np.Inf) # Pad the right hem with np.inf.
+        padR=np.pad(self.dists_R, ((0, 0), (self.dists_L.shape[-1],0)),constant_values=np.Inf) # pad the left hem with np.inf..
         
         self.distance_matrix=np.vstack([padL,padR]) # Now stack.
         
@@ -108,47 +124,19 @@ class subsurface(object):
 
         """
             
-        print(f"Maximum distance across subsurface: {np.max(self.dists_L)} mm")
+        print(f"Maximum distance across left subsurface: {np.max(self.dists_L)} mm")
+        rint(f"Maximum distance across right subsurface: {np.max(self.dists_R)} mm")
         print(f"Vertices in left hemisphere: {self.dists_L.shape[-1]}")
         print(f"Vertices in right hemisphere: {self.dists_R.shape[-1]}")
         
-    def show(self,cmap='gist_ncar'):
+
+def squaresign(vec):
+    
+    """squaresign
+        Raises something to a power in a sign-sensive way.
+        Useful for if dot products happen to be negative.
+    """
+    vec2=(vec**2)*np.sign(vec)
+    return vec2
         
-        """show
-        Plots the subsurfaces.
-        """
         
-        basic_plot(self.mask,vmax=1,subject=self.cx_sub,cmap=cmap)
-    
-
-def masked_plot(dat,noiseinds,vmax,subject='fsaverage',vmin=0,rois=False,colorbar=False,cmap='plasma',ax=None):
-    maskdat=np.copy(dat)
-    maskdat[noiseinds]=np.nan
-    basic_plot(maskdat,vmax,subject,vmin,rois,colorbar,cmap,ax)
-    
-    
-def alpha_plot(dat,dat2,vmax,subject='fsaverage',vmin=0,rois=False,colorbar=False,cmap='plasma_alpha',ax=None):
-    light=cortex.Vertex2D(dat,dat2,subject=subject, vmin=vmin, vmax=vmax,vmin2=0,vmax2=np.nanmax(dat2),cmap=cmap)
-    mfig=cortex.quickshow(light,with_curvature=True,with_rois=rois,with_colorbar=colorbar,fig=ax)
-
-    
-def zoomed_plot(dat,vmax,ROI,hem,subject='hcp_999999',vmin=0,rois=False,colorbar=False,cmap='plasma',ax=None):
-    basic_plot(dat,vmax,subject,vmin,rois,colorbar,cmap,ax)
-    zoom_to_roi(subject,ROI,hem)
-    
-def zoom_to_roi(subject, roi, hem, margin=35.0):
-    roi_verts = cortex.get_roi_verts(subject, roi)[roi]
-    roi_map = cortex.Vertex.empty(subject)
-    roi_map.data[roi_verts] = 1
-
-    (lflatpts, lpolys), (rflatpts, rpolys) = cortex.db.get_surf(subject, "flat",
-                                                                nudge=True)
-    sel_pts = dict(left=lflatpts, right=rflatpts)[hem]
-    roi_pts = sel_pts[np.nonzero(getattr(roi_map, hem))[0],:2]
-
-    xmin, ymin = roi_pts.min(0) - margin
-    xmax, ymax = roi_pts.max(0) + margin
-    
-    
-    plt.axis([xmin, xmax, ymin, ymax])
-    return
