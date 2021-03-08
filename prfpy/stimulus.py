@@ -146,7 +146,7 @@ class CFStimulus(object):
     
     """CFStimulus
 
-    Minimal CF stimulus class. Returns design matrices.
+    Minimal CF stimulus class. Creates a design matrix for CF models by taking the data within a sub-surface (e.g. V1).
 
     """
     
@@ -162,16 +162,23 @@ class CFStimulus(object):
         Parameters
         ----------
         data : numpy.ndarray
-            a 2D matrix that contains the whole brain data (vertices by time). 
-
-        distances : numpy.ndarray
-            a matrix that contains the distances between each vertex in the source sub-surface.
+            a 2D matrix that contains the whole brain data (second dimension must be time). 
             
             
          vertinds : numpy.ndarray
             a matrix of integers that define the whole-brain indices of the vertices in the source subsurface.
             
+        distances : numpy.ndarray
+            a matrix that contains the distances between each vertex in the source sub-surface.
             
+        Returns
+        -------
+        data: Inherits data.
+        subsurface_verts: Inherits vertinds.
+        distance_matrix: Inherits distances.
+        design_matrix: The data contained within the source subsurface (to be used as a design matrix).
+        
+
         """
         self.data=data
         

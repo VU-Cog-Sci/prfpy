@@ -607,15 +607,18 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
         
 class CFGaussianModel():
     
+    """A class for constructing gaussian connective field models.
+    """
+    
     
     def __init__(self,stimulus):
         
         
         """__init__
+        
         Parameters
         ----------
-        Stimulus A CFstimulus
-        Spacing: How to space the sigmas (default = log).
+        stimulus: A CFstimulus object.
         """
         
         self.stimulus=stimulus
@@ -624,14 +627,30 @@ class CFGaussianModel():
         
     def create_rfs(self):
         
-        assert hasattr(self, 'sigmas'), "please set up the grid first"
+        """create_rfs
+
+        creates rfs for the grid search
+        
+        Returns
+        ----------
+        grid_rfs: The receptive field profiles for the grid. 
+        vert_centres_flat: A vector that defines the vertex centre associated with each rf profile.
+        sigmas_flat: A vector that defines the CF size associated with each rf profile.
+        
+        
+        """
+        
+        assert hasattr(self, 'sigmas'), "please define a grid of CF sizes first."
         
         if self.func=='cart':
             
+            # Make the receptive fields extend over the distances controlled by each of the sigma.
             self.grid_rfs  = np.array([gauss1D_cart(self.stimulus.distance_matrix, 0, s) for s in self.sigmas])
-            
+        
+        # Reshape.
         self.grid_rfs=self.grid_rfs.reshape(-1, self.grid_rfs.shape[-1])
         
+        # Flatten out the variables that define the centres and the sigmas.
         self.vert_centres_flat=np.tile(self.stimulus.subsurface_verts,self.sigmas.shape)
         self.sigmas_flat=np.repeat(self.sigmas,self.stimulus.distance_matrix.shape[0])
         
@@ -640,8 +659,14 @@ class CFGaussianModel():
         """stimulus_times_prfs
 
         creates timecourses for each of the rfs in self.grid_rfs
-
+        
+         Returns
+        ----------
+        predictions: The predicted timecourse that is the dot product of the data in the source subsurface and each rf profile.
+        
         """
+        
+        
         assert hasattr(self, 'grid_rfs'), "please create the rfs first"
         self.predictions = stimulus_through_prf(
             self.grid_rfs, self.stimulus.design_matrix,
@@ -665,7 +690,12 @@ class CFGaussianModel():
         """return_prediction
 
         Creates a prediction given a sigma, beta, baseline and vertex centre.
-
+        
+        Returns
+        ----------
+        
+        A prediction for this parameter combination. 
+        
         """
         
         

@@ -3,7 +3,7 @@ from scipy.optimize import fmin_powell, minimize, basinhopping, shgo, dual_annea
 from scipy.stats import pearsonr, zscore
 from copy import deepcopy
 from joblib import Parallel, delayed
-
+from .utils import squaresign
 
 
 def error_function(
@@ -504,9 +504,9 @@ class CFFitter(Fitter):
 
         Returns
         -------
-        self.gridsearch_params: An array containing the gridsearch parameters.
-        self.vertex_centres_dict: An array containing the vertex centres.
-        self.vertex_centres_dict: A dictionary containing the vertex centres.
+        gridsearch_params: An array containing the gridsearch parameters.
+        vertex_centres: An array containing the vertex centres.
+        vertex_centres_dict: A dictionary containing the vertex centres.
 
         """
         
@@ -600,7 +600,7 @@ class CFFitter(Fitter):
         
         """quick_grid_fit
 
-        performs fast estimation of vertex centres and sizes using a simple dot product of zscored data.
+        Performs fast estimation of vertex centres and sizes using a simple dot product of zscored data.
         Does not complete the regression equation (estimating beta and baseline).
 
 
@@ -612,17 +612,13 @@ class CFFitter(Fitter):
 
         Returns
         -------
-        self.quick_gridsearch_params: An array containing the gridsearch parameters.
-        self.quick_vertex_centres_dict: An array containing the vertex centres.
-        self.quick_vertex_centres_dict: A dictionary containing the vertex centres.
+        quick_gridsearch_params: An array containing the gridsearch parameters.
+        quick_vertex_centres: An array containing the vertex centres.
+        quick_vertex_centres_dict: A dictionary containing the vertex centres.
 
         """
         
-        
-        
-        
-
-        # let the model create the timecourses
+        # Let the model create the timecourses
         self.model.create_grid_predictions(sigma_grid)
         
         self.model.predictions = self.model.predictions.astype('float32')        
@@ -630,29 +626,98 @@ class CFFitter(Fitter):
         # Z-score everything so we can use dot product.
         zdat,zpreds=zscore(self.data.T),zscore(self.model.predictions.T)
         
-        # Get all the dot products.
+        # Get all the dot products via np.tensordot.
         fits=np.tensordot(zdat,zpreds,axes=([0],[0]))
         
         # Get the maximum R2 and it's index. 
         max_rsqs,idxs = (np.amax(fits, 1)/zdat.shape[0])**2, np.argmax(fits, axis=1)
         
-        # Output centres, sizes, rsquareds 
+        self.idxs=idxs
+        
+        # Output centres, sizes, R2. 
         self.quick_gridsearch_params = np.array([
             self.model.vert_centres_flat[idxs].astype(int),
             self.model.sigmas_flat[idxs],
             max_rsqs]).T
         
-        # Now just create some start paramaters for the iterative fitting 
-        #startbeta,startbase=np.repeat(1,self.gridsearch_params.shape[0]),np.repeat(0,self.gridsearch_params.shape[0])
         
-        # We have the estimated sigma for the grid.
-        #self.starting_params=np.vstack([self.gridsearch_params[:,1],startbeta,startbase,self.gridsearch_params[:,-1]]).T
-        
-        # We don't want to submit the vertex_centres for the grid fitting - these are an additional argument.  
+        # We don't want to submit the vertex_centres for the iterative fitting - these are an additional argument.
+        # Save them as .int as bundling them into an array with floats will change their type.
         self.quick_vertex_centres=self.quick_gridsearch_params[:,0].astype(int)
         
         # Bundle this into a dictionary so that we can use this as one of the **args in the iterative fitter
         self.quick_vertex_centres_dict = [{'vert':k} for k in self.quick_vertex_centres]
+    
+    def get_quick_grid_preds(self,dset='train'):
+        
+        
+        """get_quick_grid_preds
+
+        Returns the best fitting grid predictions from the quick_grid_fit method.
+
+
+        Parameters
+        ----------
+        dset : Which dataset to return for (train or test).
+
+
+        Returns
+        -------
+        train_predictions.
+        OR
+        test_predictions.
+
+        """
+        
+        # Get the predictions of the best grid fits.
+        # All we have to do is index the predictions via the index of the best-fitting prediction for each vertex.
+        predictions=self.model.predictions[self.idxs,:]
+        
+        # Assign to object.
+        if dset=='train':
+            self.train_predictions=predictions
+        elif dset=='test':
+            self.test_predictions=predictions
+    
+    def quick_xval(self,test_data,test_stimulus):
+        """quick_xval
+
+        Takes the fitted parameters and tests their performance on the out of sample data.
+
+
+        Parameters
+        ----------
+        Test data: Data to test predictions on.
+        Test stimulus: CFstimulus class associated with test data.
+
+        Returns
+        -------
+        CV_R2 - the out of sample performance.
+
+        """
+        
+        fit_stimulus = deepcopy(self.model.stimulus) # Copy the test stimulus.
+        self.test_data=test_data # Assign test data
+        
+        if test_stimulus is not None:    
+            # Make the same grid predictions for the test data - therefore assign the new stimulus to the model class.
+            self.model.stimulus = test_stimulus
+        
+        # Now we can generate the same test predictions with the test design matrix.
+        self.model.create_grid_predictions(self.model.sigmas,'cart')
+        
+        # For each vertex, we then take the combination of parameters that provided the best fit to the training data.
+        self.get_quick_grid_preds('test')
+        
+        # We can now put the fit stimulus back. 
+        self.model.stimulus = fit_stimulus
+        
+        # Zscore the data and the preds
+        zdat,zpred=zscore(self.test_data,axis=1),zscore(self.test_predictions,axis=1)
+        
+        # Get the crossval R2. Here we use np.einsum to calculate the correlations across each row of the test data and the test predictions
+        self.xval_R2=squaresign(np.einsum('ij,ij->i',zpred,zdat)/self.test_data.shape[-1])
+
 
         
 
