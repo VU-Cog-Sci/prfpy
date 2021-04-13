@@ -2,11 +2,9 @@
 
 Population receptive field fitting routines developed at Spinoza Centre for Neuroimaging
 
-## In active development - do not use
+## In active development - do not use unless otherwise instructed by repo owners
 
-This software is very much in development, and this development has just started. We strongly recommend against its use for now, and will make this repo private for in-house development shortly.
-
-Documentation for this package can be found at [readthedocs](https://prfpy.readthedocs.io/en/latest/)
+Documentation for this package can be found at [readthedocs](https://prfpy.readthedocs.io/en/latest/) (not up to date)
 
 ## Policy & To Do
 
