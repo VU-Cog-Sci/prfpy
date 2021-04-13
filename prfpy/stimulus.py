@@ -16,7 +16,9 @@ class PRFStimulus2D(object):
                  TR,                 
                  task_lengths=None,
                  task_names=None,
-                 late_iso_dict=None, **kwargs):
+                 late_iso_dict=None,
+                 normalize_integral_dx=False,
+                 **kwargs):
         """
         
 
