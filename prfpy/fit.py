@@ -28,7 +28,7 @@ def error_function(
     error : float
         The residual sum of squared errors between the prediction and data.
     """
-    return np.nan_to_num(np.sum((data - objective_function(*list(parameters), **args))**2), nan=1)
+    return np.nan_to_num(np.sum((data - objective_function(*list(parameters), **args))**2), nan=1e12)
     #return 1-np.nan_to_num(pearsonr(data,np.nan_to_num(objective_function(*list(parameters), **args)[0]))[0])
 
 
