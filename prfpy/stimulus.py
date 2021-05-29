@@ -142,3 +142,50 @@ class PRFStimulus1D(object):
         self.task_lengths = task_lengths
         self.task_names = task_names
         self.late_iso_dict = late_iso_dict
+
+        
+class CFStimulus(object):
+    
+    """CFStimulus
+
+    Minimal CF stimulus class. Creates a design matrix for CF models by taking the data within a sub-surface (e.g. V1).
+
+    """
+    
+    
+    def __init__(self,
+                 data,
+                 vertinds,
+                 distances,**kwargs):
+        
+        """__init__
+
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            a 2D matrix that contains the whole brain data (second dimension must be time). 
+            
+            
+         vertinds : numpy.ndarray
+            a matrix of integers that define the whole-brain indices of the vertices in the source subsurface.
+            
+        distances : numpy.ndarray
+            a matrix that contains the distances between each vertex in the source sub-surface.
+            
+        Returns
+        -------
+        data: Inherits data.
+        subsurface_verts: Inherits vertinds.
+        distance_matrix: Inherits distances.
+        design_matrix: The data contained within the source subsurface (to be used as a design matrix).
+        
+
+        """
+        self.data=data
+        
+        self.subsurface_verts=vertinds
+        
+        self.design_matrix=self.data[self.subsurface_verts,:]
+        
+        self.distance_matrix=distances
