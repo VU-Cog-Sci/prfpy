@@ -470,6 +470,745 @@ class Iso2DGaussianFitter(Fitter):
             self.gridsearch_r2
         ]).T
 
+       
+
+class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
+    """
+
+    Generic superclass to extend the Gaussian Fitter. If an existing
+    Iso2DGaussianFitter object with iterative_search_params is provided, the
+    prf position, size, and rsq parameters will be used for further minimizations.
+
+    """
+
+    def __init__(self, model, data, n_jobs=1, fit_hrf=False,
+                 previous_gaussian_fitter=None,
+                 **kwargs):
+        """
+
+        Parameters
+        ----------
+        data : numpy.ndarray, 2D
+            input data. First dimension units, Second dimension time
+        model : prfpy.Model
+            Model object that provides the grid and iterative search
+            predictions.
+        n_jobs : int, optional
+            number of jobs to use in parallelization (iterative search), by default 1
+        previous_gaussian_fitter : Iso2DGaussianFitter, optional
+            Must have iterative_search_params. The default is None.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+
+        if previous_gaussian_fitter is not None:
+            if not hasattr(previous_gaussian_fitter,
+                           'iterative_search_params'):
+                print('Warning: gaussian iter fit not performed. Explicit\
+                      starting parameters or grid params will be needed.')
+
+            self.previous_gaussian_fitter = previous_gaussian_fitter
+
+        super().__init__(data, model, n_jobs=n_jobs, fit_hrf=fit_hrf, **kwargs)
+
+    def insert_new_model_params(self, old_params):
+        """
+        Function to insert new model parameters starting values for iterfitting.
+        To be redefined appropriately for each model (see below for examples).
+        If `grid_fit` is defined and performed, `self.gridsearch_params` take
+        precedence, and this function becomes unnecessary.
+
+        Parameters
+        ----------
+        old_params : ndarray [n_units, 6]
+            Previous Gaussian fitter parameters and rsq.
+
+        Returns
+        -------
+        new_params : ndarray [n_units, number of new model parameters]
+            Starting parameters for iterative fit.
+            To be redefined appropriately for each model.
+
+        """
+
+        new_params = old_params
+        return new_params
+
+    def iterative_fit(self,
+                      rsq_threshold,
+                      verbose=False,
+                      starting_params=None,
+                      bounds=None,
+                      args={},
+                      constraints=[],
+                      xtol=1e-4,
+                      ftol=1e-3):
+        """
+        Iterative_fit for models building on top of the Gaussian. Does not need to be
+        redefined for new models. It is sufficient to define either
+        `insert_new_model_params` or `grid_fit`, in a new model Fitter class,
+        or provide explicit `starting_params`.
+
+
+        Parameters
+        ----------
+        rsq_threshold : float
+            Rsq threshold for iterative fitting. Must be between 0 and 1.
+        verbose : boolean, optional
+            Whether to print output. The default is False.
+        starting_params : ndarray of size [units, model_params +1], optional
+            Explicit start for minimization. The default is None.
+        bounds : list of tuples, optional
+            Bounds for parameter minimization. The default is None.
+        args : dictionary, optional
+            Further arguments passed to iterative_search. The default is {}.
+
+        Returns
+        -------
+        None.
+
+        """
+
+        if starting_params is None and not hasattr(
+            self, 'gridsearch_params') and hasattr(
+                self, 'previous_gaussian_fitter'):
+
+            starting_params = self.insert_new_model_params(
+                self.previous_gaussian_fitter.iterative_search_params)
+            
+            #fit exactly the same voxels/vertices as previous
+            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
+                self.rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            else:
+                self.rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:,-1] > rsq_threshold
+
+            # enforcing hrf_fit "consistency" with previous gaussian fit:
+            if self.previous_gaussian_fitter.fit_hrf != self.fit_hrf:
+
+                print("Warning: fit_hrf was " + str(
+                    self.previous_gaussian_fitter.fit_hrf) + " in previous_\
+                      gaussian_fit. Overriding current fit_hrf to avoid inconsistency.")
+
+                self.fit_hrf = self.previous_gaussian_fitter.fit_hrf
+
+        super().iterative_fit(rsq_threshold=rsq_threshold,
+                              verbose=verbose,
+                              starting_params=starting_params,
+                              bounds=bounds,
+                              args=args,
+                              constraints=constraints,
+                              xtol=xtol,
+                              ftol=ftol)
+
+
+class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
+    """CSS_Iso2DGaussianFitter
+
+    Compressive Spatial Summation model
+    """
+
+    def insert_new_model_params(self, old_params):
+        """
+        Parameters
+        ----------
+        old_params : ndarray [n_units, 6]
+            Previous Gaussian fitter parameters and rsq.
+
+        Returns
+        -------
+        new_params : ndarray [n_units, 7]
+            Starting parameters and rsq for CSS iterative fit.
+
+        """
+        # insert CSS exponent
+        new_params = np.insert(old_params, 5, 1.0, axis=-1)
+        return new_params
+
+    def grid_fit(self,
+                 exponent_grid,
+                 gaussian_params=None,
+                 verbose=False,
+                 n_batches=1000,
+                 rsq_threshold=0.1,
+                 pos_prfs_only=True):
+        """
+        This function performs a grid_fit for the normalization model new parameters.
+        The fit is parallel over batches of voxels, and separate predictions are
+        made for each voxels based on its previously obtained Gaussian parameters (position and size).
+        These can be provided explicitly in `gaussian_params`, or otherwise
+        they are obtained from `previous_gaussian_fitter.iterative_search_params`
+
+
+        Parameters
+        ----------
+        exponent_grid : 1D ndarray
+            Array of exponent values.
+        gaussian_params : ndarray [n_units, 4], optional
+            The Gaussian parms [x position, y position, prf size, rsq] can be
+            provided explicitly. If not, a previous_gaussian_fitter must be
+            provided. The default is None.
+        verbose : boolean, optional
+            print output. The default is False.
+        n_batches : int, optional
+            Number of voxel batches. The default is 1000.
+        rsq_threshold : float, optional
+            rsq threshold for grid fitting. The default is 0.1.
+
+        Raises
+        ------
+        ValueError
+            Raised if there is no previous_gaussian_fitter or gaussian params.
+
+        """
+
+        # setting up grid for norm model new params
+        self.nn = np.meshgrid(
+            exponent_grid)
+
+        self.nn = self.nn.ravel()
+
+        self.n_predictions = len(self.nn)
+
+        if gaussian_params is not None and gaussian_params.shape == (
+                self.n_units, 4):
+            self.gaussian_params = gaussian_params.astype('float32')
+            self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
+            
+        elif hasattr(self, 'previous_gaussian_fitter'):
+            starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
+            self.gaussian_params = np.concatenate(
+                (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
+            
+            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            else:
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > self.rsq_threshold
+            
+        else:
+            print('Please provide suitable [n_units, 4] gaussian_params,\
+                  or previous_gaussian_fitter')
+            raise ValueError
+
+        
+
+        # this function analytically computes best-fit rsq, slope, and baseline
+        # for a given batch of units (faster than scipy/numpy lstsq).
+        def rsq_betas_for_batch(data,
+                                vox_nums,
+                                n_predictions,
+                                n_timepoints,
+                                data_var,
+                                nn,
+                                gaussian_params):
+
+            result = np.zeros((data.shape[0], 4), dtype='float32')
+
+            for vox_data, vox_num, idx in zip(
+                data, vox_nums, np.arange(
+                    data.shape[0])):
+
+                # let the model create the timecourses, per voxel, since the
+                # gridding is over new parameters, while size and position
+                # are obtained from previous Gaussian fit
+                predictions = self.model.create_grid_predictions(
+                    gaussian_params[vox_num, :-1], nn)
+                # bookkeeping
+                sum_preds = np.sum(predictions, axis=-1)
+                square_norm_preds = np.linalg.norm(
+                    predictions, axis=-1, ord=2)**2
+                sumd = np.sum(vox_data)
+
+                # best possible slopes and baselines
+                slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
+                          sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
+                baselines = (sumd - slopes * sum_preds) / n_timepoints
+
+                # find best prediction and store relevant data
+                resid = np.linalg.norm((vox_data -
+                                        slopes[..., np.newaxis] *
+                                        predictions -
+                                        baselines[..., np.newaxis]), ord=2, axis=-
+                                       1)
+
+                #to enforce, if possible, positive prf amplitude & neural baseline
+                if pos_prfs_only:
+                    if np.any(slopes>0):
+                        resid[slopes<=0] = +np.inf
+
+                best_pred_voxel = np.nanargmin(resid)
+
+                rsq = 1 - resid[best_pred_voxel]**2 / \
+                    (n_timepoints * data_var[vox_num])
+
+                result[idx, :] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
+
+            return result
+
+        # masking and splitting data
+        split_indices = np.array_split(np.arange(self.data.shape[0])[
+                                       self.gridsearch_rsq_mask], n_batches)
+        data_batches = np.array_split(
+            self.data[self.gridsearch_rsq_mask], n_batches, axis=0)
+
+        if verbose:
+            print("Each batch contains approx. " +
+                  str(data_batches[0].shape[0]) + " voxels.")
+
+        # parallel grid search over (sequential) batches of voxels
+        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
+            delayed(rsq_betas_for_batch)(
+                data=data,
+                vox_nums=vox_nums,
+                n_predictions=self.n_predictions,
+                n_timepoints=self.n_timepoints,
+                data_var=self.data_var,
+                sa=self.nn,
+                gaussian_params=self.gaussian_params)
+            for data, vox_nums in zip(data_batches, split_indices))
+
+        grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
+
+        # store results
+        max_rsqs = grid_search_rbs[:, 0].astype('int')
+        self.gridsearch_r2 = grid_search_rbs[:, 1]
+        self.best_fitting_baseline = grid_search_rbs[:, 2]
+        self.best_fitting_beta = grid_search_rbs[:, 3]
+
+        self.gridsearch_params = np.zeros((self.n_units, 8))
+
+        self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
+            self.gaussian_params[self.gridsearch_rsq_mask, 0],
+            self.gaussian_params[self.gridsearch_rsq_mask, 1],
+            self.gaussian_params[self.gridsearch_rsq_mask, 2],
+            self.best_fitting_beta,
+            self.best_fitting_baseline,
+            self.nn[max_rsqs],
+            self.gridsearch_r2
+        ]).T
+
+class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
+    """DoG_Iso2DGaussianFitter
+
+    Difference of Gaussians model
+    """
+
+    def insert_new_model_params(self, old_params):
+        """
+        Parameters
+        ----------
+        old_params : ndarray [n_units, 6]
+            Previous Gaussian fitter parameters and rsq.
+
+        Returns
+        -------
+        new_params : ndarray [n_units, 8]
+            Starting parameters and rsq for DoG iterative fit.
+
+        """
+        # surround amplitude
+        new_params = np.insert(old_params, 5, 0.5*old_params[:,3], axis=-1)
+        # surround size
+        new_params = np.insert(
+            new_params,
+            6,
+            1.5*old_params[:,2],
+            axis=-1)
+
+        return new_params
+
+    def grid_fit(self,
+                 surround_amplitude_grid,
+                 surround_size_grid,
+                 gaussian_params=None,
+                 verbose=False,
+                 n_batches=1000,
+                 rsq_threshold=0.1,
+                 pos_prfs_only=True):
+        """
+        This function performs a grid_fit for the normalization model new parameters.
+        The fit is parallel over batches of voxels, and separate predictions are
+        made for each voxels based on its previously obtained Gaussian parameters (position and size).
+        These can be provided explicitly in `gaussian_params`, or otherwise
+        they are obtained from `previous_gaussian_fitter.iterative_search_params`
+
+
+        Parameters
+        ----------
+        surround_amplitude_grid : 1D ndarray
+            Array of surround amplitude values.
+        surround_size_grid : 1D ndarray
+            Array of surround size values (sigma_2).
+        gaussian_params : ndarray [n_units, 4], optional
+            The Gaussian parms [x position, y position, prf size, rsq] can be
+            provided explicitly. If not, a previous_gaussian_fitter must be
+            provided. The default is None.
+        verbose : boolean, optional
+            print output. The default is False.
+        n_batches : int, optional
+            Number of voxel batches. The default is 1000.
+        rsq_threshold : float, optional
+            rsq threshold for grid fitting. The default is 0.1.
+
+        Raises
+        ------
+        ValueError
+            Raised if there is no previous_gaussian_fitter or gaussian params.
+
+        """
+
+        # setting up grid for norm model new params
+        self.sa, self.ss = np.meshgrid(
+            surround_amplitude_grid, surround_size_grid)
+
+        self.sa = self.sa.ravel()
+        self.ss = self.ss.ravel()
+
+        self.n_predictions = len(self.sa)
+
+        if gaussian_params is not None and gaussian_params.shape == (
+                self.n_units, 4):
+            self.gaussian_params = gaussian_params.astype('float32')
+            self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
+            
+        elif hasattr(self, 'previous_gaussian_fitter'):
+            starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
+            self.gaussian_params = np.concatenate(
+                (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
+            
+            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            else:
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > self.rsq_threshold
+            
+        else:
+            print('Please provide suitable [n_units, 4] gaussian_params,\
+                  or previous_gaussian_fitter')
+            raise ValueError
+
+        
+
+        # this function analytically computes best-fit rsq, slope, and baseline
+        # for a given batch of units (faster than scipy/numpy lstsq).
+        def rsq_betas_for_batch(data,
+                                vox_nums,
+                                n_predictions,
+                                n_timepoints,
+                                data_var,
+                                sa, ss,
+                                gaussian_params):
+
+            result = np.zeros((data.shape[0], 4), dtype='float32')
+
+            for vox_data, vox_num, idx in zip(
+                data, vox_nums, np.arange(
+                    data.shape[0])):
+
+                # let the model create the timecourses, per voxel, since the
+                # gridding is over new parameters, while size and position
+                # are obtained from previous Gaussian fit
+                predictions = self.model.create_grid_predictions(
+                    gaussian_params[vox_num, :-1], sa, ss)
+                # bookkeeping
+                sum_preds = np.sum(predictions, axis=-1)
+                square_norm_preds = np.linalg.norm(
+                    predictions, axis=-1, ord=2)**2
+                sumd = np.sum(vox_data)
+
+                # best possible slopes and baselines
+                slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
+                          sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
+                baselines = (sumd - slopes * sum_preds) / n_timepoints
+
+                # find best prediction and store relevant data
+                resid = np.linalg.norm((vox_data -
+                                        slopes[..., np.newaxis] *
+                                        predictions -
+                                        baselines[..., np.newaxis]), ord=2, axis=-
+                                       1)
+
+                #to enforce, if possible, positive prf amplitude & neural baseline
+                if pos_prfs_only:
+                    if np.any(slopes>0):
+                        resid[slopes<=0] = +np.inf
+
+                best_pred_voxel = np.nanargmin(resid)
+
+                rsq = 1 - resid[best_pred_voxel]**2 / \
+                    (n_timepoints * data_var[vox_num])
+
+                result[idx, :] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
+
+            return result
+
+        # masking and splitting data
+        split_indices = np.array_split(np.arange(self.data.shape[0])[
+                                       self.gridsearch_rsq_mask], n_batches)
+        data_batches = np.array_split(
+            self.data[self.gridsearch_rsq_mask], n_batches, axis=0)
+
+        if verbose:
+            print("Each batch contains approx. " +
+                  str(data_batches[0].shape[0]) + " voxels.")
+
+        # parallel grid search over (sequential) batches of voxels
+        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
+            delayed(rsq_betas_for_batch)(
+                data=data,
+                vox_nums=vox_nums,
+                n_predictions=self.n_predictions,
+                n_timepoints=self.n_timepoints,
+                data_var=self.data_var,
+                sa=self.sa,
+                ss=self.ss,
+                gaussian_params=self.gaussian_params)
+            for data, vox_nums in zip(data_batches, split_indices))
+
+        grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
+
+        # store results
+        max_rsqs = grid_search_rbs[:, 0].astype('int')
+        self.gridsearch_r2 = grid_search_rbs[:, 1]
+        self.best_fitting_baseline = grid_search_rbs[:, 2]
+        self.best_fitting_beta = grid_search_rbs[:, 3]
+
+        self.gridsearch_params = np.zeros((self.n_units, 8))
+
+        self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
+            self.gaussian_params[self.gridsearch_rsq_mask, 0],
+            self.gaussian_params[self.gridsearch_rsq_mask, 1],
+            self.gaussian_params[self.gridsearch_rsq_mask, 2],
+            self.best_fitting_beta,
+            self.best_fitting_baseline,
+            self.sa[max_rsqs] * self.best_fitting_beta,
+            self.ss[max_rsqs],
+            self.gridsearch_r2
+        ]).T
+
+class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
+    """Norm_Iso2DGaussianFitter
+
+    Divisive Normalization model
+
+    """
+
+    def insert_new_model_params(self, old_params):
+        """
+        Note: this function is generally unused since there is an
+        efficient grid_fit for the normalization model (below)
+
+        Parameters
+        ----------
+        old_params : ndarray [n_units, 6]
+            Previous Gaussian fitter parameters and rsq.
+
+        Returns
+        -------
+        new_params : ndarray [n_units, 10]
+            Starting parameters and rsq for norm iterative fit.
+
+        """
+        # surround amplitude
+        new_params = np.insert(old_params, 5, 0.0, axis=-1)
+        # surround size
+        new_params = np.insert(
+            new_params,
+            6,
+            1.5*old_params[:,2],
+            axis=-1)
+        # neural baseline
+        new_params = np.insert(new_params, 7, 0.0, axis=-1)
+            # surround baseline
+        new_params = np.insert(new_params, 8, 1.0, axis=-1)
+
+        return new_params
+
+    def grid_fit(self,
+                 surround_amplitude_grid,
+                 surround_size_grid,
+                 neural_baseline_grid,
+                 surround_baseline_grid,
+                 gaussian_params=None,
+                 verbose=False,
+                 n_batches=1000,
+                 rsq_threshold=0.1,
+                 pos_prfs_only=True):
+        """
+        This function performs a grid_fit for the normalization model new parameters.
+        The fit is parallel over batches of voxels, and separate predictions are
+        made for each voxels based on its previously obtained Gaussian parameters (position and size).
+        These can be provided explicitly in `gaussian_params`, or otherwise
+        they are obtained from `previous_gaussian_fitter.iterative_search_params`
+
+
+        Parameters
+        ----------
+        surround_amplitude_grid : 1D ndarray
+            Array of surround amplitude values (Norm param C).
+        surround_size_grid : 1D ndarray
+            Array of surround size values (sigma_2).
+        neural_baseline_grid : 1D ndarray
+            Array of neural baseline values (Norm param B).
+        surround_baseline_grid : 1D ndarray
+            Array of surround baseline values (Norm param D).
+        gaussian_params : ndarray [n_units, 4], optional
+            The Gaussian parms [x position, y position, prf size, rsq] can be
+            provided explicitly. If not, a previous_gaussian_fitter must be
+            provided. The default is None.
+        verbose : boolean, optional
+            print output. The default is False.
+        n_batches : int, optional
+            Number of voxel batches. The default is 1000.
+        rsq_threshold : float, optional
+            rsq threshold for grid fitting. The default is 0.1.
+
+        Raises
+        ------
+        ValueError
+            Raised if there is no previous_gaussian_fitter or gaussian params.
+
+        """
+
+        # setting up grid for norm model new params
+        self.sa, self.ss, self.nb, self.sb = np.meshgrid(
+            surround_amplitude_grid, surround_size_grid,
+            neural_baseline_grid, surround_baseline_grid)
+
+        self.sa = self.sa.ravel()
+        self.ss = self.ss.ravel()
+        self.nb = self.nb.ravel()
+        self.sb = self.sb.ravel()
+
+        self.n_predictions = len(self.nb)
+
+        if gaussian_params is not None and gaussian_params.shape == (
+                self.n_units, 4):
+            self.gaussian_params = gaussian_params.astype('float32')
+            self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
+            
+        elif hasattr(self, 'previous_gaussian_fitter'):
+            starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
+            self.gaussian_params = np.concatenate(
+                (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
+            
+            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            else:
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > self.rsq_threshold
+            
+        else:
+            print('Please provide suitable [n_units, 4] gaussian_params,\
+                  or previous_gaussian_fitter')
+            raise ValueError
+
+        
+
+        # this function analytically computes best-fit rsq, slope, and baseline
+        # for a given batch of units (faster than scipy/numpy lstsq).
+        def rsq_betas_for_batch(data,
+                                vox_nums,
+                                n_predictions,
+                                n_timepoints,
+                                data_var,
+                                sa, ss, nb, sb,
+                                gaussian_params):
+
+            result = np.zeros((data.shape[0], 4), dtype='float32')
+
+            for vox_data, vox_num, idx in zip(
+                data, vox_nums, np.arange(
+                    data.shape[0])):
+
+                # let the model create the timecourses, per voxel, since the
+                # gridding is over new parameters, while size and position
+                # are obtained from previous Gaussian fit
+                predictions = self.model.create_grid_predictions(
+                    gaussian_params[vox_num, :-1], sa, ss, nb, sb)
+                # bookkeeping
+                sum_preds = np.sum(predictions, axis=-1)
+                square_norm_preds = np.linalg.norm(
+                    predictions, axis=-1, ord=2)**2
+                sumd = np.sum(vox_data)
+
+                # best possible slopes and baselines
+                slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
+                          sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
+                baselines = (sumd - slopes * sum_preds) / n_timepoints
+
+                # find best prediction and store relevant data
+                resid = np.linalg.norm((vox_data -
+                                        slopes[..., np.newaxis] *
+                                        predictions -
+                                        baselines[..., np.newaxis]), ord=2, axis=-
+                                       1)
+
+                #to enforce, if possible, positive prf amplitude & neural baseline
+                if pos_prfs_only:
+                    if np.any(slopes>0):
+                        resid[slopes<=0] = +np.inf
+
+                best_pred_voxel = np.nanargmin(resid)
+
+                rsq = 1 - resid[best_pred_voxel]**2 / \
+                    (n_timepoints * data_var[vox_num])
+
+                result[idx, :] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
+
+            return result
+
+        # masking and splitting data
+        split_indices = np.array_split(np.arange(self.data.shape[0])[
+                                       self.gridsearch_rsq_mask], n_batches)
+        data_batches = np.array_split(
+            self.data[self.gridsearch_rsq_mask], n_batches, axis=0)
+
+        if verbose:
+            print("Each batch contains approx. " +
+                  str(data_batches[0].shape[0]) + " voxels.")
+
+        # parallel grid search over (sequential) batches of voxels
+        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
+            delayed(rsq_betas_for_batch)(
+                data=data,
+                vox_nums=vox_nums,
+                n_predictions=self.n_predictions,
+                n_timepoints=self.n_timepoints,
+                data_var=self.data_var,
+                sa=self.sa,
+                ss=self.ss,
+                nb=self.nb,
+                sb=self.sb,
+                gaussian_params=self.gaussian_params)
+            for data, vox_nums in zip(data_batches, split_indices))
+
+        grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
+
+        # store results
+        max_rsqs = grid_search_rbs[:, 0].astype('int')
+        self.gridsearch_r2 = grid_search_rbs[:, 1]
+        self.best_fitting_baseline = grid_search_rbs[:, 2]
+        self.best_fitting_beta = grid_search_rbs[:, 3]
+
+        self.gridsearch_params = np.zeros((self.n_units, 10))
+
+        self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
+            self.gaussian_params[self.gridsearch_rsq_mask, 0],
+            self.gaussian_params[self.gridsearch_rsq_mask, 1],
+            self.gaussian_params[self.gridsearch_rsq_mask, 2],
+            self.best_fitting_beta,
+            self.best_fitting_baseline,
+            self.sa[max_rsqs],
+            self.ss[max_rsqs],
+            self.nb[max_rsqs] * self.best_fitting_beta,
+            self.sb[max_rsqs],
+            self.gridsearch_r2
+        ]).T
+
+
         
         
 class CFFitter(Fitter):
@@ -719,412 +1458,4 @@ class CFFitter(Fitter):
         self.xval_R2=squaresign(np.einsum('ij,ij->i',zpred,zdat)/self.test_data.shape[-1])
 
 
-        
-
-class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
-    """
-
-    Generic superclass to extend the Gaussian Fitter. If an existing
-    Iso2DGaussianFitter object with iterative_search_params is provided, the
-    prf position, size, and rsq parameters will be used for further minimizations.
-
-    """
-
-    def __init__(self, model, data, n_jobs=1, fit_hrf=False,
-                 previous_gaussian_fitter=None,
-                 **kwargs):
-        """
-
-        Parameters
-        ----------
-        data : numpy.ndarray, 2D
-            input data. First dimension units, Second dimension time
-        model : prfpy.Model
-            Model object that provides the grid and iterative search
-            predictions.
-        n_jobs : int, optional
-            number of jobs to use in parallelization (iterative search), by default 1
-        previous_gaussian_fitter : Iso2DGaussianFitter, optional
-            Must have iterative_search_params. The default is None.
-        **kwargs : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
-        """
-
-        if previous_gaussian_fitter is not None:
-            if not hasattr(previous_gaussian_fitter,
-                           'iterative_search_params'):
-                print('Warning: gaussian iter fit not performed. Explicit\
-                      starting parameters or grid params will be needed.')
-
-            self.previous_gaussian_fitter = previous_gaussian_fitter
-
-        super().__init__(data, model, n_jobs=n_jobs, fit_hrf=fit_hrf, **kwargs)
-
-    def insert_new_model_params(self, old_params):
-        """
-        Function to insert new model parameters starting values for iterfitting.
-        To be redefined appropriately for each model (see below for examples).
-        If `grid_fit` is defined and performed, `self.gridsearch_params` take
-        precedence, and this function becomes unnecessary.
-
-        Parameters
-        ----------
-        old_params : ndarray [n_units, 6]
-            Previous Gaussian fitter parameters and rsq.
-
-        Returns
-        -------
-        new_params : ndarray [n_units, number of new model parameters]
-            Starting parameters for iterative fit.
-            To be redefined appropriately for each model.
-
-        """
-
-        new_params = old_params
-        return new_params
-
-    def iterative_fit(self,
-                      rsq_threshold,
-                      verbose=False,
-                      starting_params=None,
-                      bounds=None,
-                      args={},
-                      constraints=[],
-                      xtol=1e-4,
-                      ftol=1e-3):
-        """
-        Iterative_fit for models building on top of the Gaussian. Does not need to be
-        redefined for new models. It is sufficient to define either
-        `insert_new_model_params` or `grid_fit`, in a new model Fitter class,
-        or provide explicit `starting_params`.
-
-
-        Parameters
-        ----------
-        rsq_threshold : float
-            Rsq threshold for iterative fitting. Must be between 0 and 1.
-        verbose : boolean, optional
-            Whether to print output. The default is False.
-        starting_params : ndarray of size [units, model_params +1], optional
-            Explicit start for minimization. The default is None.
-        bounds : list of tuples, optional
-            Bounds for parameter minimization. The default is None.
-        args : dictionary, optional
-            Further arguments passed to iterative_search. The default is {}.
-
-        Returns
-        -------
-        None.
-
-        """
-
-        if starting_params is None and not hasattr(
-            self, 'gridsearch_params') and hasattr(
-                self, 'previous_gaussian_fitter'):
-
-            starting_params = self.insert_new_model_params(
-                self.previous_gaussian_fitter.iterative_search_params)
-            
-            #fit exactly the same voxels/vertices as previous
-            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
-                self.rsq_mask = self.previous_gaussian_fitter.rsq_mask
-            else:
-                self.rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:,-1] > rsq_threshold
-
-            # enforcing hrf_fit "consistency" with previous gaussian fit:
-            if self.previous_gaussian_fitter.fit_hrf != self.fit_hrf:
-
-                print("Warning: fit_hrf was " + str(
-                    self.previous_gaussian_fitter.fit_hrf) + " in previous_\
-                      gaussian_fit. Overriding current fit_hrf to avoid inconsistency.")
-
-                self.fit_hrf = self.previous_gaussian_fitter.fit_hrf
-
-        super().iterative_fit(rsq_threshold=rsq_threshold,
-                              verbose=verbose,
-                              starting_params=starting_params,
-                              bounds=bounds,
-                              args=args,
-                              constraints=constraints,
-                              xtol=xtol,
-                              ftol=ftol)
-
-
-class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
-    """CSS_Iso2DGaussianFitter
-
-    Compressive Spatial Summation model
-    """
-
-    def insert_new_model_params(self, old_params):
-        """
-        Parameters
-        ----------
-        old_params : ndarray [n_units, 6]
-            Previous Gaussian fitter parameters and rsq.
-
-        Returns
-        -------
-        new_params : ndarray [n_units, 7]
-            Starting parameters and rsq for CSS iterative fit.
-
-        """
-        # insert CSS exponent
-        new_params = np.insert(old_params, 5, 1.0, axis=-1)
-        return new_params
-
-
-class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
-    """DoG_Iso2DGaussianFitter
-
-    Difference of Gaussians model
-    """
-
-    def insert_new_model_params(self, old_params):
-        """
-        Parameters
-        ----------
-        old_params : ndarray [n_units, 6]
-            Previous Gaussian fitter parameters and rsq.
-
-        Returns
-        -------
-        new_params : ndarray [n_units, 8]
-            Starting parameters and rsq for DoG iterative fit.
-
-        """
-        # surround amplitude
-        new_params = np.insert(old_params, 5, 0.5*old_params[:,3], axis=-1)
-        # surround size
-        new_params = np.insert(
-            new_params,
-            6,
-            1.5*old_params[:,2],
-            axis=-1)
-
-        return new_params
-
-
-class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
-    """Norm_Iso2DGaussianFitter
-
-    Divisive Normalization model
-
-    """
-
-    def insert_new_model_params(self, old_params):
-        """
-        Note: this function is generally unused since there is an
-        efficient grid_fit for the normalization model (below)
-
-        Parameters
-        ----------
-        old_params : ndarray [n_units, 6]
-            Previous Gaussian fitter parameters and rsq.
-
-        Returns
-        -------
-        new_params : ndarray [n_units, 10]
-            Starting parameters and rsq for norm iterative fit.
-
-        """
-        # surround amplitude
-        new_params = np.insert(old_params, 5, 0.0, axis=-1)
-        # surround size
-        new_params = np.insert(
-            new_params,
-            6,
-            1.5*old_params[:,2],
-            axis=-1)
-        # neural baseline
-        new_params = np.insert(new_params, 7, 0.0, axis=-1)
-            # surround baseline
-        new_params = np.insert(new_params, 8, 1.0, axis=-1)
-
-        return new_params
-
-    def grid_fit(self,
-                 surround_amplitude_grid,
-                 surround_size_grid,
-                 neural_baseline_grid,
-                 surround_baseline_grid,
-                 gaussian_params=None,
-                 verbose=False,
-                 n_batches=1000,
-                 rsq_threshold=0.1,
-                 pos_prfs_only=True):
-        """
-        This function performs a grid_fit for the normalization model new parameters.
-        The fit is parallel over batches of voxels, and separate predictions are
-        made for each voxels based on its previously obtained Gaussian parameters (position and size).
-        These can be provided explicitly in `gaussian_params`, or otherwise
-        they are obtained from `previous_gaussian_fitter.iterative_search_params`
-
-
-        Parameters
-        ----------
-        surround_amplitude_grid : 1D ndarray
-            Array of surround amplitude values (Norm param C).
-        surround_size_grid : 1D ndarray
-            Array of surround size values (sigma_2).
-        neural_baseline_grid : 1D ndarray
-            Array of neural baseline values (Norm param B).
-        surround_baseline_grid : 1D ndarray
-            Array of surround baseline values (Norm param D).
-        gaussian_params : ndarray [n_units, 4], optional
-            The Gaussian parms [x position, y position, prf size, rsq] can be
-            provided explicitly. If not, a previous_gaussian_fitter must be
-            provided. The default is None.
-        verbose : boolean, optional
-            print output. The default is False.
-        n_batches : int, optional
-            Number of voxel batches. The default is 1000.
-        rsq_threshold : float, optional
-            rsq threshold for grid fitting. The default is 0.1.
-
-        Raises
-        ------
-        ValueError
-            Raised if there is no previous_gaussian_fitter or gaussian params.
-
-        """
-
-        # setting up grid for norm model new params
-        self.sa, self.ss, self.nb, self.sb = np.meshgrid(
-            surround_amplitude_grid, surround_size_grid,
-            neural_baseline_grid, surround_baseline_grid)
-
-        self.sa = self.sa.ravel()
-        self.ss = self.ss.ravel()
-        self.nb = self.nb.ravel()
-        self.sb = self.sb.ravel()
-
-        self.n_predictions = len(self.nb)
-
-        if gaussian_params is not None and gaussian_params.shape == (
-                self.n_units, 4):
-            self.gaussian_params = gaussian_params.astype('float32')
-            self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
-            
-        elif hasattr(self, 'previous_gaussian_fitter'):
-            starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
-            self.gaussian_params = np.concatenate(
-                (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
-            
-            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
-            else:
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > self.rsq_threshold
-            
-        else:
-            print('Please provide suitable [n_units, 4] gaussian_params,\
-                  or previous_gaussian_fitter')
-            raise ValueError
-
-        
-
-        # this function analytically computes best-fit rsq, slope, and baseline
-        # for a given batch of units (faster than scipy/numpy lstsq).
-        def rsq_betas_for_batch(data,
-                                vox_nums,
-                                n_predictions,
-                                n_timepoints,
-                                data_var,
-                                sa, ss, nb, sb,
-                                gaussian_params):
-
-            result = np.zeros((data.shape[0], 4), dtype='float32')
-
-            for vox_data, vox_num, idx in zip(
-                data, vox_nums, np.arange(
-                    data.shape[0])):
-
-                # let the model create the timecourses, per voxel, since the
-                # gridding is over new parameters, while size and position
-                # are obtained from previous Gaussian fit
-                predictions = self.model.create_grid_predictions(
-                    gaussian_params[vox_num, :-1], sa, ss, nb, sb)
-                # bookkeeping
-                sum_preds = np.sum(predictions, axis=-1)
-                square_norm_preds = np.linalg.norm(
-                    predictions, axis=-1, ord=2)**2
-                sumd = np.sum(vox_data)
-
-                # best possible slopes and baselines
-                slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
-                          sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
-                baselines = (sumd - slopes * sum_preds) / n_timepoints
-
-                # find best prediction and store relevant data
-                resid = np.linalg.norm((vox_data -
-                                        slopes[..., np.newaxis] *
-                                        predictions -
-                                        baselines[..., np.newaxis]), ord=2, axis=-
-                                       1)
-
-                #to enforce, if possible, positive prf amplitude & neural baseline
-                if pos_prfs_only:
-                    if np.any(slopes>0):
-                        resid[slopes<=0] = +np.inf
-
-                best_pred_voxel = np.nanargmin(resid)
-
-                rsq = 1 - resid[best_pred_voxel]**2 / \
-                    (n_timepoints * data_var[vox_num])
-
-                result[idx, :] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
-
-            return result
-
-        # masking and splitting data
-        split_indices = np.array_split(np.arange(self.data.shape[0])[
-                                       self.gridsearch_rsq_mask], n_batches)
-        data_batches = np.array_split(
-            self.data[self.gridsearch_rsq_mask], n_batches, axis=0)
-
-        if verbose:
-            print("Each batch contains approx. " +
-                  str(data_batches[0].shape[0]) + " voxels.")
-
-        # parallel grid search over (sequential) batches of voxels
-        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
-            delayed(rsq_betas_for_batch)(
-                data=data,
-                vox_nums=vox_nums,
-                n_predictions=self.n_predictions,
-                n_timepoints=self.n_timepoints,
-                data_var=self.data_var,
-                sa=self.sa,
-                ss=self.ss,
-                nb=self.nb,
-                sb=self.sb,
-                gaussian_params=self.gaussian_params)
-            for data, vox_nums in zip(data_batches, split_indices))
-
-        grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
-
-        # store results
-        max_rsqs = grid_search_rbs[:, 0].astype('int')
-        self.gridsearch_r2 = grid_search_rbs[:, 1]
-        self.best_fitting_baseline = grid_search_rbs[:, 2]
-        self.best_fitting_beta = grid_search_rbs[:, 3]
-
-        self.gridsearch_params = np.zeros((self.n_units, 10))
-
-        self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
-            self.gaussian_params[self.gridsearch_rsq_mask, 0],
-            self.gaussian_params[self.gridsearch_rsq_mask, 1],
-            self.gaussian_params[self.gridsearch_rsq_mask, 2],
-            self.best_fitting_beta,
-            self.best_fitting_baseline,
-            self.sa[max_rsqs],
-            self.ss[max_rsqs],
-            self.nb[max_rsqs] * self.best_fitting_beta,
-            self.sb[max_rsqs],
-            self.gridsearch_r2
-        ]).T
+ 

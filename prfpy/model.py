@@ -340,6 +340,36 @@ class Iso2DGaussianModel(Model):
 
 class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
 
+    def create_grid_predictions(self,
+                                gaussian_params,
+                                nn):
+        """create_predictions
+
+        creates predictions for a given set of parameters
+
+        [description]
+
+        Parameters
+        ----------
+        gaussian_params: ndarray size (3)
+            containing prf position and size.
+        nn: ndarrays
+            containing the range of grid values for other CSS model parameters
+            (exponent)
+        
+
+        """
+        n_predictions = len(nn)
+        
+        prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
+                                    gaussian_params[1]*np.ones(n_predictions),
+                                    gaussian_params[2]*np.ones(n_predictions),
+                                    1.0*np.ones(n_predictions),
+                                    0.0*np.ones(n_predictions),
+                                    nn])
+        
+        return self.return_prediction(*list(prediction_params)).astype('float32')    
+
     def return_prediction(self,
                                  mu_x,
                                  mu_y,
@@ -536,6 +566,38 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
 class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
     """redefining class for difference of Gaussians in iterative fit.
     """
+
+    def create_grid_predictions(self,
+                                gaussian_params,
+                                sa,
+                                ss):
+        """create_predictions
+
+        creates predictions for a given set of parameters
+
+        [description]
+
+        Parameters
+        ----------
+        gaussian_params: ndarray size (3)
+            containing prf position and size.
+        sa,ss: ndarrays
+            containing the range of grid values for other DoG model parameters
+            (surroud amplitude, surround size (sigma_2))
+        
+
+        """
+        n_predictions = len(sa)
+        
+        prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
+                                    gaussian_params[1]*np.ones(n_predictions),
+                                    gaussian_params[2]*np.ones(n_predictions),
+                                    1.0*np.ones(n_predictions),
+                                    0.0*np.ones(n_predictions),
+                                    sa,
+                                    ss])
+        
+        return self.return_prediction(*list(prediction_params)).astype('float32')
 
     def return_prediction(self,
                                  mu_x,
