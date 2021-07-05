@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.signal as signal
-from nistats.hemodynamic_models import spm_hrf, spm_time_derivative, spm_dispersion_derivative
+from nilearn.glm.first_level.hemodynamic_models import spm_hrf, spm_time_derivative, spm_dispersion_derivative
 
 from .rf import gauss2D_iso_cart, gauss1D_cart # import required RF shapes
 from .timecourse import stimulus_through_prf, \

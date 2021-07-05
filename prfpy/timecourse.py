@@ -142,13 +142,13 @@ def dcfilter_predictions(predictions, first_modes_to_remove=5,
         stop = start+task_length
 
         try:
-            coeffs = sp.fftpack.dct(predictions, norm='ortho', axis=-1)
+            coeffs = sp.fft.dct(predictions, norm='ortho', axis=-1)
             coeffs[:, :first_modes_to_remove] = 0
             if last_modes_to_remove_percent>0:
                 last_modes_to_remove = int(task_length*last_modes_to_remove_percent/100)
                 coeffs[:, -last_modes_to_remove:] = 0
         
-            filtered_predictions[..., start:stop] = sp.fftpack.idct(coeffs, norm='ortho', axis=-1)
+            filtered_predictions[..., start:stop] = sp.fft.idct(coeffs, norm='ortho', axis=-1)
         except:
             print("Error occurred during predictions discrete cosine filtering.\
                   Using unfiltered prediction instead")
