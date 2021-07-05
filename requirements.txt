@@ -1,5 +1,5 @@
 numpy>=1.16
-scipy>=1.2
+scipy>=1.4
 matplotlib>=2.2
 pandas>=0.24
 statsmodels>=0.8
@@ -8,4 +8,4 @@ joblib
 numba
 bottleneck
 tqdm
-nistats
+nilearn
