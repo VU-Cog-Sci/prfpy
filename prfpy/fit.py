@@ -233,7 +233,7 @@ class Fitter:
 
         """
 
-        self.bounds = bounds
+        self.bounds = np.array(bounds)
         self.constraints = constraints
 
         if starting_params is None:
@@ -251,6 +251,10 @@ class Fitter:
 
         else:
             self.starting_params = starting_params
+        
+        #allows unit-wise bounds. this can be used to keep certain parameters fixed to a predetermined unit-specific value, while fitting others.
+        if len(self.bounds.shape) == 2:
+            self.bounds = np.repeat(self.bounds[np.newaxis,...], self.starting_params.shape[0], axis=0)
             
         if not hasattr(self,'rsq_mask'):
             #use the grid or explicitly provided params to select voxels to fit
@@ -267,9 +271,9 @@ class Fitter:
                                           xtol=xtol,
                                           ftol=ftol,
                                           verbose=verbose,
-                                          bounds=self.bounds,
+                                          bounds=curr_bounds,
                                           constraints=self.constraints)
-                for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1]))
+                for (data, start_params, curr_bounds) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1], self.bounds[self.rsq_mask]))
             self.iterative_search_params[self.rsq_mask] = np.array(
                 iterative_search_params)
             
