@@ -671,10 +671,8 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         """
 
         # setting up grid for norm model new params
-        self.nn = np.meshgrid(
-            exponent_grid)
-
-        self.nn = self.nn.ravel()
+        
+        self.nn = exponent_grid
 
         self.n_predictions = len(self.nn)
 
@@ -771,7 +769,7 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 n_predictions=self.n_predictions,
                 n_timepoints=self.n_timepoints,
                 data_var=self.data_var,
-                sa=self.nn,
+                nn=self.nn,
                 gaussian_params=self.gaussian_params)
             for data, vox_nums in zip(data_batches, split_indices))
 
@@ -783,7 +781,7 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         self.best_fitting_baseline = grid_search_rbs[:, 2]
         self.best_fitting_beta = grid_search_rbs[:, 3]
 
-        self.gridsearch_params = np.zeros((self.n_units, 8))
+        self.gridsearch_params = np.zeros((self.n_units, 7))
 
         self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
             self.gaussian_params[self.gridsearch_rsq_mask, 0],
