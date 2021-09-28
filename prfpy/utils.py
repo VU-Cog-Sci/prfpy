@@ -129,7 +129,7 @@ class Subsurface(object):
 
         print(
             f"Maximum distance across left subsurface: {np.max(self.dists_L)} mm")
-        rint(
+        print(
             f"Maximum distance across right subsurface: {np.max(self.dists_R)} mm")
         print(f"Vertices in left hemisphere: {self.dists_L.shape[-1]}")
         print(f"Vertices in right hemisphere: {self.dists_R.shape[-1]}")
