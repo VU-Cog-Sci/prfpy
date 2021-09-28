@@ -19,7 +19,7 @@ We have big plans for pRFpy, and will be developing intensely in the coming mont
    rf
    timecourse
    stim
-   grid
+   model
    fit
    cnn
    
