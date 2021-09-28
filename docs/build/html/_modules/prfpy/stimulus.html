@@ -1,27 +1,18 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>prfpy.stimulus &#8212; pRFpy 0.1.dev0 documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../',
-        VERSION:     '0.1.dev0',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
    
@@ -30,34 +21,41 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
-  </head>
-  <body>
+  </head><body>
   
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
+          
+
           <div class="body" role="main">
             
   <h1>Source code for prfpy.stimulus</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<div class="viewcode-block" id="PRFStimulus2D"><a class="viewcode-back" href="../../index.html#prfpy.stimulus.PRFStimulus2D">[docs]</a><span class="k">class</span> <span class="nc">PRFStimulus2D</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+<div class="viewcode-block" id="PRFStimulus2D"><a class="viewcode-back" href="../../stim.html#prfpy.stimulus.PRFStimulus2D">[docs]</a><span class="k">class</span> <span class="nc">PRFStimulus2D</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;PRFStimulus2D</span>
-<span class="sd">    </span>
+
 <span class="sd">    Minimal visual 2-dimensional pRF stimulus class, </span>
 <span class="sd">    which takes an input design matrix and sets up its real-world dimensions.</span>
-<span class="sd">    </span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
-                <span class="n">screen_size_cm</span><span class="p">,</span> 
-                <span class="n">screen_distance_cm</span><span class="p">,</span> 
-                <span class="n">design_matrix</span><span class="p">,</span>
-                <span class="n">TR</span><span class="p">,</span>
-                <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;__init__</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">screen_size_cm</span><span class="p">,</span>
+                 <span class="n">screen_distance_cm</span><span class="p">,</span>
+                 <span class="n">design_matrix</span><span class="p">,</span>
+                 <span class="n">TR</span><span class="p">,</span>                 
+                 <span class="n">task_lengths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">task_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">late_iso_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">normalize_integral_dx</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        </span>
-<span class="sd">        </span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        screen_size_cm : float</span>
@@ -67,38 +65,89 @@
 <span class="sd">        design_matrix : numpy.ndarray</span>
 <span class="sd">            an N by t matrix, where N is [x, x]. </span>
 <span class="sd">            represents a square screen evolving over time (time is last dimension)</span>
-<span class="sd">        </span>
+<span class="sd">        TR : float</span>
+<span class="sd">            Repetition time, in seconds</span>
+<span class="sd">        task_lengths : list of ints, optional</span>
+<span class="sd">            If there are multiple tasks, specify their lengths in TRs. The default is None.</span>
+<span class="sd">        task_names : list of str, optional</span>
+<span class="sd">            Task names. The default is None.</span>
+<span class="sd">        late_iso_dict : dict, optional </span>
+<span class="sd">            Dictionary whose keys correspond to task_names. Entries are ndarrays</span>
+<span class="sd">            containing the TR indices used to compute the BOLD baseline for each task.</span>
+<span class="sd">            The default is None.</span>
+<span class="sd">        **kwargs : optional</span>
+<span class="sd">            Use normalize_integral_dx = True to normalize the prf*stim sum as an integral.</span>
+
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            DESCRIPTION.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">screen_size_cm</span> <span class="o">=</span> <span class="n">screen_size_cm</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">screen_distance_cm</span> <span class="o">=</span> <span class="n">screen_distance_cm</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">design_matrix</span> <span class="o">=</span> <span class="n">design_matrix</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">design_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">design_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">design_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span> <span class="c1"># need the screen to be square</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span>  <span class="c1"># need the screen to be square</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">TR</span> <span class="o">=</span> <span class="n">TR</span>
+                
+        <span class="c1"># other useful stimulus properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_lengths</span> <span class="o">=</span> <span class="n">task_lengths</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_names</span> <span class="o">=</span> <span class="n">task_names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">late_iso_dict</span> <span class="o">=</span> <span class="n">late_iso_dict</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">screen_size_degrees</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">screen_size_cm</span><span class="o">/</span><span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">screen_distance_cm</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">screen_size_degrees</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> \
+            <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">screen_size_cm</span> <span class="o">/</span>
+                                 <span class="p">(</span><span class="mf">2.0</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">screen_distance_cm</span><span class="p">)))</span>
 
-        <span class="n">oneD_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">screen_size_degrees</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> 
-                                <span class="bp">self</span><span class="o">.</span><span class="n">screen_size_degrees</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> 
-                                <span class="bp">self</span><span class="o">.</span><span class="n">design_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> 
+        <span class="n">oneD_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">screen_size_degrees</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">screen_size_degrees</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">design_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
                                 <span class="n">endpoint</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">x_coordinates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">oneD_grid</span><span class="p">,</span> <span class="n">oneD_grid</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x_coordinates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span>
+            <span class="n">oneD_grid</span><span class="p">,</span> <span class="n">oneD_grid</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">complex_coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">x_coordinates</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_coordinates</span> <span class="o">*</span> <span class="mi">1</span><span class="n">j</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecc_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">complex_coordinates</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">polar_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">complex_coordinates</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_ecc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ecc_coordinates</span><span class="p">)</span>
 
-<div class="viewcode-block" id="PRFStimulus1D"><a class="viewcode-back" href="../../index.html#prfpy.stimulus.PRFStimulus1D">[docs]</a><span class="k">class</span> <span class="nc">PRFStimulus1D</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+        <span class="c1"># construct a standard mask based on standard deviation over time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">design_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span>
+        
+        <span class="c1"># whether or not to normalize the stimulus_through_prf as an integral, np.sum(prf*stim)*dx**2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize_integral_dx</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;normalize_integral_dx&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize_integral_dx</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">screen_size_degrees</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">design_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dx</span> <span class="o">=</span> <span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="PRFStimulus1D"><a class="viewcode-back" href="../../stim.html#prfpy.stimulus.PRFStimulus1D">[docs]</a><span class="k">class</span> <span class="nc">PRFStimulus1D</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;PRFStimulus1D</span>
-<span class="sd">    </span>
+
 <span class="sd">    Minimal visual 1-dimensional pRF stimulus class, </span>
 <span class="sd">    which takes an input design matrix and sets up its real-world dimensions.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
-                <span class="n">design_matrix</span><span class="p">,</span>
-                <span class="n">mapping</span><span class="p">,</span>
-                <span class="n">TR</span><span class="p">,</span>
-                <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">design_matrix</span><span class="p">,</span>
+                 <span class="n">mapping</span><span class="p">,</span>
+                 <span class="n">TR</span><span class="p">,</span>
+                 <span class="n">task_lengths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">task_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">late_iso_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;__init__</span>
-<span class="sd">        </span>
-<span class="sd">        </span>
+
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        design_matrix : numpy.ndarray</span>
@@ -108,17 +157,76 @@
 <span class="sd">            for each of the columns in design_matrix, the value in the encoding dimension</span>
 <span class="sd">            for example, in a numerosity experiment these would be the numerosity of presented stimuli</span>
 <span class="sd">        TR : float</span>
-<span class="sd">            repetition time of the design matrix</span>
-<span class="sd">        </span>
+<span class="sd">            Repetition time, in seconds</span>
+<span class="sd">        task_lengths : list of ints, optional</span>
+<span class="sd">            If there are multiple tasks, specify their lengths in TRs. The default is None.</span>
+<span class="sd">        task_names : list of str, optional</span>
+<span class="sd">            Task names. The default is None.</span>
+<span class="sd">        late_iso_dict : dict, optional </span>
+<span class="sd">            Dictionary whose keys correspond to task_names. Entries are ndarrays</span>
+<span class="sd">            containing the TR indices used to compute the BOLD baseline for each task.</span>
+<span class="sd">            The default is None.</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">design_matrix</span> <span class="o">=</span> <span class="n">design_matrix</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mapping</span> <span class="o">=</span> <span class="n">mapping</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">TR</span> <span class="o">=</span> <span class="n">TR</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">TR</span> <span class="o">=</span> <span class="n">TR</span>
+        
+        <span class="c1"># other potentially useful stimulus properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_lengths</span> <span class="o">=</span> <span class="n">task_lengths</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_names</span> <span class="o">=</span> <span class="n">task_names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">late_iso_dict</span> <span class="o">=</span> <span class="n">late_iso_dict</span></div>
 
         
+<div class="viewcode-block" id="CFStimulus"><a class="viewcode-back" href="../../stim.html#prfpy.stimulus.CFStimulus">[docs]</a><span class="k">class</span> <span class="nc">CFStimulus</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    
+    <span class="sd">&quot;&quot;&quot;CFStimulus</span>
+
+<span class="sd">    Minimal CF stimulus class. Creates a design matrix for CF models by taking the data within a sub-surface (e.g. V1).</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">data</span><span class="p">,</span>
+                 <span class="n">vertinds</span><span class="p">,</span>
+                 <span class="n">distances</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        
+        <span class="sd">&quot;&quot;&quot;__init__</span>
+
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : numpy.ndarray</span>
+<span class="sd">            a 2D matrix that contains the whole brain data (second dimension must be time). </span>
+<span class="sd">            </span>
+<span class="sd">            </span>
+<span class="sd">         vertinds : numpy.ndarray</span>
+<span class="sd">            a matrix of integers that define the whole-brain indices of the vertices in the source subsurface.</span>
+<span class="sd">            </span>
+<span class="sd">        distances : numpy.ndarray</span>
+<span class="sd">            a matrix that contains the distances between each vertex in the source sub-surface.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data: Inherits data.</span>
+<span class="sd">        subsurface_verts: Inherits vertinds.</span>
+<span class="sd">        distance_matrix: Inherits distances.</span>
+<span class="sd">        design_matrix: The data contained within the source subsurface (to be used as a design matrix).</span>
+<span class="sd">        </span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">=</span><span class="n">data</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">subsurface_verts</span><span class="o">=</span><span class="n">vertinds</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">design_matrix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">subsurface_verts</span><span class="p">,:]</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">distance_matrix</span><span class="o">=</span><span class="n">distances</span></div>
 </pre></div>
 
           </div>
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
@@ -130,17 +238,28 @@
   </ul></li>
   </ul></li>
 </ul>
-</div>
+</div><h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../rf.html">Receptive fields</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../timecourse.html">Timecourse functionality</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stim.html">Stimulus classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Grid classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../fit.html">Fit classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cnn.html">CNN</a></li>
+</ul>
+
+
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <div><input type="text" name="q" /></div>
-      <div><input type="submit" value="Go" /></div>
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
     </form>
+    </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -149,11 +268,15 @@
       &copy;2019, Tomas Knapen, Serge Dumoulin, Marco Aqil.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.6</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>
 
+    
+    <a href="https://github.com/spinoza-centre/prfpy" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
     
 
     

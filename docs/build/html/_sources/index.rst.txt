@@ -6,35 +6,26 @@
 Welcome to pRFpy's documentation!
 =================================
 
+
+pRFpy is a package that allows you to simulate and fit population receptive field (pRF) parameters from time series data.
+We have big plans for pRFpy, and will be developing intensely in the coming months. 
+
+.. image:: ../imgs/rf_shapes.png
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Reference
 
-pRFpy main
-===================
-.. automodule:: app
-   :members:
-
-pRFpy gaussian receptive field structure
-===================
-.. automodule:: prfpy.gauss
-   :members:
-
-pRFpy timecourse manipulation
-===================
-.. automodule:: prfpy.timecourse
-   :members:
-
-pRFpy stimulus classes
-===================
-.. automodule:: prfpy.stimulus
-   :members:
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   rf
+   timecourse
+   stim
+   model
+   fit
+   cnn
+   
+.. toctree::
+   :maxdepth: 2
+   :caption: Indices and tables
+   * :ref:`genindex`
+   * :ref:`modindex`
+   * :ref:`search`
