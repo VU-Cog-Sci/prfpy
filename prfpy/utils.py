@@ -3,7 +3,7 @@ from scipy import stats
 import numpy as np
 
 
-class subsurface(object):
+class Subsurface(object):
 
     """subsurface
         This is a utility that uses pycortex for making sub-surfaces for CF fitting.
