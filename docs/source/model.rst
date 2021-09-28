@@ -2,5 +2,5 @@ Grid classes
 ===================
 
 
-.. automodule:: prfpy.grid
+.. automodule:: prfpy.model
    :members:
