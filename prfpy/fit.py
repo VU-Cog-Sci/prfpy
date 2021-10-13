@@ -306,9 +306,13 @@ class Fitter:
                 self, 'iterative_search_params'), 'First use self.iterative_fit,'      
         
         #to hande cases where test_data and fit_data have different stimuli
-        fit_stimulus = deepcopy(self.model.stimulus) 
-        if test_stimulus is not None:                  
-            self.model.stimulus = test_stimulus
+        if test_stimulus is not None:                
+            fit_stimulus = deepcopy(self.model.stimulus)   
+            
+            self.model.stimulus = test_stimulus            
+            self.model.filter_params['task_lengths'] = test_stimulus.task_lengths
+            self.model.filter_params['task_names'] = test_stimulus.task_names
+            self.model.filter_params['late_iso_dict'] = test_stimulus.late_iso_dict
             
         if self.rsq_mask.sum()>0:
             if self.fit_hrf and single_hrf:
@@ -317,10 +321,15 @@ class Fitter:
                 
                 self.iterative_search_params[self.rsq_mask,-3:-1] = median_hrf_params
                 
-            
+                
             test_predictions = self.model.return_prediction(*list(self.iterative_search_params[self.rsq_mask,:-1].T))
-            self.model.stimulus = fit_stimulus
             
+            if test_stimulus is not None:
+                self.model.stimulus = fit_stimulus
+                self.model.filter_params['task_lengths'] = fit_stimulus.task_lengths
+                self.model.filter_params['task_names'] = fit_stimulus.task_names
+                self.model.filter_params['late_iso_dict'] = fit_stimulus.late_iso_dict  
+                
             #calculate CV-rsq        
             CV_rsq = np.nan_to_num(1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1)))
             #calcualte CV-correlation
