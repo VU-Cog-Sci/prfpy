@@ -189,7 +189,8 @@ class Iso2DGaussianModel(Model):
         elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
             self.hrf = self.create_hrf(hrf_params=hrf)
         # some specific hrf already defined at the TR (!)
-        elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
+        # elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
+        elif isinstance(hrf, np.ndarray) and hrf.shape[0] == 1 and hrf.shape[1] > 3:
             self.hrf = hrf
 
         self.stimulus.convolved_design_matrix = convolve_stimulus_dm(
