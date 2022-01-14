@@ -2,13 +2,14 @@ import numpy as np
 import scipy.signal as signal
 from nilearn.glm.first_level.hemodynamic_models import spm_hrf, spm_time_derivative, spm_dispersion_derivative
 
-from .rf import gauss2D_iso_cart, gauss1D_cart # import required RF shapes
+from .rf import gauss2D_iso_cart, gauss1D_cart  # import required RF shapes
 from .timecourse import stimulus_through_prf, \
     convolve_stimulus_dm, \
     generate_random_cosine_drifts, \
     generate_arima_noise, \
     filter_predictions
-    
+
+from .utils import HRF
 
 
 class Model(object):
@@ -31,47 +32,9 @@ class Model(object):
         """
         self.stimulus = stimulus
 
-    def create_hrf(self, hrf_params=[1.0, 1.0, 0.0]):
+    def convolve_timecourse_hrf(self, tc, hrf_values: np.ndarray):
         """
-        
-        construct single or multiple HRFs        
 
-        Parameters
-        ----------
-        hrf_params : TYPE, optional
-            DESCRIPTION. The default is [1.0, 1.0, 0.0].
-
-        Returns
-        -------
-        hrf : ndarray
-            the hrf.
-
-        """
-        
-        hrf = np.array(
-            [
-                np.ones_like(hrf_params[1])*hrf_params[0] *
-                spm_hrf(
-                    tr=self.stimulus.TR,
-                    oversampling=1,
-                    time_length=40)[...,np.newaxis],
-                hrf_params[1] *
-                spm_time_derivative(
-                    tr=self.stimulus.TR,
-                    oversampling=1,
-                    time_length=40)[...,np.newaxis],
-                hrf_params[2] *
-                spm_dispersion_derivative(
-                    tr=self.stimulus.TR,
-                    oversampling=1,
-                    time_length=40)[...,np.newaxis]]).sum(
-            axis=0)                    
-
-        return hrf.T
-    
-    def convolve_timecourse_hrf(self, tc, hrf):
-        """
-        
         Convolve neural timecourses with single or multiple hrfs.
 
         Parameters
@@ -87,27 +50,30 @@ class Model(object):
             Convolved timecourse.
 
         """
-        #scipy fftconvolve does not have padding options so doing it manually
+        # scipy fftconvolve does not have padding options so doing it manually
         pad_length = 20
-        pad = np.tile(tc[:,0], (pad_length,1)).T
-        padded_tc = np.hstack((pad,tc))
-        
-        
-        if hrf.shape[0]>1:           
-            assert hrf.shape[0] == tc.shape[0], f"{hrf.shape[0]} HRFs provided vs {tc.shape[0]} timecourses"
-            median_hrf = np.median(hrf, axis=0).reshape(1,-1)
-            if np.all([np.allclose(median_hrf, single_hrf.reshape(1,-1)) for single_hrf in hrf]):             
-                
-                convolved_tc = signal.fftconvolve(padded_tc, median_hrf, axes=(-1))[..., pad_length:tc.shape[-1]+pad_length]
-                
-            else:                 
+        pad = np.tile(tc[:, 0], (pad_length, 1)).T
+        padded_tc = np.hstack((pad, tc))
+
+        if hrf_values.shape[0] > 1:
+            assert hrf_values.shape[0] == tc.shape[
+                0], f"{hrf_values.shape[0]} HRFs provided vs {tc.shape[0]} timecourses"
+            median_hrf = np.median(hrf_values, axis=0).reshape(1, -1)
+            if np.all([np.allclose(median_hrf, single_hrf_values.reshape(1, -1)) for single_hrf_values in hrf_values]):
+
+                convolved_tc = signal.fftconvolve(
+                    padded_tc, median_hrf, axes=(-1))[..., pad_length:tc.shape[-1]+pad_length]
+
+            else:
                 convolved_tc = np.zeros_like(tc)
-                
-                for n_ in range(hrf.shape[0]):
-                    convolved_tc[n_,:] = signal.fftconvolve(padded_tc[n_,:],hrf[n_,:])[..., pad_length:tc.shape[-1]+pad_length] 
-                    
+
+                for n_ in range(hrf_values.shape[0]):
+                    convolved_tc[n_, :] = signal.fftconvolve(
+                        padded_tc[n_, :], hrf_values[n_, :])[..., pad_length:tc.shape[-1]+pad_length]
+
         else:
-            convolved_tc = signal.fftconvolve(padded_tc, hrf, axes=(-1))[..., pad_length:tc.shape[-1]+pad_length] 
+            convolved_tc = signal.fftconvolve(
+                padded_tc, hrf_values, axes=(-1))[..., pad_length:tc.shape[-1]+pad_length]
 
         return convolved_tc
 
@@ -151,7 +117,7 @@ class Iso2DGaussianModel(Model):
 
     def __init__(self,
                  stimulus,
-                 hrf=None,
+                 hrf: HRF = None,
                  filter_predictions=False,
                  filter_type='dc',
                  filter_params={},
@@ -166,12 +132,8 @@ class Iso2DGaussianModel(Model):
         stimulus : PRFStimulus2D
             Stimulus object specifying the information about the stimulus,
             and the space in which it lives.
-        hrf : string, list or numpy.ndarray, optional
-            HRF shape for this Model.
-            Can be 'direct', which implements nothing (for eCoG or later convolution),
-            a list or array of 3, which are multiplied with the three spm HRF basis functions,
-            and an array already sampled on the TR by the user.
-            (the default is None, which implements standard spm HRF)
+        hrf : HRF
+            HRF for this Model.
         filter_predictions : boolean, optional
             whether to high-pass filter the predictions, default False
         filter_type, filter_params : see timecourse.py
@@ -180,37 +142,39 @@ class Iso2DGaussianModel(Model):
         super().__init__(stimulus)
         self.__dict__.update(kwargs)
 
-        # HRF stuff
-        if hrf is None:  # for use with standard fMRI
-            self.hrf = self.create_hrf()
-        elif hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
-            self.hrf = np.array([1])
-        # some specific hrf with spm basis set
-        elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
-            self.hrf = self.create_hrf(hrf_params=hrf)
-        # some specific hrf already defined at the TR (!)
-        # elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
-        elif isinstance(hrf, np.ndarray) and hrf.shape[0] == 1 and hrf.shape[1] > 3:
-            self.hrf = hrf
+        # # HRF stuff
+        # if hrf is None:  # for use with standard fMRI
+        #     self.hrf = self.create_hrf()
+        # elif hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
+        #     self.hrf = np.array([1])
+        # # some specific hrf with spm basis set
+        # elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
+        #     self.hrf = self.create_hrf(hrf_params=hrf)
+        # # some specific hrf already defined at the TR (!)
+        # # elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
+        # elif isinstance(hrf, np.ndarray) and hrf.shape[0] == 1 and hrf.shape[1] > 3:
+        #     self.hrf = hrf
+
+        self.hrf = hrf
+        assert self.hrf.hasValues(), "Initialize HRF values first!"
 
         self.stimulus.convolved_design_matrix = convolve_stimulus_dm(
-            stimulus.design_matrix, hrf=self.hrf)
+            stimulus.design_matrix, hrf=self.hrf.values)
 
         # filtering and other stuff
         self.filter_predictions = filter_predictions
         self.filter_type = filter_type
-        
-        #settings for filter
+
+        # settings for filter
         self.filter_params = filter_params
-        
-        #adding stimulus parameters
+
+        # adding stimulus parameters
         self.filter_params['task_lengths'] = self.stimulus.task_lengths
         self.filter_params['task_names'] = self.stimulus.task_names
         self.filter_params['late_iso_dict'] = self.stimulus.late_iso_dict
-      
-        #normalizing RFs to have volume 1
+
+        # normalizing RFs to have volume 1
         self.normalize_RFs = normalize_RFs
-        
 
     def create_rfs(self):
         """create_rfs
@@ -224,7 +188,7 @@ class Iso2DGaussianModel(Model):
             y=self.stimulus.y_coordinates[..., np.newaxis],
             mu=np.array([self.xs.ravel(), self.ys.ravel()]),
             sigma=self.sizes.ravel(),
-            normalize_RFs=self.normalize_RFs).T, axes=(1,2))
+            normalize_RFs=self.normalize_RFs).T, axes=(1, 2))
 
     def stimulus_times_prfs(self):
         """stimulus_times_prfs
@@ -236,7 +200,6 @@ class Iso2DGaussianModel(Model):
         self.predictions = stimulus_through_prf(
             self.grid_rfs, self.stimulus.convolved_design_matrix,
             self.stimulus.dx)
-
 
     def create_grid_predictions(self,
                                 ecc_grid,
@@ -278,13 +241,13 @@ class Iso2DGaussianModel(Model):
             self.filtered_predictions = False
 
     def return_prediction(self,
-                                 mu_x,
-                                 mu_y,
-                                 size,
-                                 beta,
-                                 baseline,
-                                 hrf_1=None,
-                                 hrf_2=None):
+                          mu_x,
+                          mu_y,
+                          size,
+                          beta,
+                          baseline,
+                          hrf_1=None,
+                          hrf_2=None):
         """return_prediction
 
         returns the prediction for a single set of parameters.
@@ -311,24 +274,25 @@ class Iso2DGaussianModel(Model):
         numpy.ndarray
             single prediction given the model
         """
-        if hrf_1 is None or hrf_2 is None:
-            current_hrf = self.hrf
-        else:
-            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
+        if hrf_1 is not None and hrf_2 is not None:
+            current_hrf = self.hrf.create_spm_hrf(
+                force=True, TR=self.stimulus.TR, hrf_params=[1.0, hrf_1, hrf_2])
+
+        assert self.hrf.hasValues(), "Initialize HRF values first!"
+        current_hrf = self.hrf.values
 
         # create the single rf
         rf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                              y=self.stimulus.y_coordinates[..., np.newaxis],
-                              mu=(mu_x, mu_y),
-                              sigma=size,
-                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
+                                       y=self.stimulus.y_coordinates[...,
+                                                                     np.newaxis],
+                                       mu=(mu_x, mu_y),
+                                       sigma=size,
+                                       normalize_RFs=self.normalize_RFs).T, axes=(1, 2))
 
         dm = self.stimulus.design_matrix
         neural_tc = stimulus_through_prf(rf, dm, self.stimulus.dx)
 
-
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
-        
 
         if not self.filter_predictions:
             return baseline[..., np.newaxis] + beta[..., np.newaxis] * tc
@@ -357,29 +321,31 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
         nn: ndarrays
             containing the range of grid values for other CSS model parameters
             (exponent)
-        
+
 
         """
         n_predictions = len(nn)
-        
+
         prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
-                                    gaussian_params[1]*np.ones(n_predictions),
-                                    gaussian_params[2]*np.ones(n_predictions),
-                                    1.0*np.ones(n_predictions),
-                                    0.0*np.ones(n_predictions),
-                                    nn])
-        
-        return self.return_prediction(*list(prediction_params)).astype('float32')    
+                                      gaussian_params[1] *
+                                      np.ones(n_predictions),
+                                      gaussian_params[2] *
+                                      np.ones(n_predictions),
+                                      1.0*np.ones(n_predictions),
+                                      0.0*np.ones(n_predictions),
+                                      nn])
+
+        return self.return_prediction(*list(prediction_params)).astype('float32')
 
     def return_prediction(self,
-                                 mu_x,
-                                 mu_y,
-                                 size,
-                                 beta,
-                                 baseline,
-                                 n,
-                                 hrf_1=None,
-                                 hrf_2=None):
+                          mu_x,
+                          mu_y,
+                          size,
+                          beta,
+                          baseline,
+                          n,
+                          hrf_1=None,
+                          hrf_2=None):
         """return_prediction
 
         returns the prediction for a single set of parameters.
@@ -409,21 +375,25 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
             single prediction given the model
         """
 
-        if hrf_1 is None or hrf_2 is None:
-            current_hrf = self.hrf
-        else:
-            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
+        if hrf_1 is not None and hrf_2 is not None:
+            current_hrf = self.hrf.create_spm_hrf(
+                force=True, TR=self.stimulus.TR, hrf_params=[1.0, hrf_1, hrf_2])
+
+        assert self.hrf.hasValues(), "Initialize HRF values first!"
+        current_hrf = self.hrf.values
 
         # create the single rf
         rf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                              y=self.stimulus.y_coordinates[..., np.newaxis],
-                              mu=(mu_x, mu_y),
-                              sigma=size,
-                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
+                                       y=self.stimulus.y_coordinates[...,
+                                                                     np.newaxis],
+                                       mu=(mu_x, mu_y),
+                                       sigma=size,
+                                       normalize_RFs=self.normalize_RFs).T, axes=(1, 2))
 
         dm = self.stimulus.design_matrix
-        neural_tc = stimulus_through_prf(rf, dm, self.stimulus.dx)**n[..., np.newaxis]
-        
+        neural_tc = stimulus_through_prf(
+            rf, dm, self.stimulus.dx)**n[..., np.newaxis]
+
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
 
         if not self.filter_predictions:
@@ -461,37 +431,38 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
         sa,ss,nb,sb: ndarrays
             containing the range of grid values for other norm model parameters
             (surroud amplitude (C), surround size (sigma_2), neural baseline (B), surround baseline (D))
-        
+
 
         """
         n_predictions = len(sa)
-        
+
         prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
-                                    gaussian_params[1]*np.ones(n_predictions),
-                                    gaussian_params[2]*np.ones(n_predictions),
-                                    1.0*np.ones(n_predictions),
-                                    0.0*np.ones(n_predictions),
-                                    sa,
-                                    ss,
-                                    nb,
-                                    sb])
-        
+                                      gaussian_params[1] *
+                                      np.ones(n_predictions),
+                                      gaussian_params[2] *
+                                      np.ones(n_predictions),
+                                      1.0*np.ones(n_predictions),
+                                      0.0*np.ones(n_predictions),
+                                      sa,
+                                      ss,
+                                      nb,
+                                      sb])
 
         return self.return_prediction(*list(prediction_params)).astype('float32')
 
     def return_prediction(self,
-                                 mu_x,
-                                 mu_y,
-                                 prf_size,
-                                 prf_amplitude,
-                                 bold_baseline,
-                                 srf_amplitude,
-                                 srf_size,
-                                 neural_baseline,
-                                 surround_baseline,
-                                 hrf_1=None,
-                                 hrf_2=None
-                                 ):
+                          mu_x,
+                          mu_y,
+                          prf_size,
+                          prf_amplitude,
+                          bold_baseline,
+                          srf_amplitude,
+                          srf_size,
+                          neural_baseline,
+                          surround_baseline,
+                          hrf_1=None,
+                          hrf_2=None
+                          ):
         """return_prediction [summary]
 
         returns the prediction for a single set of parameters.
@@ -525,35 +496,40 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
             prediction(s) given the model
         """
 
-        if hrf_1 is None or hrf_2 is None:
-            current_hrf = self.hrf
-        else:
-            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
+        if hrf_1 is not None and hrf_2 is not None:
+            current_hrf = self.hrf.create_spm_hrf(
+                force=True, TR=self.stimulus.TR, hrf_params=[1.0, hrf_1, hrf_2])
+
+        assert self.hrf.hasValues(), "Initialize HRF values first!"
+        current_hrf = self.hrf.values
 
         # create the rfs
 
         prf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                               y=self.stimulus.y_coordinates[..., np.newaxis],
-                               mu=(mu_x, mu_y),
-                               sigma=prf_size,
-                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
+                                        y=self.stimulus.y_coordinates[...,
+                                                                      np.newaxis],
+                                        mu=(mu_x, mu_y),
+                                        sigma=prf_size,
+                                        normalize_RFs=self.normalize_RFs).T, axes=(1, 2))
 
         # surround receptive field (denominator)
         srf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                               y=self.stimulus.y_coordinates[..., np.newaxis],
-                               mu=(mu_x, mu_y),
-                               sigma=srf_size,
-                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
+                                        y=self.stimulus.y_coordinates[...,
+                                                                      np.newaxis],
+                                        mu=(mu_x, mu_y),
+                                        sigma=srf_size,
+                                        normalize_RFs=self.normalize_RFs).T, axes=(1, 2))
 
         dm = self.stimulus.design_matrix
 
         # create normalization model timecourse
         neural_tc = (prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) + neural_baseline[..., np.newaxis]) /\
             (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx) + surround_baseline[..., np.newaxis]) \
-                - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
+            - neural_baseline[..., np.newaxis] / \
+            surround_baseline[..., np.newaxis]
 
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
-                
+
         if not self.filter_predictions:
             return bold_baseline[..., np.newaxis] + tc
         else:
@@ -561,7 +537,6 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
                 tc,
                 self.filter_type,
                 self.filter_params)
-
 
 
 class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
@@ -585,33 +560,35 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
         sa,ss: ndarrays
             containing the range of grid values for other DoG model parameters
             (surroud amplitude, surround size (sigma_2))
-        
+
 
         """
         n_predictions = len(sa)
-        
+
         prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
-                                    gaussian_params[1]*np.ones(n_predictions),
-                                    gaussian_params[2]*np.ones(n_predictions),
-                                    1.0*np.ones(n_predictions),
-                                    0.0*np.ones(n_predictions),
-                                    sa,
-                                    ss])
-        
+                                      gaussian_params[1] *
+                                      np.ones(n_predictions),
+                                      gaussian_params[2] *
+                                      np.ones(n_predictions),
+                                      1.0*np.ones(n_predictions),
+                                      0.0*np.ones(n_predictions),
+                                      sa,
+                                      ss])
+
         return self.return_prediction(*list(prediction_params)).astype('float32')
 
     def return_prediction(self,
-                                 mu_x,
-                                 mu_y,
-                                 prf_size,
-                                 prf_amplitude,
-                                 bold_baseline,
+                          mu_x,
+                          mu_y,
+                          prf_size,
+                          prf_amplitude,
+                          bold_baseline,
 
-                                 srf_amplitude,
-                                 srf_size,
-                                 hrf_1=None,
-                                 hrf_2=None
-                                 ):
+                          srf_amplitude,
+                          srf_size,
+                          hrf_1=None,
+                          hrf_2=None
+                          ):
         """return_prediction
 
         returns the prediction for a single set of parameters.
@@ -633,28 +610,34 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
         numpy.ndarray
             single prediction given the model
         """
-        if hrf_1 is None or hrf_2 is None:
-            current_hrf = self.hrf
-        else:
-            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
+        if hrf_1 is not None and hrf_2 is not None:
+            current_hrf = self.hrf.create_spm_hrf(
+                force=True, TR=self.stimulus.TR, hrf_params=[1.0, hrf_1, hrf_2])
+
+        assert self.hrf.hasValues(), "Initialize HRF values first!"
+        current_hrf = self.hrf.values
+
         # create the rfs
         prf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                               y=self.stimulus.y_coordinates[..., np.newaxis],
-                               mu=(mu_x, mu_y),
-                               sigma=prf_size,
-                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
+                                        y=self.stimulus.y_coordinates[...,
+                                                                      np.newaxis],
+                                        mu=(mu_x, mu_y),
+                                        sigma=prf_size,
+                                        normalize_RFs=self.normalize_RFs).T, axes=(1, 2))
 
         # surround receptive field
         srf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
-                               y=self.stimulus.y_coordinates[..., np.newaxis],
-                               mu=(mu_x, mu_y),
-                               sigma=srf_size,
-                              normalize_RFs=self.normalize_RFs).T, axes=(1,2))
+                                        y=self.stimulus.y_coordinates[...,
+                                                                      np.newaxis],
+                                        mu=(mu_x, mu_y),
+                                        sigma=srf_size,
+                                        normalize_RFs=self.normalize_RFs).T, axes=(1, 2))
 
         dm = self.stimulus.design_matrix
 
         neural_tc = prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) - \
-            srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx)
+            srf_amplitude[..., np.newaxis] * \
+            stimulus_through_prf(srf, dm, self.stimulus.dx)
 
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
 
@@ -666,117 +649,102 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
                 self.filter_type,
                 self.filter_params)
 
-        
-        
+
 class CFGaussianModel():
-    
+
     """A class for constructing gaussian connective field models.
     """
-    
-    
-    def __init__(self,stimulus):
-        
-        
+
+    def __init__(self, stimulus):
         """__init__
-        
+
         Parameters
         ----------
         stimulus: A CFstimulus object.
         """
-        
-        self.stimulus=stimulus
-        
-        
-        
+
+        self.stimulus = stimulus
+
     def create_rfs(self):
-        
         """create_rfs
 
         creates rfs for the grid search
-        
+
         Returns
         ----------
         grid_rfs: The receptive field profiles for the grid. 
         vert_centres_flat: A vector that defines the vertex centre associated with each rf profile.
         sigmas_flat: A vector that defines the CF size associated with each rf profile.
-        
-        
+
+
         """
-        
-        assert hasattr(self, 'sigmas'), "please define a grid of CF sizes first."
-        
-        if self.func=='cart':
-            
+
+        assert hasattr(
+            self, 'sigmas'), "please define a grid of CF sizes first."
+
+        if self.func == 'cart':
+
             # Make the receptive fields extend over the distances controlled by each of the sigma.
-            self.grid_rfs  = np.array([gauss1D_cart(self.stimulus.distance_matrix, 0, s) for s in self.sigmas])
-        
+            self.grid_rfs = np.array(
+                [gauss1D_cart(self.stimulus.distance_matrix, 0, s) for s in self.sigmas])
+
         # Reshape.
-        self.grid_rfs=self.grid_rfs.reshape(-1, self.grid_rfs.shape[-1])
-        
+        self.grid_rfs = self.grid_rfs.reshape(-1, self.grid_rfs.shape[-1])
+
         # Flatten out the variables that define the centres and the sigmas.
-        self.vert_centres_flat=np.tile(self.stimulus.subsurface_verts,self.sigmas.shape)
-        self.sigmas_flat=np.repeat(self.sigmas,self.stimulus.distance_matrix.shape[0])
-        
-        
+        self.vert_centres_flat = np.tile(
+            self.stimulus.subsurface_verts, self.sigmas.shape)
+        self.sigmas_flat = np.repeat(
+            self.sigmas, self.stimulus.distance_matrix.shape[0])
+
     def stimulus_times_prfs(self):
         """stimulus_times_prfs
 
         creates timecourses for each of the rfs in self.grid_rfs
-        
+
          Returns
         ----------
         predictions: The predicted timecourse that is the dot product of the data in the source subsurface and each rf profile.
-        
+
         """
-        
-        
+
         assert hasattr(self, 'grid_rfs'), "please create the rfs first"
         self.predictions = stimulus_through_prf(
             self.grid_rfs, self.stimulus.design_matrix,
             1)
-        
-        
-    def create_grid_predictions(self,sigmas,func='cart'):
-        
+
+    def create_grid_predictions(self, sigmas, func='cart'):
         """Creates the grid rfs and rf predictions
         """
-        
-        self.sigmas=sigmas
-        self.func=func
+
+        self.sigmas = sigmas
+        self.func = func
         self.create_rfs()
         self.stimulus_times_prfs()
-        
-        
-        
-    def return_prediction(self,sigma,beta,baseline,vert):
-        
+
+    def return_prediction(self, sigma, beta, baseline, vert):
         """return_prediction
 
         Creates a prediction given a sigma, beta, baseline and vertex centre.
-        
+
         Returns
         ----------
-        
+
         A prediction for this parameter combination. 
-        
+
         """
-        
-        
-        beta=np.array(beta)
-        baseline=np.array(baseline)
-        
+
+        beta = np.array(beta)
+        baseline = np.array(baseline)
+
         # Find the row of the distance matrix that corresponds to that vertex.
-        idx=np.where(self.stimulus.subsurface_verts==vert)[0][0]
-            
+        idx = np.where(self.stimulus.subsurface_verts == vert)[0][0]
+
         # We can grab the row of the distance matrix corresponding to this vertex and make the rf.
-        rf=np.array([gauss1D_cart(self.stimulus.distance_matrix[idx], 0, sigma)])
-            
-        # Dot with the data to make the predictions. 
+        rf = np.array(
+            [gauss1D_cart(self.stimulus.distance_matrix[idx], 0, sigma)])
+
+        # Dot with the data to make the predictions.
         neural_tc = stimulus_through_prf(rf, self.stimulus.design_matrix, 1)
-    
 
         return baseline[..., np.newaxis] + beta[..., np.newaxis] * neural_tc
-        
-    
-        
-        

@@ -30,7 +30,7 @@ def error_function(
         The residual sum of squared errors between the prediction and data.
     """
     return np.nan_to_num(np.sum((data - objective_function(*list(parameters), **args))**2), nan=1e12)
-    #return 1-np.nan_to_num(pearsonr(data,np.nan_to_num(objective_function(*list(parameters), **args)[0]))[0])
+    # return 1-np.nan_to_num(pearsonr(data,np.nan_to_num(objective_function(*list(parameters), **args)[0]))[0])
 
 
 def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
@@ -84,7 +84,6 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
         assert len(bounds) == len(
             start_params), "Unequal bounds and parameters"
 
-
         if constraints is None:
             if verbose:
                 print('Performing bounded, unconstrained minimization (L-BFGS-B).')
@@ -92,7 +91,7 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
             output = minimize(error_function, start_params, bounds=bounds,
                               args=(
                                   args, data, model.return_prediction),
-                               method='L-BFGS-B',
+                              method='L-BFGS-B',
                               # default max line searches is 20
                               options=dict(ftol=ftol,
                                            maxls=40,
@@ -109,7 +108,6 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
                               tol=ftol,
                               options=dict(xtol=xtol,
                                            disp=verbose))
-
 
             # output = basinhopping(error_function, start_params,
             #                       niter=10, T=0.01*(len(data) * data.var()), stepsize=2,
@@ -130,7 +128,7 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
             #                       x0=start_params)
 
         return np.nan_to_num(np.r_[output['x'], 1 -
-                     (output['fun'])/(len(data) * data.var())])
+                                   (output['fun'])/(len(data) * data.var())])
 
     else:
         if verbose:
@@ -180,11 +178,10 @@ class Fitter:
             dispersion. The default is False.
         """
         assert len(data.shape) == 2, \
-            "input data should be two-dimensional, with first dimension units and second dimension time"     
+            "input data should be two-dimensional, with first dimension units and second dimension time"
 
-            
         self.data = data.astype('float32')
-        
+
         self.model = model
         self.n_jobs = n_jobs
         self.fit_hrf = fit_hrf
@@ -251,18 +248,19 @@ class Fitter:
 
         else:
             self.starting_params = starting_params
-        
-        #allows unit-wise bounds. this can be used to keep certain parameters fixed to a predetermined unit-specific value, while fitting others.
+
+        # allows unit-wise bounds. this can be used to keep certain parameters fixed to a predetermined unit-specific value, while fitting others.
         if len(self.bounds.shape) == 2:
-            self.bounds = np.repeat(self.bounds[np.newaxis,...], self.starting_params.shape[0], axis=0)
-            
-        if not hasattr(self,'rsq_mask'):
-            #use the grid or explicitly provided params to select voxels to fit
+            self.bounds = np.repeat(
+                self.bounds[np.newaxis, ...], self.starting_params.shape[0], axis=0)
+
+        if not hasattr(self, 'rsq_mask'):
+            # use the grid or explicitly provided params to select voxels to fit
             self.rsq_mask = self.starting_params[:, -1] > rsq_threshold
 
         self.iterative_search_params = np.zeros_like(self.starting_params)
 
-        if self.rsq_mask.sum()>0:
+        if self.rsq_mask.sum() > 0:
             iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
                 delayed(iterative_search)(self.model,
                                           data,
@@ -276,15 +274,14 @@ class Fitter:
                 for (data, start_params, curr_bounds) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1], self.bounds[self.rsq_mask]))
             self.iterative_search_params[self.rsq_mask] = np.array(
                 iterative_search_params)
-            
-                
+
     def crossvalidate_fit(self,
                           test_data,
                           test_stimulus=None,
                           single_hrf=True):
         """
         Simple function to crossvalidate results of previous iterative fitting.
-       
+
 
         Parameters
         ----------
@@ -303,55 +300,54 @@ class Fitter:
         """
 
         assert hasattr(
-                self, 'iterative_search_params'), 'First use self.iterative_fit,'      
-        
-        #to hande cases where test_data and fit_data have different stimuli
-        if test_stimulus is not None:                
-            fit_stimulus = deepcopy(self.model.stimulus)   
-            
-            self.model.stimulus = test_stimulus            
+            self, 'iterative_search_params'), 'First use self.iterative_fit,'
+
+        # to hande cases where test_data and fit_data have different stimuli
+        if test_stimulus is not None:
+            fit_stimulus = deepcopy(self.model.stimulus)
+
+            self.model.stimulus = test_stimulus
             self.model.filter_params['task_lengths'] = test_stimulus.task_lengths
             self.model.filter_params['task_names'] = test_stimulus.task_names
             self.model.filter_params['late_iso_dict'] = test_stimulus.late_iso_dict
-            
-        if self.rsq_mask.sum()>0:
+
+        if self.rsq_mask.sum() > 0:
             if self.fit_hrf and single_hrf:
-                median_hrf_params = np.median(self.iterative_search_params[self.rsq_mask,-3:-1],
-                                               axis=0)
-                
-                self.iterative_search_params[self.rsq_mask,-3:-1] = median_hrf_params
-                
-                
-            test_predictions = self.model.return_prediction(*list(self.iterative_search_params[self.rsq_mask,:-1].T))
-            
+                median_hrf_params = np.median(self.iterative_search_params[self.rsq_mask, -3:-1],
+                                              axis=0)
+
+                self.iterative_search_params[self.rsq_mask, -
+                                             3:-1] = median_hrf_params
+
+            test_predictions = self.model.return_prediction(
+                *list(self.iterative_search_params[self.rsq_mask, :-1].T))
+
             if test_stimulus is not None:
                 self.model.stimulus = fit_stimulus
                 self.model.filter_params['task_lengths'] = fit_stimulus.task_lengths
                 self.model.filter_params['task_names'] = fit_stimulus.task_names
-                self.model.filter_params['late_iso_dict'] = fit_stimulus.late_iso_dict  
-                
-            #calculate CV-rsq        
-            CV_rsq = np.nan_to_num(1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1)))
-            #calcualte CV-correlation
+                self.model.filter_params['late_iso_dict'] = fit_stimulus.late_iso_dict
+
+            # calculate CV-rsq
+            CV_rsq = np.nan_to_num(1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(
+                test_data.shape[-1]*test_data[self.rsq_mask].var(-1)))
+            # calcualte CV-correlation
             #CV_rsq = np.zeros(self.rsq_mask.sum())
-            #for i in range(len(CV_rsq)):
+            # for i in range(len(CV_rsq)):
             #    CV_rsq[i] = np.nan_to_num(pearsonr(test_data[self.rsq_mask][i],np.nan_to_num(test_predictions[i]))[0])
-            
-            self.iterative_search_params[self.rsq_mask,-1] = CV_rsq
+
+            self.iterative_search_params[self.rsq_mask, -1] = CV_rsq
         else:
             print("No voxels/vertices above Rsq threshold were found.")
 
-
         if self.data.shape == test_data.shape:
-              
-            self.noise_ceiling = np.zeros(self.n_units)
-            
-            n_c = 1-np.sum((test_data[self.rsq_mask]-self.data[self.rsq_mask])**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
-            
-            self.noise_ceiling[self.rsq_mask] = n_c
 
-        
-    
+            self.noise_ceiling = np.zeros(self.n_units)
+
+            n_c = 1-np.sum((test_data[self.rsq_mask]-self.data[self.rsq_mask])**2, axis=-1)/(
+                test_data.shape[-1]*test_data[self.rsq_mask].var(-1))
+
+            self.noise_ceiling[self.rsq_mask] = n_c
 
 
 class Iso2DGaussianFitter(Fitter):
@@ -399,8 +395,8 @@ class Iso2DGaussianFitter(Fitter):
         """
         # let the model create the timecourses
         self.model.create_grid_predictions(ecc_grid=ecc_grid,
-                                             polar_grid=polar_grid,
-                                             size_grid=size_grid)
+                                           polar_grid=polar_grid,
+                                           size_grid=size_grid)
         self.model.predictions = self.model.predictions.astype('float32')
 
         # this function analytically computes best-fit rsq, slope, and baseline
@@ -427,10 +423,10 @@ class Iso2DGaussianFitter(Fitter):
                                         baselines[..., np.newaxis]), axis=-
                                        1, ord=2)
 
-                #to enforce, if possible, positive prf amplitude
+                # to enforce, if possible, positive prf amplitude
                 if pos_prfs_only:
-                    if np.any(slopes>0):
-                        resid[slopes<=0] = +np.inf
+                    if np.any(slopes > 0):
+                        resid[slopes <= 0] = +np.inf
 
                 best_pred_voxel = np.nanargmin(resid)
 
@@ -483,7 +479,6 @@ class Iso2DGaussianFitter(Fitter):
             self.gridsearch_r2
         ]).T
 
-       
 
 class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
     """
@@ -593,12 +588,13 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
             starting_params = self.insert_new_model_params(
                 self.previous_gaussian_fitter.iterative_search_params)
-            
-            #fit exactly the same voxels/vertices as previous
+
+            # fit exactly the same voxels/vertices as previous
             if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                 self.rsq_mask = self.previous_gaussian_fitter.rsq_mask
             else:
-                self.rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:,-1] > rsq_threshold
+                self.rsq_mask = self.previous_gaussian_fitter.gridsearch_params[
+                    :, -1] > rsq_threshold
 
             # enforcing hrf_fit "consistency" with previous gaussian fit:
             if self.previous_gaussian_fitter.fit_hrf != self.fit_hrf:
@@ -680,7 +676,7 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         """
 
         # setting up grid for norm model new params
-        
+
         self.nn = exponent_grid
 
         self.n_predictions = len(self.nn)
@@ -688,27 +684,28 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         if gaussian_params is not None and gaussian_params.shape == (
                 self.n_units, 4):
             self.gaussian_params = gaussian_params.astype('float32')
-            self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
-            
+            self.gridsearch_rsq_mask = self.gaussian_params[:, -
+                                                            1] > rsq_threshold
+
         elif hasattr(self, 'previous_gaussian_fitter'):
             starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
             self.gaussian_params = np.concatenate(
                 (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
-            
+
             if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                 self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
             else:
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > self.rsq_threshold
-            
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[
+                    :, -1] > self.rsq_threshold
+
         else:
             print('Please provide suitable [n_units, 4] gaussian_params,\
                   or previous_gaussian_fitter')
             raise ValueError
 
-        
-
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
+
         def rsq_betas_for_batch(data,
                                 vox_nums,
                                 n_predictions,
@@ -746,10 +743,10 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                                         baselines[..., np.newaxis]), ord=2, axis=-
                                        1)
 
-                #to enforce, if possible, positive prf amplitude & neural baseline
+                # to enforce, if possible, positive prf amplitude & neural baseline
                 if pos_prfs_only:
-                    if np.any(slopes>0):
-                        resid[slopes<=0] = +np.inf
+                    if np.any(slopes > 0):
+                        resid[slopes <= 0] = +np.inf
 
                 best_pred_voxel = np.nanargmin(resid)
 
@@ -802,6 +799,7 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             self.gridsearch_r2
         ]).T
 
+
 class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     """DoG_Iso2DGaussianFitter
 
@@ -822,12 +820,12 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
         """
         # surround amplitude
-        new_params = np.insert(old_params, 5, 0.5*old_params[:,3], axis=-1)
+        new_params = np.insert(old_params, 5, 0.5*old_params[:, 3], axis=-1)
         # surround size
         new_params = np.insert(
             new_params,
             6,
-            1.5*old_params[:,2],
+            1.5*old_params[:, 2],
             axis=-1)
 
         return new_params
@@ -884,27 +882,28 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         if gaussian_params is not None and gaussian_params.shape == (
                 self.n_units, 4):
             self.gaussian_params = gaussian_params.astype('float32')
-            self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
-            
+            self.gridsearch_rsq_mask = self.gaussian_params[:, -
+                                                            1] > rsq_threshold
+
         elif hasattr(self, 'previous_gaussian_fitter'):
             starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
             self.gaussian_params = np.concatenate(
                 (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
-            
+
             if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                 self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
             else:
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > self.rsq_threshold
-            
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[
+                    :, -1] > self.rsq_threshold
+
         else:
             print('Please provide suitable [n_units, 4] gaussian_params,\
                   or previous_gaussian_fitter')
             raise ValueError
 
-        
-
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
+
         def rsq_betas_for_batch(data,
                                 vox_nums,
                                 n_predictions,
@@ -942,10 +941,10 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                                         baselines[..., np.newaxis]), ord=2, axis=-
                                        1)
 
-                #to enforce, if possible, positive prf amplitude & neural baseline
+                # to enforce, if possible, positive prf amplitude & neural baseline
                 if pos_prfs_only:
-                    if np.any(slopes>0):
-                        resid[slopes<=0] = +np.inf
+                    if np.any(slopes > 0):
+                        resid[slopes <= 0] = +np.inf
 
                 best_pred_voxel = np.nanargmin(resid)
 
@@ -1000,6 +999,7 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             self.gridsearch_r2
         ]).T
 
+
 class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     """Norm_Iso2DGaussianFitter
 
@@ -1029,11 +1029,11 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         new_params = np.insert(
             new_params,
             6,
-            1.5*old_params[:,2],
+            1.5*old_params[:, 2],
             axis=-1)
         # neural baseline
         new_params = np.insert(new_params, 7, 0.0, axis=-1)
-            # surround baseline
+        # surround baseline
         new_params = np.insert(new_params, 8, 1.0, axis=-1)
 
         return new_params
@@ -1099,27 +1099,28 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         if gaussian_params is not None and gaussian_params.shape == (
                 self.n_units, 4):
             self.gaussian_params = gaussian_params.astype('float32')
-            self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
-            
+            self.gridsearch_rsq_mask = self.gaussian_params[:, -
+                                                            1] > rsq_threshold
+
         elif hasattr(self, 'previous_gaussian_fitter'):
             starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
             self.gaussian_params = np.concatenate(
                 (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
-            
+
             if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                 self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
             else:
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > self.rsq_threshold
-            
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[
+                    :, -1] > self.rsq_threshold
+
         else:
             print('Please provide suitable [n_units, 4] gaussian_params,\
                   or previous_gaussian_fitter')
             raise ValueError
 
-        
-
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
+
         def rsq_betas_for_batch(data,
                                 vox_nums,
                                 n_predictions,
@@ -1157,10 +1158,10 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                                         baselines[..., np.newaxis]), ord=2, axis=-
                                        1)
 
-                #to enforce, if possible, positive prf amplitude & neural baseline
+                # to enforce, if possible, positive prf amplitude & neural baseline
                 if pos_prfs_only:
-                    if np.any(slopes>0):
-                        resid[slopes<=0] = +np.inf
+                    if np.any(slopes > 0):
+                        resid[slopes <= 0] = +np.inf
 
                 best_pred_voxel = np.nanargmin(resid)
 
@@ -1220,10 +1221,8 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         ]).T
 
 
-        
-        
 class CFFitter(Fitter):
-    
+
     """CFFitter
 
     Class that implements the different fitting methods
@@ -1231,11 +1230,8 @@ class CFFitter(Fitter):
     leveraging a Model object.
 
     """
-    
-    
-    def grid_fit(self,sigma_grid,verbose=False,n_batches=1000):
-        
-        
+
+    def grid_fit(self, sigma_grid, verbose=False, n_batches=1000):
         """grid_fit
 
         performs grid fit using provided grids and predictor definitions
@@ -1259,11 +1255,10 @@ class CFFitter(Fitter):
         vertex_centres_dict: A dictionary containing the vertex centres.
 
         """
-        
-        
+
         self.model.create_grid_predictions(sigma_grid)
         self.model.predictions = self.model.predictions.astype('float32')
-        
+
         def rsq_betas_for_batch(data, vox_num, predictions,
                                 n_timepoints, data_var,
                                 sum_preds, square_norm_preds):
@@ -1286,8 +1281,8 @@ class CFFitter(Fitter):
                                         baselines[..., np.newaxis]), axis=-
                                        1, ord=2)
 
-                #to enforce, if possible, positive prf amplitude
-                #if pos_prfs_only:
+                # to enforce, if possible, positive prf amplitude
+                # if pos_prfs_only:
                 #    if np.any(slopes>0):
                 #        resid[slopes<=0] = +np.inf
 
@@ -1340,14 +1335,12 @@ class CFFitter(Fitter):
             self.best_fitting_baseline,
             self.gridsearch_r2
         ]).T
-        
+
         # Put the vertex centres into a dictionary.
-        self.vertex_centres=self.gridsearch_params[:,0].astype(int)
-        self.vertex_centres_dict = [{'vert':k} for k in self.vertex_centres]
-        
-    def quick_grid_fit(self,sigma_grid):
-        
-        
+        self.vertex_centres = self.gridsearch_params[:, 0].astype(int)
+        self.vertex_centres_dict = [{'vert': k} for k in self.vertex_centres]
+
+    def quick_grid_fit(self, sigma_grid):
         """quick_grid_fit
 
         Performs fast estimation of vertex centres and sizes using a simple dot product of zscored data.
@@ -1367,40 +1360,40 @@ class CFFitter(Fitter):
         quick_vertex_centres_dict: A dictionary containing the vertex centres.
 
         """
-        
+
         # Let the model create the timecourses
         self.model.create_grid_predictions(sigma_grid)
-        
-        self.model.predictions = self.model.predictions.astype('float32')        
-        
+
+        self.model.predictions = self.model.predictions.astype('float32')
+
         # Z-score everything so we can use dot product.
-        zdat,zpreds=zscore(self.data.T),zscore(self.model.predictions.T)
-        
+        zdat, zpreds = zscore(self.data.T), zscore(self.model.predictions.T)
+
         # Get all the dot products via np.tensordot.
-        fits=np.tensordot(zdat,zpreds,axes=([0],[0]))
-        
-        # Get the maximum R2 and it's index. 
-        max_rsqs,idxs = (np.amax(fits, 1)/zdat.shape[0])**2, np.argmax(fits, axis=1)
-        
-        self.idxs=idxs
-        
-        # Output centres, sizes, R2. 
+        fits = np.tensordot(zdat, zpreds, axes=([0], [0]))
+
+        # Get the maximum R2 and it's index.
+        max_rsqs, idxs = (np.amax(fits, 1) /
+                          zdat.shape[0])**2, np.argmax(fits, axis=1)
+
+        self.idxs = idxs
+
+        # Output centres, sizes, R2.
         self.quick_gridsearch_params = np.array([
             self.model.vert_centres_flat[idxs].astype(int),
             self.model.sigmas_flat[idxs],
             max_rsqs]).T
-        
-        
+
         # We don't want to submit the vertex_centres for the iterative fitting - these are an additional argument.
         # Save them as .int as bundling them into an array with floats will change their type.
-        self.quick_vertex_centres=self.quick_gridsearch_params[:,0].astype(int)
-        
+        self.quick_vertex_centres = self.quick_gridsearch_params[:, 0].astype(
+            int)
+
         # Bundle this into a dictionary so that we can use this as one of the **args in the iterative fitter
-        self.quick_vertex_centres_dict = [{'vert':k} for k in self.quick_vertex_centres]
-    
-    def get_quick_grid_preds(self,dset='train'):
-        
-        
+        self.quick_vertex_centres_dict = [{'vert': k}
+                                          for k in self.quick_vertex_centres]
+
+    def get_quick_grid_preds(self, dset='train'):
         """get_quick_grid_preds
 
         Returns the best fitting grid predictions from the quick_grid_fit method.
@@ -1418,18 +1411,18 @@ class CFFitter(Fitter):
         test_predictions.
 
         """
-        
+
         # Get the predictions of the best grid fits.
         # All we have to do is index the predictions via the index of the best-fitting prediction for each vertex.
-        predictions=self.model.predictions[self.idxs,:]
-        
+        predictions = self.model.predictions[self.idxs, :]
+
         # Assign to object.
-        if dset=='train':
-            self.train_predictions=predictions
-        elif dset=='test':
-            self.test_predictions=predictions
-    
-    def quick_xval(self,test_data,test_stimulus):
+        if dset == 'train':
+            self.train_predictions = predictions
+        elif dset == 'test':
+            self.test_predictions = predictions
+
+    def quick_xval(self, test_data, test_stimulus):
         """quick_xval
 
         Takes the fitted parameters and tests their performance on the out of sample data.
@@ -1445,28 +1438,27 @@ class CFFitter(Fitter):
         CV_R2 - the out of sample performance.
 
         """
-        
-        fit_stimulus = deepcopy(self.model.stimulus) # Copy the test stimulus.
-        self.test_data=test_data # Assign test data
-        
-        if test_stimulus is not None:    
+
+        fit_stimulus = deepcopy(self.model.stimulus)  # Copy the test stimulus.
+        self.test_data = test_data  # Assign test data
+
+        if test_stimulus is not None:
             # Make the same grid predictions for the test data - therefore assign the new stimulus to the model class.
             self.model.stimulus = test_stimulus
-        
+
         # Now we can generate the same test predictions with the test design matrix.
-        self.model.create_grid_predictions(self.model.sigmas,'cart')
-        
+        self.model.create_grid_predictions(self.model.sigmas, 'cart')
+
         # For each vertex, we then take the combination of parameters that provided the best fit to the training data.
         self.get_quick_grid_preds('test')
-        
-        # We can now put the fit stimulus back. 
+
+        # We can now put the fit stimulus back.
         self.model.stimulus = fit_stimulus
-        
+
         # Zscore the data and the preds
-        zdat,zpred=zscore(self.test_data,axis=1),zscore(self.test_predictions,axis=1)
-        
+        zdat, zpred = zscore(self.test_data, axis=1), zscore(
+            self.test_predictions, axis=1)
+
         # Get the crossval R2. Here we use np.einsum to calculate the correlations across each row of the test data and the test predictions
-        self.xval_R2=squaresign(np.einsum('ij,ij->i',zpred,zdat)/self.test_data.shape[-1])
-
-
- 
+        self.xval_R2 = squaresign(
+            np.einsum('ij,ij->i', zpred, zdat)/self.test_data.shape[-1])
