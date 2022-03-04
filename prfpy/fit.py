@@ -263,17 +263,31 @@ class Fitter:
         self.iterative_search_params = np.zeros_like(self.starting_params)
 
         if self.rsq_mask.sum()>0:
-            iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
-                delayed(iterative_search)(self.model,
-                                          data,
-                                          start_params,
-                                          args=args,
-                                          xtol=xtol,
-                                          ftol=ftol,
-                                          verbose=verbose,
-                                          bounds=curr_bounds,
-                                          constraints=self.constraints)
-                for (data, start_params, curr_bounds) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1], self.bounds[self.rsq_mask]))
+            if np.any(self.bounds) != None:
+                iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
+                    delayed(iterative_search)(self.model,
+                                              data,
+                                              start_params,
+                                              args=args,
+                                              xtol=xtol,
+                                              ftol=ftol,
+                                              verbose=verbose,
+                                              bounds=curr_bounds,
+                                              constraints=self.constraints)
+                    for (data, start_params, curr_bounds) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1], self.bounds[self.rsq_mask]))
+            else:
+                iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
+                    delayed(iterative_search)(self.model,
+                                              data,
+                                              start_params,
+                                              args=args,
+                                              xtol=xtol,
+                                              ftol=ftol,
+                                              verbose=verbose,
+                                              bounds=None,
+                                              constraints=self.constraints)
+                    for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1]))            
+            
             self.iterative_search_params[self.rsq_mask] = np.array(
                 iterative_search_params)
             
