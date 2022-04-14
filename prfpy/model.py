@@ -159,7 +159,7 @@ class Iso2DGaussianModel(Model):
         assert self.hrf.hasValues(), "Initialize HRF values first!"
 
         self.stimulus.convolved_design_matrix = convolve_stimulus_dm(
-            stimulus.design_matrix, hrf=self.hrf.values)
+            stimulus.design_matrix, hrf_values=self.hrf.values)
 
         # filtering and other stuff
         self.filter_predictions = filter_predictions
@@ -277,9 +277,9 @@ class Iso2DGaussianModel(Model):
         if hrf_1 is not None and hrf_2 is not None:
             current_hrf = self.hrf.create_spm_hrf(
                 force=True, TR=self.stimulus.TR, hrf_params=[1.0, hrf_1, hrf_2])
-
-        assert self.hrf.hasValues(), "Initialize HRF values first!"
-        current_hrf = self.hrf.values
+        else:
+            assert self.hrf.hasValues(), "Initialize HRF values first!"
+            current_hrf = self.hrf.values
 
         # create the single rf
         rf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],

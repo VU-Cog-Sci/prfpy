@@ -23,7 +23,7 @@ class HRF():
             self.values = values
         else:
             # TODO Should the default here be that create_spm_hrf is called with default params?
-            pass
+            self.values = None
 
 
     def _assert_values_filled(self, force = False):
@@ -31,7 +31,7 @@ class HRF():
             assert self.hasValues(), "HRF values have already been assigned! Try with force."
 
     def hasValues(self):
-        self.values != None and len(self.values) > 0
+        return self.values is not None and len(self.values.flatten()) > 0
      
     def create_spm_hrf(self, TR, force=False, hrf_params=[1.0, 1.0, 0.0]):
         """construct single or multiple HRFs        
@@ -75,7 +75,7 @@ class HRF():
         # Is this method necessary or can this case be assumed to be input be the user through the constructor?
         self._assert_values_filled(force)
 
-        self.values = np.array([1])
+        self.values = np.array([[1]])
 
 class Subsurface(object):
 
