@@ -146,7 +146,7 @@ class Iso2DGaussianModel(Model):
         # if hrf is None:  # for use with standard fMRI
         #     self.hrf = self.create_hrf()
         # elif hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
-        #     self.hrf = np.array([1])
+        #     self.hrf = np.ones((1,1))
         # # some specific hrf with spm basis set
         # elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
         #     self.hrf = self.create_hrf(hrf_params=hrf)
