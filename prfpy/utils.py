@@ -19,7 +19,7 @@ class HRF():
 
     def __init__(self, values: np.ndarray = None):
         if values is not None:
-            assert values.ndim > 2, "Number of dimension for HRF values needs to be at least two. Last dimension corresponds to time."
+            assert values.ndim >= 2, "Number of dimension for HRF values needs to be at least two. Last dimension corresponds to time."
             self.values = values
         else:
             # TODO Should the default here be that create_spm_hrf is called with default params?

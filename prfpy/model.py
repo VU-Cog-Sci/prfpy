@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.signal as signal
+import warnings
 from nilearn.glm.first_level.hemodynamic_models import spm_hrf, spm_time_derivative, spm_dispersion_derivative
 
 from .rf import gauss2D_iso_cart, gauss1D_cart  # import required RF shapes
@@ -132,7 +133,7 @@ class Iso2DGaussianModel(Model):
         stimulus : PRFStimulus2D
             Stimulus object specifying the information about the stimulus,
             and the space in which it lives.
-        hrf : HRF
+        hrf : HRF, array-like, None
             HRF for this Model.
         filter_predictions : boolean, optional
             whether to high-pass filter the predictions, default False
@@ -155,7 +156,21 @@ class Iso2DGaussianModel(Model):
         # elif isinstance(hrf, np.ndarray) and hrf.shape[0] == 1 and hrf.shape[1] > 3:
         #     self.hrf = hrf
 
-        self.hrf = hrf
+        # make HRF class downwards compatible
+        self.hrf = HRF()
+        if hrf is None:
+            self.hrf.create_direct_hrf(force=True)
+            print("Using no HRF")
+        elif (type(hrf) is np.ndarray or type(hrf) is list) and len(hrf) == 3:
+            self.hrf.create_spm_hrf(hrf_params=hrf, force=True, TR=self.tr)
+            warnings.warn("Specifying HRF parameters is deprecated. Please refer to the HRF class and specify and HRF object.", FutureWarning)
+        elif type(hrf) is np.ndarray and hrf.shape[0] == 1 and hrf.shape[1] > 3:
+            self.hrf = HRF(values=hrf)
+            warnings.warn("Specifying HRF values is deprecated. Please refer to the HRF class and specify and HRF object.", FutureWarning)
+        elif type(hrf) is HRF:
+        # this should be the only way used in the future implying that the user specifies that HRF object beforehand!
+            self.hrf = hrf
+
         assert self.hrf.hasValues(), "Initialize HRF values first!"
 
         self.stimulus.convolved_design_matrix = convolve_stimulus_dm(
@@ -656,6 +671,36 @@ class STDN_Iso2DGaussianModel(Iso2DGaussianModel):
 
     """
 
+    def __init__(self, 
+                 stimulus,
+                 fsample,
+                 hrf: HRF = None,
+                 filter_predictions=False,
+                 filter_type='dc',
+                 filter_params={},
+                 normalize_RFs=False,
+                 **kwargs):
+        """__init__ for STDN_Iso2DGaussianModel
+
+            constructor, sets up stimulus and hrf for this Model
+
+            Parameters
+            ----------
+            stimulus : PRFStimulus2D
+                Stimulus object specifying the information about the stimulus,
+                and the space in which it lives.
+            fsample : float, int
+                Sampling frequency of data in Hz.
+            hrf : HRF, array-like, None
+                HRF for this Model.
+            filter_predictions : boolean, optional
+                whether to high-pass filter the predictions, default False
+            filter_type, filter_params : see timecourse.py
+            normalize_RFs : whether or not to normalize the RF volumes (generally not needed).
+            """
+        self.fsample = fsample
+        super().__init__(stimulus=stimulus, hrf=hrf, filter_predictions=filter_predictions, filter_type=filter_type, filter_params=filter_params, normalize_RFs=normalize_RFs, **kwargs)
+
     def create_grid_predictions(self, gaussian_params, norm_params, irf_shape, irf_weight, neural_decay, adaptation_decay):
         """create_predictions
 
@@ -713,7 +758,6 @@ class STDN_Iso2DGaussianModel(Iso2DGaussianModel):
                           adaptation_decay,
                           hrf_1=None,
                           hrf_2=None,
-                          fsample = 50,
                           ):
         """return_prediction [summary]
 
@@ -784,7 +828,7 @@ class STDN_Iso2DGaussianModel(Iso2DGaussianModel):
 
         # timepoints = np.arange(dm.shape[2])
         # timepoints = np.linspace(0, dm.shape[2] / fsample, dm.shape[2])
-        timepoints = np.array(range(dm.shape[2])) / fsample
+        timepoints = np.array(range(dm.shape[2])) / self.fsample
 
         # create normalization model timecourse
 
