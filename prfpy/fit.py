@@ -709,9 +709,8 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                 self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
             else:
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[
-                    :, -1] > self.rsq_threshold
-
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > rsq_threshold
+            
         else:
             print('Please provide suitable [n_units, 4] gaussian_params,\
                   or previous_gaussian_fitter')
@@ -907,9 +906,8 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                 self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
             else:
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[
-                    :, -1] > self.rsq_threshold
-
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > rsq_threshold
+            
         else:
             print('Please provide suitable [n_units, 4] gaussian_params,\
                   or previous_gaussian_fitter')
@@ -1124,9 +1122,8 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                 self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
             else:
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[
-                    :, -1] > self.rsq_threshold
-
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > rsq_threshold
+            
         else:
             print('Please provide suitable [n_units, 4] gaussian_params,\
                   or previous_gaussian_fitter')

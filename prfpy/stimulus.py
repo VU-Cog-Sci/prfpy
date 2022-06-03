@@ -25,7 +25,10 @@ class PRFStimulus2D(object):
         Parameters
         ----------
         screen_size_cm : float
-            size of screen in centimeters
+            size of screen in centimeters. NOTE: prfpy uses a square design
+            matrix. the screen_size_cm refers to the length of a side of this
+            square in cm, i.e. for a rectangular screen,this is the length
+            in cm of the smallest side.
         screen_distance_cm : float
             eye-screen distance in centimeters
         design_matrix : numpy.ndarray
