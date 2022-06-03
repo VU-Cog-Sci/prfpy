@@ -260,7 +260,7 @@ class Fitter:
 
         self.iterative_search_params = np.zeros_like(self.starting_params)
 
-        if self.rsq_mask.sum()>0:
+        if self.rsq_mask.sum() > 0:
             if np.any(self.bounds) != None:
                 iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
                     delayed(iterative_search)(self.model,
@@ -284,8 +284,8 @@ class Fitter:
                                               verbose=verbose,
                                               bounds=None,
                                               constraints=self.constraints)
-                    for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1]))            
-            
+                    for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1]))
+
             self.iterative_search_params[self.rsq_mask] = np.array(
                 iterative_search_params)
 
@@ -1231,6 +1231,293 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             self.ss[max_rsqs],
             self.nb[max_rsqs] * self.best_fitting_beta,
             self.sb[max_rsqs],
+            self.gridsearch_r2
+        ]).T
+
+
+class STDN_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
+    """STDN_Iso2DGaussianFitter
+
+    Spatio-Temporal Divisive Normalization model
+
+    """
+
+    def __init__(self, model, data, n_jobs=1, fit_hrf=False,
+                 previous_gaussian_fitter=None, previous_norm_fitter=None,
+                 **kwargs):
+        """
+
+        Parameters
+        ----------
+        data : numpy.ndarray, 2D
+            input data. First dimension units, Second dimension time
+        model : prfpy.Model
+            Model object that provides the grid and iterative search
+            predictions.
+        n_jobs : int, optional
+            number of jobs to use in parallelization (iterative search), by default 1
+        previous_gaussian_fitter : Iso2DGaussianFitter, optional
+            Must have iterative_search_params. The default is None.
+        **kwargs : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+
+        # if previous_gaussian_fitter is not None:
+        #     if not hasattr(previous_gaussian_fitter,
+        #                    'iterative_search_params'):
+        #         print('Warning: gaussian iter fit not performed. Explicit\
+        #               starting parameters or grid params will be needed.')
+
+        #     self.previous_gaussian_fitter = previous_gaussian_fitter
+
+        if previous_norm_fitter is not None:
+            if not hasattr(previous_norm_fitter,
+                           'iterative_search_params'):
+                print('Warning: norm iter fit not performed. Explicit\
+                      starting parameters or grid params will be needed.')
+
+            self.previous_norm_fitter = previous_norm_fitter
+
+        super().__init__(data=data, model=model, n_jobs=n_jobs, fit_hrf=fit_hrf, previous_gaussian_fitter=previous_gaussian_fitter, **kwargs)
+
+    def insert_new_model_params(self, old_params):
+        """
+        Note: this function is generally unused since there is an
+        efficient grid_fit for the normalization model (below)
+
+        Parameters
+        ----------
+        old_params : ndarray [n_units, 6]
+            Previous Gaussian fitter parameters and rsq.
+
+        Returns
+        -------
+        new_params : ndarray [n_units, 14]
+            Starting parameters and rsq for norm iterative fit.
+
+        """
+        # surround amplitude
+        new_params = np.insert(old_params, 5, 0.0, axis=-1)
+        # surround size
+        new_params = np.insert(
+            new_params,
+            6,
+            1.5*old_params[:, 2],
+            axis=-1)
+        # neural baseline
+        new_params = np.insert(new_params, 7, 0.0, axis=-1)
+        # surround baseline
+        new_params = np.insert(new_params, 8, 1.0, axis=-1)
+
+        # irf shape
+        new_params = np.insert(new_params, 9, 0.5, axis=-1)
+        # irf weight
+        new_params = np.insert(new_params, 10, 0.5, axis=-1)
+
+        # neural decay
+        new_params = np.insert(new_params, 11, 0.5, axis=-1)
+
+        # adaptation decay
+        new_params = np.insert(new_params, 12, 0.5, axis=-1)
+
+        return new_params
+
+    def grid_fit(self,
+                 irf_shape_grid,
+                 irf_weight_grid,
+                 neural_decay_grid,
+                 adaptation_decay_grid,
+                 gaussian_params=None,
+                 norm_params=None,
+                 verbose=False,
+                 n_batches=1000,
+                 rsq_threshold=0.1,
+                 pos_prfs_only=True):
+        # setting up grid for norm model new params
+        # self.sa, self.ss, self.nb, self.sb, self.irf_shape, self.irf_weight, self.neural_decay, self.adaptation_decay = np.meshgrid(
+        #     surround_amplitude_grid, surround_size_grid,
+        #     neural_baseline_grid, surround_baseline_grid,
+        #     irf_shape_grid, irf_weight_grid,
+        #     neural_decay_grid, adaptation_decay_grid)
+        self.irf_shape, self.irf_weight, self.neural_decay, self.adaptation_decay = np.meshgrid(
+            irf_shape_grid, irf_weight_grid,
+            neural_decay_grid, adaptation_decay_grid)
+
+        # self.sa = self.sa.ravel()
+        # self.ss = self.ss.ravel()
+        # self.nb = self.nb.ravel()
+        # self.sb = self.sb.ravel()
+
+        self.irf_shape = self.irf_shape.ravel()
+        self.irf_weight = self.irf_weight.ravel()
+        self.neural_decay = self.neural_decay.ravel()
+        self.adaptation_decay = self.adaptation_decay.ravel()
+
+        self.n_predictions = len(self.irf_shape)
+
+        if gaussian_params is not None and gaussian_params.shape == (
+                self.n_units, 4):
+            self.gaussian_params = gaussian_params.astype('float32')
+            self.gridsearch_rsq_mask = self.gaussian_params[:, -
+                                                            1] > rsq_threshold
+
+        elif hasattr(self, 'previous_gaussian_fitter'):
+            starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
+            self.gaussian_params = np.concatenate(
+                (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
+
+            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
+            else:
+                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[
+                    :, -1] > self.rsq_threshold
+
+        else:
+            print('Please provide suitable [n_units, 4] gaussian_params,\
+                  or previous_gaussian_fitter')
+            raise ValueError
+
+        if norm_params is not None and norm_params.shape == (self.n_units, 4):
+            self.norm_params = norm_params.astype('float32')
+            self.gridsearch_rsq_mask = self.norm_params[:, -
+                                                        1] > rsq_threshold
+        elif hasattr(self, 'previous_norm_fitter'):
+            starting_params_norm_grid = self.previous_norm_fitter.iterative_search_params
+            self.norm_params = np.concatenate(
+                (starting_params_norm_grid[:, 5:9], starting_params_norm_grid[:, -1][..., np.newaxis]), axis=-1)
+
+            if hasattr(self.previous_norm_fitter, 'rsq_mask'):
+                self.gridsearch_rsq_mask = self.previous_norm_fitter.rsq_mask
+            else:
+                self.gridsearch_rsq_mask = self.previous_norm_fitter.gridsearch_params[
+                    :, -1] > self.rsq_threshold
+        else:
+            print('Please provide suitable [n_units, 4] norm_params,\
+                  or previous_norm_fitter')
+            raise ValueError
+
+        def rsq_betas_for_batch(data,
+                                vox_nums,
+                                n_predictions,
+                                n_timepoints,
+                                data_var,
+                                # sa, ss, nb, sb,
+                                irf_shape,
+                                irf_weight,
+                                neural_decay,
+                                adaptation_decay,
+                                gaussian_params,
+                                norm_params):
+
+            result = np.zeros((data.shape[0], 4), dtype='float32')
+
+            for vox_data, vox_num, idx in zip(
+                data, vox_nums, np.arange(
+                    data.shape[0])):
+
+                # let the model create the timecourses, per voxel, since the
+                # gridding is over new parameters, while size and position
+                # are obtained from previous Gaussian fit
+                predictions = self.model.create_grid_predictions(
+                    gaussian_params[vox_num, :-
+                                1], 
+                    norm_params[vox_num, :-1], 
+                    irf_shape,
+                    irf_weight,
+                    neural_decay,
+                    adaptation_decay)
+
+                # bookkeeping
+                sum_preds = np.sum(predictions, axis=-1)
+                square_norm_preds = np.linalg.norm(
+                    predictions, axis=-1, ord=2)**2
+                sumd = np.sum(vox_data)
+
+                # best possible slopes and baselines
+                slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
+                          sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
+                baselines = (sumd - slopes * sum_preds) / n_timepoints
+
+                # find best prediction and store relevant data
+                resid = np.linalg.norm((vox_data -
+                                        slopes[..., np.newaxis] *
+                                        predictions -
+                                        baselines[..., np.newaxis]), ord=2, axis=-
+                                       1)
+
+                # to enforce, if possible, positive prf amplitude & neural baseline
+                if pos_prfs_only:
+                    if np.any(slopes > 0):
+                        resid[slopes <= 0] = +np.inf
+
+                best_pred_voxel = np.nanargmin(resid)
+
+                rsq = 1 - resid[best_pred_voxel]**2 / \
+                    (n_timepoints * data_var[vox_num])
+
+                result[idx, :] = best_pred_voxel, rsq, baselines[best_pred_voxel], slopes[best_pred_voxel]
+
+            return result
+
+        # masking and splitting data
+        split_indices = np.array_split(np.arange(self.data.shape[0])[
+                                       self.gridsearch_rsq_mask], n_batches)
+        data_batches = np.array_split(
+            self.data[self.gridsearch_rsq_mask], n_batches, axis=0)
+
+        if verbose:
+            print("Each batch contains approx. " +
+                  str(data_batches[0].shape[0]) + " voxels.")
+
+        # parallel grid search over (sequential) batches of voxels
+        grid_search_rbs = Parallel(self.n_jobs, verbose=11)(
+            delayed(rsq_betas_for_batch)(
+                data=data,
+                vox_nums=vox_nums,
+                n_predictions=self.n_predictions,
+                n_timepoints=self.n_timepoints,
+                data_var=self.data_var,
+                irf_shape=self.irf_shape,
+                irf_weight=self.irf_weight,
+                neural_decay=self.neural_decay,
+                adaptation_decay=self.adaptation_decay,
+                gaussian_params=self.gaussian_params,
+                norm_params=self.norm_params)
+            for data, vox_nums in zip(data_batches, split_indices))
+
+        grid_search_rbs = np.concatenate(grid_search_rbs, axis=0)
+
+        # store results
+        max_rsqs = grid_search_rbs[:, 0].astype('int')
+        self.gridsearch_r2 = grid_search_rbs[:, 1]
+        self.best_fitting_baseline = grid_search_rbs[:, 2]
+        self.best_fitting_beta = grid_search_rbs[:, 3]
+
+        self.gridsearch_params = np.zeros((self.n_units, 14))
+
+        self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
+            self.gaussian_params[self.gridsearch_rsq_mask, 0],
+            self.gaussian_params[self.gridsearch_rsq_mask, 1],
+            self.gaussian_params[self.gridsearch_rsq_mask, 2],
+            self.best_fitting_beta,
+            self.best_fitting_baseline,
+            # self.sa[max_rsqs],
+            # self.ss[max_rsqs],
+            # self.nb[max_rsqs] * self.best_fitting_beta,
+            # self.sb[max_rsqs],
+            self.norm_params[self.gridsearch_rsq_mask, 0],
+            self.norm_params[self.gridsearch_rsq_mask, 1],
+            self.norm_params[self.gridsearch_rsq_mask, 2] * self.best_fitting_beta,
+            self.norm_params[self.gridsearch_rsq_mask, 3],
+            self.irf_shape[max_rsqs],
+            self.irf_weight[max_rsqs],
+            self.neural_decay[max_rsqs],
+            self.adaptation_decay[max_rsqs],
             self.gridsearch_r2
         ]).T
 

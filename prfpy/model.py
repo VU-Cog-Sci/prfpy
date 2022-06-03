@@ -649,6 +649,205 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
                 self.filter_type,
                 self.filter_params)
 
+class STDN_Iso2DGaussianModel(Iso2DGaussianModel):
+    """STDN_Iso2DGaussianModel
+    
+    Redefining class for spatio-temporal normalization model
+
+    """
+
+    def create_grid_predictions(self, gaussian_params, norm_params, irf_shape, irf_weight, neural_decay, adaptation_decay):
+        """create_predictions
+
+        creates predictions for a given set of parameters
+
+        [description]
+
+        Parameters
+        ----------
+        gaussian_params: ndarray size (3)
+            containing prf position and size.
+        sa,ss,nb,sb: ndarrays
+            containing the range of grid values for other norm model parameters
+            (surroud amplitude (C), surround size (sigma_2), neural baseline (B), surround baseline (D))
+
+
+        """
+        n_predictions = len(irf_shape)
+
+        prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
+                                      gaussian_params[1] *
+                                      np.ones(n_predictions),
+                                      gaussian_params[2] *
+                                      np.ones(n_predictions),
+                                      1.0*np.ones(n_predictions),
+                                      0.0*np.ones(n_predictions),
+                                      norm_params[0] *
+                                      np.ones(n_predictions),
+                                      norm_params[1] *
+                                      np.ones(n_predictions),
+                                      norm_params[2] *
+                                      np.ones(n_predictions),
+                                      norm_params[3] *
+                                      np.ones(n_predictions),
+                                      irf_shape,
+                                      irf_weight,
+                                      neural_decay,
+                                      adaptation_decay])
+
+        return self.return_prediction(*list(prediction_params)).astype('float32')
+
+    def return_prediction(self,
+                          mu_x,
+                          mu_y,
+                          prf_size,
+                          prf_amplitude,
+                          bold_baseline,
+                          srf_amplitude,
+                          srf_size,
+                          neural_baseline,
+                          surround_baseline,
+                          irf_shape,
+                          irf_weight,
+                          neural_decay,
+                          adaptation_decay,
+                          hrf_1=None,
+                          hrf_2=None,
+                          fsample = 50,
+                          ):
+        """return_prediction [summary]
+
+        returns the prediction for a single set of parameters.
+
+        Parameters
+        ----------
+        mu_x : float
+            x position
+        mu_y : float
+            y position
+        prf_size : float
+            sigma_1
+        prf_amplitude : float
+            Norm Param A
+        bold_baseline : float
+            BOLD baseline (generally kept fixed)
+        neural_baseline : float
+            Norm Param B
+        srf_amplitude : float
+            Norm Param C
+        srf_size : float
+            sigma_2
+        surround_baseline : float
+            Norm Param D
+        irf_shape : float
+            STDN param tau 1
+        irf_weight : float
+            STDN param w (weight of second, negative gamma function)
+        neural_decay : float
+            STDN param tau 2 (time constant of exponential decay for activation pool)
+        adaptation_decay : float
+            STDN param tau 3 (time constant of exponential decay for normalization pool)
+        hrf_1, hrf_2 : floats, optional
+            hrf parameters, specified only if hrf is being fit to data, otherwise not needed.
+
+        Returns
+        -------
+        numpy.ndarray
+            prediction(s) given the model
+        """
+
+        if hrf_1 is not None and hrf_2 is not None:
+            current_hrf = self.hrf.create_spm_hrf(
+                force=True, TR=self.stimulus.TR, hrf_params=[1.0, hrf_1, hrf_2])
+
+        assert self.hrf.hasValues(), "Initialize HRF values first!"
+        current_hrf = self.hrf.values
+
+        # create the rfs
+
+        prf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+                                        y=self.stimulus.y_coordinates[...,
+                                                                      np.newaxis],
+                                        mu=(mu_x, mu_y),
+                                        sigma=prf_size,
+                                        normalize_RFs=self.normalize_RFs).T, axes=(1, 2))
+
+        # surround receptive field (denominator)
+        srf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+                                        y=self.stimulus.y_coordinates[...,
+                                                                      np.newaxis],
+                                        mu=(mu_x, mu_y),
+                                        sigma=srf_size,
+                                        normalize_RFs=self.normalize_RFs).T, axes=(1, 2))
+
+        dm = self.stimulus.design_matrix
+
+        # timepoints = np.arange(dm.shape[2])
+        # timepoints = np.linspace(0, dm.shape[2] / fsample, dm.shape[2])
+        timepoints = np.array(range(dm.shape[2])) / fsample
+
+        # create normalization model timecourse
+
+        def gamma_function(t, tau):
+            return np.exp(-t / tau)
+
+        def stimulus_through_irf(prf, dm, dx, t, tau, weight, mask=None):
+            spatial_tc = stimulus_through_prf(prf, dm, dx, mask=mask)
+            difference_of_gammas = t * gamma_function(t, tau) - weight * t * gamma_function(t, 1.5 * tau)
+            if difference_of_gammas.ndim < spatial_tc.ndim:
+                difference_of_gammas = np.reshape(difference_of_gammas, (1, difference_of_gammas.shape[0]))
+
+            # # normalize by peak (1)
+            difference_of_gammas = difference_of_gammas / difference_of_gammas.max()
+            # normalize by length
+            # difference_of_gammas = difference_of_gammas / np.linalg.norm(difference_of_gammas)
+
+            # scipy fftconvolve does not have padding options so doing it manually
+            pad_length = 20
+            pad = np.tile(spatial_tc[:, 0], (pad_length, 1)).T
+            padded_tc = np.hstack((pad, spatial_tc))
+            spatio_temporal_tc = signal.fftconvolve(padded_tc, difference_of_gammas, axes=(-1))[..., pad_length:spatial_tc.shape[-1]+pad_length]
+            return spatio_temporal_tc
+
+        def exponential_decay(tc, timepoints, decay):
+            pad_length = 20
+            pad = np.tile(tc[:, 0], (pad_length, 1)).T
+            padded_tc = np.hstack((pad, tc))
+
+            gamma = gamma_function(t=timepoints, tau=decay)
+            if gamma.ndim < padded_tc.ndim:
+                gamma = np.reshape(gamma, (1, gamma.shape[0]))
+
+            # # normalize by peak (1)
+            # gamma = gamma / gamma.max()
+            # normalize by length
+            gamma = gamma / np.linalg.norm(gamma)
+
+            convolved_tc = signal.fftconvolve(padded_tc, gamma, axes=(-1))[..., pad_length:tc.shape[-1]+pad_length]
+
+            return convolved_tc
+
+        spatio_temporal_tc = stimulus_through_irf(prf=prf, dm=dm, dx=self.stimulus.dx, t=timepoints, tau=irf_shape[..., np.newaxis], weight=irf_weight[..., np.newaxis])
+        norm_spatio_temporal_tc = stimulus_through_irf(prf=srf, dm=dm, dx=self.stimulus.dx, t=timepoints, tau=irf_shape[..., np.newaxis], weight=irf_weight[..., np.newaxis])
+
+        activation_pool = prf_amplitude[..., np.newaxis] * np.abs(spatio_temporal_tc) + neural_baseline[..., np.newaxis]
+        normalization_pool = srf_amplitude[..., np.newaxis] * np.abs(norm_spatio_temporal_tc) + surround_baseline[..., np.newaxis]
+
+        activation_decay = np.abs(exponential_decay(tc=spatio_temporal_tc, timepoints=timepoints, decay=neural_decay[..., np.newaxis]))
+        normalization_decay = np.abs(exponential_decay(tc=norm_spatio_temporal_tc, timepoints=timepoints, decay=adaptation_decay[..., np.newaxis]))
+
+        # neural_tc = activation_pool
+        neural_tc = activation_pool / (normalization_pool + activation_decay + normalization_decay) - (neural_baseline[..., np.newaxis] / surround_baseline[..., np.newaxis])
+
+        tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
+
+        if not self.filter_predictions:
+            return bold_baseline[..., np.newaxis] + tc
+        else:
+            return bold_baseline[..., np.newaxis] + filter_predictions(
+                tc,
+                self.filter_type,
+                self.filter_params)
 
 class CFGaussianModel():
 
