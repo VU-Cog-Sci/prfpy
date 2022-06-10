@@ -436,7 +436,7 @@ class Iso2DGaussianFitter(Fitter):
                               sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
                     baselines = (sumd - slopes * sum_preds) / n_timepoints
                 else:                    
-                    slopes = np.mean((vox_data-fixed_grid_baseline)/predictions, axis=-1)                    
+                    slopes = (np.dot(vox_data-fixed_grid_baseline, predictions.T)) / (square_norm_preds)                   
                     baselines = fixed_grid_baseline * np.ones_like(slopes)
 
                 # resid and rsq
@@ -1171,7 +1171,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                               sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
                     baselines = (sumd - slopes * sum_preds) / n_timepoints
                 else:                    
-                    slopes = np.mean((vox_data-fixed_grid_baseline)/predictions, axis=-1)                    
+                    slopes = (np.dot(vox_data-fixed_grid_baseline, predictions.T)) / (square_norm_preds)                    
                     baselines = fixed_grid_baseline * np.ones_like(slopes)
 
                 # find best prediction and store relevant data
