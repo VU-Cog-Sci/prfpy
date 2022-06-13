@@ -755,7 +755,9 @@ class STDN_Iso2DGaussianModel(Iso2DGaussianModel):
                           irf_shape,
                           irf_weight,
                           neural_decay,
+                          decay_amplitude,
                           adaptation_decay,
+                          adaptation_amplitude,
                           hrf_1=None,
                           hrf_2=None,
                           ):
@@ -871,27 +873,42 @@ class STDN_Iso2DGaussianModel(Iso2DGaussianModel):
 
             return convolved_tc
 
-        spatio_temporal_tc = stimulus_through_irf(prf=prf, dm=dm, dx=self.stimulus.dx, t=timepoints, tau=irf_shape[..., np.newaxis], weight=irf_weight[..., np.newaxis])
-        norm_spatio_temporal_tc = stimulus_through_irf(prf=srf, dm=dm, dx=self.stimulus.dx, t=timepoints, tau=irf_shape[..., np.newaxis], weight=irf_weight[..., np.newaxis])
+        spatio_temporal_tc = stimulus_through_irf(prf=prf, dm=dm, dx=self.stimulus.dx, t=timepoints, 
+                                                    tau=irf_shape[..., np.newaxis], weight=irf_weight[..., np.newaxis])
+        norm_spatio_temporal_tc = stimulus_through_irf(prf=srf, dm=dm, dx=self.stimulus.dx, t=timepoints, 
+                                                    tau=irf_shape[..., np.newaxis], weight=irf_weight[..., np.newaxis])
+
 
         activation_pool = prf_amplitude[..., np.newaxis] * np.abs(spatio_temporal_tc) + neural_baseline[..., np.newaxis]
         normalization_pool = srf_amplitude[..., np.newaxis] * np.abs(norm_spatio_temporal_tc) + surround_baseline[..., np.newaxis]
 
-        activation_decay = np.abs(exponential_decay(tc=spatio_temporal_tc, timepoints=timepoints, decay=neural_decay[..., np.newaxis]))
-        normalization_decay = np.abs(exponential_decay(tc=norm_spatio_temporal_tc, timepoints=timepoints, decay=adaptation_decay[..., np.newaxis]))
 
-        # neural_tc = activation_pool
+        activation_decay = decay_amplitude[..., np.newaxis] * np.abs(exponential_decay(tc=spatio_temporal_tc, timepoints=timepoints, decay=neural_decay[..., np.newaxis]))
+        normalization_decay = adaptation_amplitude[..., np.newaxis] * np.abs(exponential_decay(tc=norm_spatio_temporal_tc, timepoints=timepoints, decay=adaptation_decay[..., np.newaxis]))
+
         neural_tc = activation_pool / (normalization_pool + activation_decay + normalization_decay) - (neural_baseline[..., np.newaxis] / surround_baseline[..., np.newaxis])
 
         tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
 
-        if not self.filter_predictions:
-            return bold_baseline[..., np.newaxis] + tc
-        else:
-            return bold_baseline[..., np.newaxis] + filter_predictions(
-                tc,
-                self.filter_type,
-                self.filter_params)
+        # if not self.filter_predictions:
+        #     return bold_baseline[..., np.newaxis] + tc
+        # else:
+        #     return bold_baseline[..., np.newaxis] + filter_predictions(
+        #         tc,
+        #         self.filter_type,
+        #         self.filter_params)
+
+        simulations = {
+            'spatio_temporal_tc': spatio_temporal_tc,
+            'norm_spatio_temporal_tc': norm_spatio_temporal_tc,
+            'activation_pool': activation_pool,
+            'normalization_pool': normalization_pool,
+            'activation_decay': activation_decay,
+            'normalization_decay': normalization_decay,
+            'neural_tc': neural_tc,
+        }
+
+        return simulations
 
 class CFGaussianModel():
 
