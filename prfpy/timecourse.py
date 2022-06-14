@@ -4,7 +4,7 @@ import scipy.signal as signal
 from statsmodels.tsa.arima_process import arma_generate_sample
 
 
-def convolve_stimulus_dm(stimulus, hrf):
+def convolve_stimulus_dm(stimulus, hrf_values):
     """convolve_stimulus_dm
 
     convolve_stimulus_dm convolves an N-D (N>=2) stimulus array with an hrf
@@ -13,14 +13,14 @@ def convolve_stimulus_dm(stimulus, hrf):
     ----------
     stimulus : numpy.ndarray, N-D (N>=2) 
         stimulus experimental design, with the final dimension being time
-    hrf : numpy.ndarray, 1D
+    hrf_values : numpy.ndarray, 1D
         contains kernel for convolution
 
     """
     hrf_shape = np.ones(len(stimulus.shape), dtype=np.int)
-    hrf_shape[-1] = hrf.shape[-1]
+    hrf_shape[-1] = hrf_values.shape[-1]
 
-    return signal.fftconvolve(stimulus, hrf.reshape(hrf_shape), mode='full', axes=(-1))[..., :stimulus.shape[-1]]
+    return signal.fftconvolve(stimulus, hrf_values.reshape(hrf_shape), mode='full', axes=(-1))[..., :stimulus.shape[-1]]
 
 
 def stimulus_through_prf(prfs, stimulus, dx, mask=None):
