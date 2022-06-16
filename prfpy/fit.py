@@ -667,7 +667,8 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  verbose=False,
                  n_batches=1000,
                  rsq_threshold=0.1,
-                 pos_prfs_only=True):
+                 pos_prfs_only=True,
+                 fixed_grid_baseline=None):
         """
         This function performs a grid_fit for the normalization model new parameters.
         The fit is parallel over batches of voxels, and separate predictions are
@@ -753,10 +754,14 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                     predictions, axis=-1, ord=2)**2
                 sumd = np.sum(vox_data)
 
-                # best possible slopes and baselines
-                slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
-                          sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
-                baselines = (sumd - slopes * sum_preds) / n_timepoints
+                # best slopes and baselines for voxel for predictions
+                if fixed_grid_baseline is None:
+                    slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
+                              sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
+                    baselines = (sumd - slopes * sum_preds) / n_timepoints
+                else:                    
+                    slopes = (np.dot(vox_data-fixed_grid_baseline, predictions.T)) / (square_norm_preds)                   
+                    baselines = fixed_grid_baseline * np.ones_like(slopes)
 
                 # find best prediction and store relevant data
                 resid = np.linalg.norm((vox_data -
@@ -858,7 +863,8 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  verbose=False,
                  n_batches=1000,
                  rsq_threshold=0.1,
-                 pos_prfs_only=True):
+                 pos_prfs_only=True,
+                 fixed_grid_baseline=None):
         """
         This function performs a grid_fit for the normalization model new parameters.
         The fit is parallel over batches of voxels, and separate predictions are
@@ -949,10 +955,14 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                     predictions, axis=-1, ord=2)**2
                 sumd = np.sum(vox_data)
 
-                # best possible slopes and baselines
-                slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
-                          sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
-                baselines = (sumd - slopes * sum_preds) / n_timepoints
+                # best slopes and baselines for voxel for predictions
+                if fixed_grid_baseline is None:
+                    slopes = (n_timepoints * np.dot(vox_data, predictions.T) - sumd *
+                              sum_preds) / (n_timepoints * square_norm_preds - sum_preds**2)
+                    baselines = (sumd - slopes * sum_preds) / n_timepoints
+                else:                    
+                    slopes = (np.dot(vox_data-fixed_grid_baseline, predictions.T)) / (square_norm_preds)                   
+                    baselines = fixed_grid_baseline * np.ones_like(slopes)
 
                 # find best prediction and store relevant data
                 resid = np.linalg.norm((vox_data -
