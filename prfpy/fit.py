@@ -382,9 +382,9 @@ class Iso2DGaussianFitter(Fitter):
                  polar_grid,
                  size_grid,
                  verbose=False,
-                 n_batches=1000,
-                 pos_prfs_only=True,
-                 fixed_grid_baseline=None):
+                 n_batches=10,
+                 fixed_grid_baseline=None,
+                 grid_bounds=None):
         """grid_fit
 
         performs grid fit using provided grids and predictor definitions
@@ -446,10 +446,12 @@ class Iso2DGaussianFitter(Fitter):
                                         baselines[..., np.newaxis]), axis=-
                                        1, ord=2)
 
-                #to enforce, if possible, positive prf amplitude
-                if pos_prfs_only:
-                    if np.any(slopes>0):
-                        resid[slopes<=0] = +np.inf
+                
+                #enforcing a bound on the grid slope (i.e. prf amplitude)
+                if grid_bounds is not None:
+                    resid[slopes<grid_bounds[0][0]] = +np.inf
+                    resid[slopes>grid_bounds[0][1]] = +np.inf
+                    
 
                 best_pred_voxel = np.nanargmin(resid)
 
@@ -665,10 +667,10 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  exponent_grid,
                  gaussian_params=None,
                  verbose=False,
-                 n_batches=1000,
-                 rsq_threshold=0.1,
-                 pos_prfs_only=True,
-                 fixed_grid_baseline=None):
+                 n_batches=10,
+                 rsq_threshold=0.05,
+                 fixed_grid_baseline=None,
+                 grid_bounds=None):
         """
         This function performs a grid_fit for the normalization model new parameters.
         The fit is parallel over batches of voxels, and separate predictions are
@@ -770,10 +772,11 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                                         baselines[..., np.newaxis]), ord=2, axis=-
                                        1)
 
-                #to enforce, if possible, positive prf amplitude & neural baseline
-                if pos_prfs_only:
-                    if np.any(slopes>0):
-                        resid[slopes<=0] = +np.inf
+                        
+                #enforcing a bound on the grid slope (i.e. prf amplitude)
+                if grid_bounds is not None:
+                    resid[slopes<grid_bounds[0][0]] = +np.inf
+                    resid[slopes>grid_bounds[0][1]] = +np.inf
 
                 best_pred_voxel = np.nanargmin(resid)
 
@@ -861,10 +864,10 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  surround_size_grid,
                  gaussian_params=None,
                  verbose=False,
-                 n_batches=1000,
-                 rsq_threshold=0.1,
-                 pos_prfs_only=True,
-                 fixed_grid_baseline=None):
+                 n_batches=10,
+                 rsq_threshold=0.05,
+                 fixed_grid_baseline=None,
+                 grid_bounds=None):
         """
         This function performs a grid_fit for the normalization model new parameters.
         The fit is parallel over batches of voxels, and separate predictions are
@@ -971,10 +974,16 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                                         baselines[..., np.newaxis]), ord=2, axis=-
                                        1)
 
-                #to enforce, if possible, positive prf amplitude & neural baseline
-                if pos_prfs_only:
-                    if np.any(slopes>0):
-                        resid[slopes<=0] = +np.inf
+                #enforcing a bound on the grid slope (i.e. prf amplitude)
+                if grid_bounds is not None:
+                    #first bound amplitude
+                    resid[slopes<grid_bounds[0][0]] = +np.inf
+                    resid[slopes>grid_bounds[0][1]] = +np.inf
+                    if len(grid_bounds)>1:
+                        #second bound surround amplitude
+                        resid[(sa*slopes)<grid_bounds[1][0]] = +np.inf
+                        resid[(sa*slopes)>grid_bounds[1][1]] = +np.inf                    
+                    
 
                 best_pred_voxel = np.nanargmin(resid)
 
@@ -1074,10 +1083,10 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  surround_baseline_grid,
                  gaussian_params=None,
                  verbose=False,
-                 n_batches=1000,
-                 rsq_threshold=0.1,
-                 pos_prfs_only=True,
-                 fixed_grid_baseline=None):
+                 n_batches=10,
+                 rsq_threshold=0.05,
+                 fixed_grid_baseline=None,
+                 grid_bounds=None):
         """
         This function performs a grid_fit for the normalization model new parameters.
         The fit is parallel over batches of voxels, and separate predictions are
@@ -1191,10 +1200,15 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                                         baselines[..., np.newaxis]), ord=2, axis=-
                                        1)
 
-                #to enforce, if possible, positive prf amplitude & neural baseline
-                if pos_prfs_only:
-                    if np.any(slopes>0):
-                        resid[slopes<=0] = +np.inf
+                #enforcing a bound on the grid slope (i.e. prf amplitude)
+                if grid_bounds is not None:
+                    #first bound amplitude
+                    resid[slopes<grid_bounds[0][0]] = +np.inf
+                    resid[slopes>grid_bounds[0][1]] = +np.inf
+                    if len(grid_bounds)>1:
+                        #second bound neural baseline (norm param B)
+                        resid[(nb*slopes)<grid_bounds[1][0]] = +np.inf
+                        resid[(nb*slopes)>grid_bounds[1][1]] = +np.inf    
 
                 best_pred_voxel = np.nanargmin(resid)
 
