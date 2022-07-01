@@ -748,8 +748,10 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 # let the model create the timecourses, per voxel, since the
                 # gridding is over new parameters, while size and position
                 # are obtained from previous Gaussian fit
+                css_resc_gp = np.copy(gaussian_params[vox_num, :-1])
+                css_resc_gp[2] /= np.sqrt(nn)
                 predictions = self.model.create_grid_predictions(
-                    gaussian_params[vox_num, :-1], nn)
+                    css_resc_gp, nn)
                 # bookkeeping
                 sum_preds = np.sum(predictions, axis=-1)
                 square_norm_preds = np.linalg.norm(
