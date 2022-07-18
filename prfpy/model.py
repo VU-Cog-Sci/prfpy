@@ -330,7 +330,8 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
                                       gaussian_params[1] *
                                       np.ones(n_predictions),
                                       gaussian_params[2] *
-                                      np.ones(n_predictions),
+                                      np.ones(n_predictions) * 
+                                      np.sqrt(nn),
                                       1.0*np.ones(n_predictions),
                                       0.0*np.ones(n_predictions),
                                       nn])
