@@ -824,7 +824,7 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
             self.gaussian_params[self.gridsearch_rsq_mask, 0],
             self.gaussian_params[self.gridsearch_rsq_mask, 1],
-            self.gaussian_params[self.gridsearch_rsq_mask, 2] * self.nn[max_rsqs],
+            self.gaussian_params[self.gridsearch_rsq_mask, 2] * np.sqrt(self.nn[max_rsqs]),
             self.best_fitting_beta,
             self.best_fitting_baseline,
             self.nn[max_rsqs],
