@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import scipy.signal as signal
 import warnings
@@ -9,8 +10,6 @@ from .timecourse import stimulus_through_prf, \
     generate_random_cosine_drifts, \
     generate_arima_noise, \
     filter_predictions
-
-from .utils import HRF
 
 
 class Model(object):
@@ -110,6 +109,77 @@ class Model(object):
             self.random_noise = np.zeros_like(self.predictions)
 
 
+class HRF():
+    # We want a class that can be used analogous to the hierarchy already present
+    # for the model, fitter, stimulus and so forth,
+    # thus we want a method creating a standard HRF,
+    # one creating a the spm basis set hrf and of course one where values can be user-defined
+    # Old documentation:
+    # Can be 'direct', which implements nothing (for eCoG or later convolution),
+    #         a list or array of 3, which are multiplied with the three spm HRF basis functions,
+    #         and an array already sampled on the TR by the user.
+    #         (the default is None, which implements standard spm HRF)
+
+    def __init__(self, values: np.ndarray = None):
+        if values is not None:
+            assert values.ndim > 2, "Number of dimension for HRF values needs to be at least two. Last dimension corresponds to time."
+            self.values = values
+        else:
+            # TODO Should the default here be that create_spm_hrf is called with default params?
+            self.values = None
+
+
+    def _assert_values_filled(self, force = False):
+        if not force:
+            assert self.hasValues(), "HRF values have already been assigned! Try with force."
+
+    def hasValues(self):
+        return self.values is not None and len(self.values.flatten()) > 0
+     
+    def create_spm_hrf(self, TR, force=False, hrf_params=[1.0, 1.0, 0.0]):
+        """construct single or multiple HRFs        
+
+            Parameters
+            ----------
+            hrf_params : TYPE, optional
+                DESCRIPTION. The default is [1.0, 1.0, 0.0].
+
+            Returns
+            -------
+            hrf : ndarray
+                the hrf.
+        """
+        self._assert_values_filled(force)
+
+        assert len(hrf_params) == 3
+
+        values = np.array(
+            [
+                np.ones_like(hrf_params[1])*hrf_params[0] *
+                spm_hrf(
+                    tr=TR,
+                    oversampling=1,
+                    time_length=40)[..., np.newaxis],
+                hrf_params[1] *
+                spm_time_derivative(
+                    tr=TR,
+                    oversampling=1,
+                    time_length=40)[..., np.newaxis],
+                hrf_params[2] *
+                spm_dispersion_derivative(
+                    tr=TR,
+                    oversampling=1,
+                    time_length=40)[..., np.newaxis]]).sum(
+            axis=0)
+
+        self.values = values.T
+
+    def create_direct_hrf(self, force=False):
+        # Is this method necessary or can this case be assumed to be input be the user through the constructor?
+        self._assert_values_filled(force)
+
+        self.values = np.array([[1]])
+
 class Iso2DGaussianModel(Model):
     """Iso2DGaussianModel
     To extend please create a setup_XXX_grid function for any new way of
@@ -143,32 +213,24 @@ class Iso2DGaussianModel(Model):
         super().__init__(stimulus)
         self.__dict__.update(kwargs)
 
-        # # HRF stuff
-        # if hrf is None:  # for use with standard fMRI
-        #     self.hrf = self.create_hrf()
-        # elif hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
-        #     self.hrf = np.ones((1,1))
-        # # some specific hrf with spm basis set
-        # elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
-        #     self.hrf = self.create_hrf(hrf_params=hrf)
-        # # some specific hrf already defined at the TR (!)
-        # # elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
-        # elif isinstance(hrf, np.ndarray) and hrf.shape[0] == 1 and hrf.shape[1] > 3:
-        #     self.hrf = hrf
 
         # make HRF class downwards compatible
         self.hrf = HRF()
+
         if hrf is None:
             self.hrf.create_direct_hrf(force=True)
             print("Using no HRF")
+
         elif (type(hrf) is np.ndarray or type(hrf) is list) and len(hrf) == 3:
             self.hrf.create_spm_hrf(hrf_params=hrf, force=True, TR=self.tr)
-            warnings.warn("Specifying HRF parameters is deprecated. Please refer to the HRF class and specify and HRF object.", FutureWarning)
+            warnings.warn("Specifying HRF parameters is deprecated. Please refer to the HRF class and specify an HRF object.", FutureWarning)
+
         elif type(hrf) is np.ndarray and hrf.shape[0] == 1 and hrf.shape[1] > 3:
             self.hrf = HRF(values=hrf)
-            warnings.warn("Specifying HRF values is deprecated. Please refer to the HRF class and specify and HRF object.", FutureWarning)
+            warnings.warn("Specifying HRF values is deprecated. Please refer to the HRF class and specify an HRF object.", FutureWarning)
+
         elif type(hrf) is HRF:
-        # this should be the only way used in the future implying that the user specifies that HRF object beforehand!
+            # this should be the only way used in the future implying that the user specifies that HRF object beforehand!
             self.hrf = hrf
 
         assert self.hrf.hasValues(), "Initialize HRF values first!"
@@ -345,7 +407,8 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
                                       gaussian_params[1] *
                                       np.ones(n_predictions),
                                       gaussian_params[2] *
-                                      np.ones(n_predictions),
+                                      np.ones(n_predictions) * 
+                                      np.sqrt(nn),
                                       1.0*np.ones(n_predictions),
                                       0.0*np.ones(n_predictions),
                                       nn])

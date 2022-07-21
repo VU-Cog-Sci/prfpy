@@ -745,7 +745,6 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 # gridding is over new parameters, while size and position
                 # are obtained from previous Gaussian fit
                 css_resc_gp = np.copy(gaussian_params[vox_num, :-1])
-                css_resc_gp[2] *= np.sqrt(nn)
                 predictions = self.model.create_grid_predictions(
                     css_resc_gp, nn)
                 # bookkeeping
@@ -820,7 +819,7 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
             self.gaussian_params[self.gridsearch_rsq_mask, 0],
             self.gaussian_params[self.gridsearch_rsq_mask, 1],
-            self.gaussian_params[self.gridsearch_rsq_mask, 2] * self.nn[max_rsqs],
+            self.gaussian_params[self.gridsearch_rsq_mask, 2] * np.sqrt(self.nn[max_rsqs]),
             self.best_fitting_beta,
             self.best_fitting_baseline,
             self.nn[max_rsqs],
