@@ -109,6 +109,25 @@ class Model(object):
 
 
 class HRF():
+    """HRF
+
+    Class for HRF definition. If no values are specified (i.e., HRF sampled on the TR by the user), 
+    a standard HRF is created by multiplying `hrf_params` with the kernels from `spm_hrf` (HRF, time derivative, dispersion derivative). 
+    For this latter option, the repetition time must be specified with `TR`. 
+    If you want custom HRF parameters, you need to instantiate an empty HRF-class, then call :function:`prfpy.model.HRF.create_spm_hrf` with your desired parameters
+
+    Parameters
+    ----------
+    values: np.ndarray, optional
+        Custom HRF sampled to the TR. Must be `<1,time_points>` array, by default None
+
+    Example
+    ----------
+    >>> from prfpy.model import HRF
+    >>> hrf = HRF()
+    >>> hrf.create_spm_hrf(TR=1.5, hrf_params=[1,4.6,0])
+    """
+
     # We want a class that can be used analogous to the hierarchy already present
     # for the model, fitter, stimulus and so forth,
     # thus we want a method creating a standard HRF,
@@ -127,14 +146,13 @@ class HRF():
             # TODO Should the default here be that create_spm_hrf is called with default params?
             self.values = None
 
-
-    def _assert_values_filled(self, force = False):
+    def _assert_values_filled(self, force=False):
         if not force:
             assert self.hasValues(), "HRF values have already been assigned! Try with force."
 
     def hasValues(self):
         return self.values is not None and len(self.values.flatten()) > 0
-     
+
     def create_spm_hrf(self, TR, force=False, hrf_params=[1.0, 1.0, 0.0]):
         """construct single or multiple HRFs        
 
@@ -179,6 +197,7 @@ class HRF():
 
         self.values = np.array([[1]])
 
+
 class Iso2DGaussianModel(Model):
     """Iso2DGaussianModel
     To extend please create a setup_XXX_grid function for any new way of
@@ -212,7 +231,6 @@ class Iso2DGaussianModel(Model):
         super().__init__(stimulus)
         self.__dict__.update(kwargs)
 
-
         # make HRF class downwards compatible
         self.hrf = HRF()
 
@@ -222,11 +240,13 @@ class Iso2DGaussianModel(Model):
 
         elif (type(hrf) is np.ndarray or type(hrf) is list) and len(hrf) == 3:
             self.hrf.create_spm_hrf(hrf_params=hrf, force=True, TR=self.tr)
-            warnings.warn("Specifying HRF parameters is deprecated. Please refer to the HRF class and specify an HRF object.", FutureWarning)
+            warnings.warn(
+                "Specifying HRF parameters is deprecated. Please refer to the HRF class and specify an HRF object.", FutureWarning)
 
         elif type(hrf) is np.ndarray and hrf.shape[0] == 1 and hrf.shape[1] > 3:
             self.hrf = HRF(values=hrf)
-            warnings.warn("Specifying HRF values is deprecated. Please refer to the HRF class and specify an HRF object.", FutureWarning)
+            warnings.warn(
+                "Specifying HRF values is deprecated. Please refer to the HRF class and specify an HRF object.", FutureWarning)
 
         elif type(hrf) is HRF:
             # this should be the only way used in the future implying that the user specifies that HRF object beforehand!
@@ -406,7 +426,7 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
                                       gaussian_params[1] *
                                       np.ones(n_predictions),
                                       gaussian_params[2] *
-                                      np.ones(n_predictions) * 
+                                      np.ones(n_predictions) *
                                       np.sqrt(nn),
                                       1.0*np.ones(n_predictions),
                                       0.0*np.ones(n_predictions),
@@ -725,7 +745,6 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
                 tc,
                 self.filter_type,
                 self.filter_params)
-
 
 class CFGaussianModel():
 

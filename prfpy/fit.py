@@ -400,8 +400,12 @@ class Iso2DGaussianFitter(Fitter):
             The grid fit is performed in parallel over n_batches of units.
             Batch parallelization is faster than single-unit
             parallelization and of sequential computing.
-        pos_prfs_only : bool, optional
-            Enforce positive PRFs only.
+        grid_bounds: list of tuple, optional
+            The grid bounds are intended to keep the grid search results in the range of the iterative search bounds.
+            This argument should be provided as a list of tuple containing a lower and an upper bound for the prf amplitude.
+            'pos_prf_only = True' behaviour can be simulated by specifying [(0, np.inf)], and 'pos_prf_only = False' with [(-np.inf, np.inf)].
+            If the iterative search bounds intend a upper bound of e.g., 1000, this can be specified here as [(0, 1000)], where 0 can be any other lower bound.
+            By default None.
 
         Returns
         -------
@@ -689,6 +693,12 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             Number of voxel batches. The default is 1000.
         rsq_threshold : float, optional
             rsq threshold for grid fitting. The default is 0.1.
+        grid_bounds: list of tuple, optional
+            The grid bounds are intended to keep the grid search results in the range of the iterative search bounds.
+            This argument should be provided as a list of tuple containing a lower and an upper bound for the prf amplitude.
+            'pos_prf_only = True' behaviour can be simulated by specifying [(0, np.inf)], and 'pos_prf_only = False' with [(-np.inf, np.inf)].
+            If the iterative search bounds intend a upper bound of e.g., 1000, this can be specified here as [(0, 1000)], where 0 can be any other lower bound.
+            By default None.
 
         Raises
         ------
@@ -890,6 +900,12 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             Number of voxel batches. The default is 1000.
         rsq_threshold : float, optional
             rsq threshold for grid fitting. The default is 0.1.
+        grid_bounds: list of tuple, optional
+            The grid bounds are intended to keep the grid search results in the range of the iterative search bounds.
+            This argument should be provided as a list of tuple containing a lower and an upper bound for the prf amplitude and the surround prf amplitude, respectively.
+            'pos_prf_only = True' behaviour can be simulated by specifying [(0, np.inf), (0, np.inf)], and 'pos_prf_only = False' with [(-np.inf, np.inf), (0, np.inf)].
+            If the iterative search bounds intend a upper bound of e.g., 1000, this can be specified here as [(0, 1000), (0, 1000)], where 0 can be any other lower bound.
+            By default None.
 
         Raises
         ------
@@ -1114,6 +1130,12 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             Number of voxel batches. The default is 1000.
         rsq_threshold : float, optional
             rsq threshold for grid fitting. The default is 0.1.
+        grid_bounds: list of tuple, optional
+            The grid bounds are intended to keep the grid search results in the range of the iterative search bounds.
+            This argument should be provided as a list of tuple containing a lower and an upper bound for the prf amplitude and the neural baseline, respectively.
+            'pos_prf_only = True' behaviour can be simulated by specifying [(0, np.inf), (0, np.inf)], and 'pos_prf_only = False' with [(-np.inf, np.inf), (0, np.inf)].
+            If the iterative search bounds intend a upper bound of e.g., 1000, this can be specified here as [(0, 1000), (0, 1000)], where 0 can be any other lower bound.
+            By default None.
 
         Raises
         ------
