@@ -181,20 +181,24 @@ class Iso2DGaussianModel(Model):
         self.__dict__.update(kwargs)
 
         # HRF stuff
-        if hrf is None:  # for use with standard fMRI
-            self.hrf = self.create_hrf()
-        elif hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
-            self.hrf = np.ones((1,1))
-        # some specific hrf with spm basis set
-        elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
-            self.hrf = self.create_hrf(hrf_params=hrf)
-        # some specific hrf already defined at the TR (!)
-        # elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
-        elif isinstance(hrf, np.ndarray) and hrf.shape[0] == 1 and hrf.shape[1] > 3:
-            self.hrf = hrf
-
-        self.stimulus.convolved_design_matrix = convolve_stimulus_dm(
-            stimulus.design_matrix, hrf=self.hrf)
+        if hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
+            self.hrf = 'direct'
+            self.stimulus.convolved_design_matrix = np.copy(stimulus.design_matrix)
+            
+        else:
+            if hrf is None:  # for use with standard fMRI
+                self.hrf = self.create_hrf()
+            # some specific hrf with spm basis set
+            elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
+                self.hrf = self.create_hrf(hrf_params=hrf)
+            # some specific hrf already defined at the TR (!)
+            # elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
+            elif isinstance(hrf, np.ndarray) and hrf.shape[0] == 1 and hrf.shape[1] > 3:
+                self.hrf = hrf
+        
+        
+            self.stimulus.convolved_design_matrix = convolve_stimulus_dm(
+                stimulus.design_matrix, hrf=self.hrf)
 
         # filtering and other stuff
         self.filter_predictions = filter_predictions
@@ -324,10 +328,11 @@ class Iso2DGaussianModel(Model):
                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
-        neural_tc = stimulus_through_prf(rf, dm, self.stimulus.dx)
 
-
-        tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
+        if current_hrf == 'direct':
+            tc = stimulus_through_prf(rf, dm, self.stimulus.dx)
+        else:
+            tc = self.convolve_timecourse_hrf(stimulus_through_prf(rf, dm, self.stimulus.dx), current_hrf)
         
 
         if not self.filter_predictions:
@@ -364,7 +369,8 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
         
         prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
                                     gaussian_params[1]*np.ones(n_predictions),
-                                    gaussian_params[2]*np.ones(n_predictions),
+                                    gaussian_params[2]*np.ones(n_predictions)*
+                                    np.sqrt(nn),
                                     1.0*np.ones(n_predictions),
                                     0.0*np.ones(n_predictions),
                                     nn])
@@ -422,9 +428,11 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
 
         dm = self.stimulus.design_matrix
-        neural_tc = stimulus_through_prf(rf, dm, self.stimulus.dx)**n[..., np.newaxis]
         
-        tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
+        if current_hrf == 'direct':
+            tc = stimulus_through_prf(rf, dm, self.stimulus.dx)**n[..., np.newaxis]
+        else:
+            tc = self.convolve_timecourse_hrf(stimulus_through_prf(rf, dm, self.stimulus.dx)**n[..., np.newaxis], current_hrf)
 
         if not self.filter_predictions:
             return baseline[..., np.newaxis] + beta[..., np.newaxis] * tc
@@ -548,11 +556,18 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
         dm = self.stimulus.design_matrix
 
         # create normalization model timecourse
-        neural_tc = (prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) + neural_baseline[..., np.newaxis]) /\
+        
+        if current_hrf == 'direct':
+            tc = (prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) + neural_baseline[..., np.newaxis]) /\
             (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx) + surround_baseline[..., np.newaxis]) \
                 - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
+        else:
+            tc = self.convolve_timecourse_hrf((prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) + neural_baseline[..., np.newaxis]) /\
+            (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx) + surround_baseline[..., np.newaxis]) \
+                - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
+                , current_hrf)        
 
-        tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
+
                 
         if not self.filter_predictions:
             return bold_baseline[..., np.newaxis] + tc
@@ -653,10 +668,14 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
 
         dm = self.stimulus.design_matrix
 
-        neural_tc = prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) - \
+        if current_hrf == 'direct':
+            tc = prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) - \
             srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx)
+        else:
+            tc = self.convolve_timecourse_hrf(prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) - \
+            srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx), current_hrf)
 
-        tc = self.convolve_timecourse_hrf(neural_tc, current_hrf)
+
 
         if not self.filter_predictions:
             return bold_baseline[..., np.newaxis] + tc
