@@ -235,11 +235,15 @@ class Iso2DGaussianModel(Model):
         self.hrf = HRF()
 
         if hrf is None:
+            self.hrf.create_spm_hrf(force=True, TR=self.stimulus.TR)
+            print("HRF params not provided. Using standard HRF.")
+
+        elif hrf == 'direct':
             self.hrf.create_direct_hrf(force=True)
             print("Using no HRF")
 
         elif (type(hrf) is np.ndarray or type(hrf) is list) and len(hrf) == 3:
-            self.hrf.create_spm_hrf(hrf_params=hrf, force=True, TR=self.tr)
+            self.hrf.create_spm_hrf(hrf_params=hrf, force=True, TR=self.stimulus.TR)
             warnings.warn(
                 "Specifying HRF parameters is deprecated. Please refer to the HRF class and specify an HRF object.", FutureWarning)
 
