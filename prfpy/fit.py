@@ -3,7 +3,6 @@ from scipy.optimize import fmin_powell, minimize, basinhopping, shgo, dual_annea
 from scipy.stats import pearsonr, zscore
 from copy import deepcopy
 from joblib import Parallel, delayed
-from .utils import squaresign
 
 
 def error_function(
@@ -824,7 +823,7 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         self.gridsearch_params[self.gridsearch_rsq_mask] = np.array([
             self.gaussian_params[self.gridsearch_rsq_mask, 0],
             self.gaussian_params[self.gridsearch_rsq_mask, 1],
-            self.gaussian_params[self.gridsearch_rsq_mask, 2] * self.nn[max_rsqs],
+            self.gaussian_params[self.gridsearch_rsq_mask, 2] * np.sqrt(self.nn[max_rsqs]),
             self.best_fitting_beta,
             self.best_fitting_baseline,
             self.nn[max_rsqs],
@@ -1514,6 +1513,14 @@ class CFFitter(Fitter):
         
         # Zscore the data and the preds
         zdat,zpred=zscore(self.test_data,axis=1),zscore(self.test_predictions,axis=1)
+
+        def squaresign(vec):
+            """squaresign
+                Raises something to a power in a sign-sensive way.
+                Useful for if dot products happen to be negative.
+            """
+            vec2 = (vec**2)*np.sign(vec)
+            return vec2
         
         # Get the crossval R2. Here we use np.einsum to calculate the correlations across each row of the test data and the test predictions
         self.xval_R2=squaresign(np.einsum('ij,ij->i',zpred,zdat)/self.test_data.shape[-1])
