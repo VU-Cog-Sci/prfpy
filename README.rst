@@ -4,16 +4,23 @@ pRFpy is a package that allows you to simulate
 and fit population receptive field (pRF) parameters from time series data.
 
 
-To get started using these components in your own software, please go to the
-repository README_.
-
-.. _README: https://github.com/VU-Cog-Sci/prfpy/README.rst
-
-clone this repository, then run
+To get started using these components in your own software, clone this repository, then run
 
 python installer.py
 
-this will try to install dependencies with conda, and if not possible, with pip.
+this will try to install dependencies with conda, and if not possible, with pip. The only
+required dependencies are:
+
+numpy>=1.16
+scipy>=1.4
+statsmodels>=0.8
+joblib
+nilearn
+
+To install dependencies with pip directly, run
+
+python -m pip install -e .
+
 
 License
 =======
