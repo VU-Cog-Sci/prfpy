@@ -1,30 +1,52 @@
-import os
-from setuptools import setup, find_packages
-PACKAGES = find_packages()
+# -*- coding: utf-8 -*-
 
-# Get version and release info, which is all stored in nideconv/version.py
-ver_file = os.path.join('prfpy', 'version.py')
-with open(ver_file) as f:
-    exec(f.read())
-
-opts = dict(name=NAME,
-            maintainer=MAINTAINER,
-            maintainer_email=MAINTAINER_EMAIL,
-            description=DESCRIPTION,
-            long_description=LONG_DESCRIPTION,
-            url=URL,
-            download_url=DOWNLOAD_URL,
-            license=LICENSE,
-            classifiers=CLASSIFIERS,
-            author=AUTHOR,
-            author_email=AUTHOR_EMAIL,
-            platforms=PLATFORMS,
-            version=VERSION,
-            packages=PACKAGES,
-            package_data=PACKAGE_DATA,
-            install_requires=REQUIRES,
-            requires=REQUIRES)
+"""
+Setup file for the *CMasher* package.
+"""
 
 
-if __name__ == '__main__':
-    setup(**opts)
+# %% IMPORTS
+# Built-in imports
+from codecs import open
+import re
+
+# Package imports
+from setuptools import find_packages, setup
+
+
+# %% SETUP DEFINITION
+# Get the long description from the README file
+with open('README.rst', 'r') as f:
+    long_description = f.read()
+
+# Get the requirements list
+with open('requirements.txt', 'r') as f:
+    requirements = f.read().splitlines()
+
+
+# Setup function declaration
+setup(name="prfpy",
+      version='dev0',
+      author="Marco Aqil",
+      author_email='marco.aqil@gmail.com',
+      description=("prfpy: a package to fit and simulate population receptive field models"),
+      long_description=long_description,
+      url="https://github.com/VU-Cog-Sci/prfpy",
+      project_urls={
+          'Documentation': "https://github.com/VU-Cog-Sci/prfpy",
+          'Source Code': "https://github.com/VU-Cog-Sci/prfpy",
+          },
+      license='GPL3',
+      platforms=['Windows', 'Mac OS-X', 'Linux', 'Unix'],
+      classifiers=["Development Status :: 3 - Alpha",
+               "Environment :: Console",
+               "Intended Audience :: Science/Research",
+               "License :: OSI Approved :: GPL-v3 License",
+               "Operating System :: OS Independent",
+               "Programming Language :: Python",
+               "Topic :: Scientific/Engineering"],
+      python_requires='>=3.6, <4',
+      packages=find_packages(),
+      install_requires=requirements,
+      zip_safe=False,
+      )
