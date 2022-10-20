@@ -243,10 +243,16 @@ class Fitter:
             self.starting_params = self.gridsearch_params
 
             if self.fit_hrf:
+                assert ((isinstance(self.model.hrf, list)) or \
+                        (isinstance(self.model.hrf, np.ndarray))) and \
+                        len(self.model.hrf) == 3 and self.model.hrf[0] == 1,\
+                        'to fit HRF, specify it as a list of 3 values. first value must be 1. \
+                         fitting the last value (dispersion) is not recommended'
+                
                 self.starting_params = np.insert(
-                    self.starting_params, -1, 1.0, axis=-1)
+                    self.starting_params, -1, self.model.hrf[1], axis=-1)
                 self.starting_params = np.insert(
-                    self.starting_params, -1, 0.0, axis=-1)
+                    self.starting_params, -1, self.model.hrf[2], axis=-1)
 
         else:
             self.starting_params = starting_params

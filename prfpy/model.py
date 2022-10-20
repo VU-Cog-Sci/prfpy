@@ -190,7 +190,14 @@ class Iso2DGaussianModel(Model):
                 self.hrf = self.create_hrf()
             # some specific hrf with spm basis set
             elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
-                self.hrf = self.create_hrf(hrf_params=hrf)
+                if hrf[0] == 1: 
+                    self.hrf = self.create_hrf(hrf_params=hrf)
+                else:
+                    print("WARNING: hrf[0] is not 1. this will confound it with amplitude\
+                          parameters. consider setting it to 1 unless you are absolutely sure of what you are doing.\
+                          this will also prevent you from fitting the HRF.")
+                    self.hrf = self.create_hrf(hrf_params=hrf)
+                    
             # some specific hrf already defined at the TR (!)
             # elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
             elif isinstance(hrf, np.ndarray) and hrf.shape[0] == 1 and hrf.shape[1] > 3:
