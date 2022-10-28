@@ -31,7 +31,7 @@ class Model(object):
         """
         self.stimulus = stimulus
 
-    def create_hrf(self, hrf_params=[1.0, 1.0, 0.0]):
+    def create_hrf(self, hrf_params):
         """
         
         construct single or multiple HRFs        
@@ -151,7 +151,7 @@ class Iso2DGaussianModel(Model):
 
     def __init__(self,
                  stimulus,
-                 hrf=None,
+                 hrf=[1.0, 1.0, 0.0],
                  filter_predictions=False,
                  filter_type='dc',
                  filter_params={},
@@ -181,15 +181,14 @@ class Iso2DGaussianModel(Model):
         self.__dict__.update(kwargs)
 
         # HRF stuff
-        if hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
-            self.hrf = 'direct'
-            self.stimulus.convolved_design_matrix = np.copy(stimulus.design_matrix)
+        if isinstance(hrf, str):
+            if hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
+                self.hrf = 'direct'
+                self.stimulus.convolved_design_matrix = np.copy(stimulus.design_matrix)
             
         else:
-            if hrf is None:  # for use with standard fMRI
-                self.hrf = self.create_hrf()
             # some specific hrf with spm basis set
-            elif ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
+            if ((isinstance(hrf, list)) or (isinstance(hrf, np.ndarray))) and len(hrf) == 3:
                 
                 self.hrf_params = np.copy(hrf)
                 
