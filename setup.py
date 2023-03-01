@@ -26,7 +26,7 @@ with open('requirements.txt', 'r') as f:
 
 # Setup function declaration
 setup(name="prfpy",
-      version='dev0',
+      version='0.0.1',
       author="Marco Aqil",
       author_email='marco.aqil@gmail.com',
       description=("prfpy: a package to fit and simulate population receptive field models"),
