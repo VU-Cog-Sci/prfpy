@@ -17,7 +17,7 @@ def convolve_stimulus_dm(stimulus, hrf):
         contains kernel for convolution
 
     """
-    hrf_shape = np.ones(len(stimulus.shape), dtype=np.int)
+    hrf_shape = np.ones(len(stimulus.shape), dtype=int)
     hrf_shape[-1] = hrf.shape[-1]
 
     return signal.fftconvolve(stimulus, hrf.reshape(hrf_shape), mode='full', axes=(-1))[..., :stimulus.shape[-1]]
