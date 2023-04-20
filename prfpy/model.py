@@ -225,36 +225,13 @@ class Iso2DGaussianModel(Model):
         self.normalize_RFs = normalize_RFs
         
 
-    def create_rfs(self):
-        """create_rfs
-
-        creates rfs for the grid
-
-        """
-        assert hasattr(self, 'xs'), "please set up the grid first"
-        self.grid_rfs = np.rot90(gauss2D_iso_cart(
-            x=self.stimulus.x_coordinates[..., np.newaxis],
-            y=self.stimulus.y_coordinates[..., np.newaxis],
-            mu=np.array([self.xs.ravel(), self.ys.ravel()]),
-            sigma=self.sizes.ravel(),
-            normalize_RFs=self.normalize_RFs).T, axes=(1,2))
-
-    def stimulus_times_prfs(self):
-        """stimulus_times_prfs
-
-        creates timecourses for each of the rfs in self.grid_rfs
-
-        """
-        assert hasattr(self, 'grid_rfs'), "please create the rfs first"
-        self.predictions = stimulus_through_prf(
-            self.grid_rfs, self.stimulus.convolved_design_matrix,
-            self.stimulus.dx)
-
 
     def create_grid_predictions(self,
-                                ecc_grid,
-                                polar_grid,
-                                size_grid):
+                                mu_x,
+                                mu_y,
+                                size,
+                                hrf_1=None,
+                                hrf_2=None):
         """create_predictions
 
         creates predictions for a given set of parameters
@@ -263,32 +240,28 @@ class Iso2DGaussianModel(Model):
 
         Parameters
         ----------
-        ecc_grid : list
-            to be filled in by user
-        polar_grid : list
-            to be filled in by user
-        size_grid : list
-            to be filled in by user
+
         """
-        assert ecc_grid is not None and polar_grid is not None and size_grid is not None, \
-            "please fill in all spatial grids"
 
-        self.eccs, self.polars, self.sizes = np.meshgrid(
-            ecc_grid, polar_grid, size_grid)
-        self.xs, self.ys = np.cos(self.polars) * \
-            self.eccs, np.sin(self.polars) * self.eccs
 
-        self.create_rfs()
-        self.stimulus_times_prfs()
+        n_predictions = len(mu_x)
 
-        if self.filter_predictions:
-            self.predictions = filter_predictions(
-                self.predictions,
-                self.filter_type,
-                self.filter_params)
-            self.filtered_predictions = True
-        else:
-            self.filtered_predictions = False
+        if hrf_1 is not None and hrf_2 is not None:
+            if len(hrf_1) == 1 and len(hrf_2) == 1:
+                hrf_1 = hrf_1 * np.ones(n_predictions)
+                hrf_2 = hrf_2 * np.ones(n_predictions)
+
+        
+        prediction_params = np.array([mu_x,
+                                      mu_y,
+                                      size,
+                                      1.0*np.ones(n_predictions),
+                                      0.0*np.ones(n_predictions),                                     
+                                      hrf_1,
+                                      hrf_2])
+        
+        return self.return_prediction(*list(prediction_params)).astype('float32')
+
 
     def return_prediction(self,
                                  mu_x,

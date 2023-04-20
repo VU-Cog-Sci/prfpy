@@ -377,7 +377,9 @@ class Iso2DGaussianFitter(Fitter):
                  verbose=False,
                  n_batches=10,
                  fixed_grid_baseline=None,
-                 grid_bounds=None):
+                 grid_bounds=None,
+                 hrf_1_grid=None,
+                 hrf_2_grid=None):
         """grid_fit
 
         performs grid fit using provided grids and predictor definitions
@@ -403,11 +405,30 @@ class Iso2DGaussianFitter(Fitter):
         None.
 
         """
-        # let the model create the timecourses
-        self.model.create_grid_predictions(ecc_grid=ecc_grid,
-                                             polar_grid=polar_grid,
-                                             size_grid=size_grid)
-        self.model.predictions = self.model.predictions.astype('float32')
+        # setting up grid for norm model new params
+        if hrf_1_grid is None or hrf_2_grid is None:
+            eccs, polars, sizes = np.meshgrid(
+            ecc_grid, polar_grid, size_grid)
+            mu_x, mu_y = np.cos(polars) * eccs, np.sin(polars) * eccs
+
+            self.hrf_1 = None
+            self.hrf_2 = None
+        else:
+            eccs, polars, sizes, hrf_1, hrf_2 = np.meshgrid(
+            ecc_grid, polar_grid, size_grid, hrf_1_grid, hrf_2_grid)
+            mu_x, mu_y = np.cos(polars) * eccs, np.sin(polars) * eccs
+
+            self.hrf_1 = hrf_1.ravel()
+            self.hrf_2 = hrf_2.ravel()         
+
+        self.mu_x = mu_x.ravel()
+        self.mu_y = mu_y.ravel()
+        self.sizes = sizes.ravel()
+
+        self.n_predictions = len(self.mu_x)
+
+        self.grid_predictions = self.model.create_grid_predictions(self.mu_x,self.mu_y,self.sizes,
+                                                         self.hrf_1,self.hrf_2)
 
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
@@ -454,9 +475,9 @@ class Iso2DGaussianFitter(Fitter):
             return result
 
         # bookkeeping
-        sum_preds = np.sum(self.model.predictions, axis=-1)
+        sum_preds = np.sum(self.grid_predictions, axis=-1)
         square_norm_preds = np.linalg.norm(
-            self.model.predictions, axis=-1, ord=2)**2
+            self.grid_predictions, axis=-1, ord=2)**2
 
         # split data in batches
         split_indices = np.array_split(
@@ -471,7 +492,7 @@ class Iso2DGaussianFitter(Fitter):
             delayed(rsq_betas_for_batch)(
                 data=data,
                 vox_num=vox_num,
-                predictions=self.model.predictions,
+                predictions=self.grid_predictions,
                 n_timepoints=self.n_timepoints,
                 data_var=self.data_var,
                 sum_preds=sum_preds,
@@ -486,14 +507,28 @@ class Iso2DGaussianFitter(Fitter):
         self.best_fitting_beta = grid_search_rbs[:, 3]
 
         # output
-        self.gridsearch_params = np.array([
-            self.model.xs.ravel()[max_rsqs],
-            self.model.ys.ravel()[max_rsqs],
-            self.model.sizes.ravel()[max_rsqs],
-            self.best_fitting_beta,
-            self.best_fitting_baseline,
-            self.gridsearch_r2
-        ]).T
+        if hrf_1_grid is not None and hrf_2_grid is not None:
+            self.gridsearch_params = np.array([
+                self.mu_x[max_rsqs],
+                self.mu_y[max_rsqs],
+                self.sizes[max_rsqs],
+                self.best_fitting_beta,
+                self.best_fitting_baseline,
+                self.hrf_1[max_rsqs],
+                self.hrf_2[max_rsqs],
+                self.gridsearch_r2
+            ]).T
+        else:
+            self.gridsearch_params = np.array([
+                self.mu_x[max_rsqs],
+                self.mu_y[max_rsqs],
+                self.sizes[max_rsqs],
+                self.best_fitting_beta,
+                self.best_fitting_baseline,
+                self.model.hrf_params[1] * np.ones(self.n_units),
+                self.model.hrf_params[2] * np.ones(self.n_units),
+                self.gridsearch_r2
+            ]).T            
 
        
 
