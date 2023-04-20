@@ -247,7 +247,7 @@ class Iso2DGaussianModel(Model):
         n_predictions = len(mu_x)
 
         if hrf_1 is not None and hrf_2 is not None:
-            if len(hrf_1) == 1 and len(hrf_2) == 1:
+            if not hasattr(hrf_1, 'shape') and not hasattr(hrf_1, 'shape'):
                 hrf_1 = hrf_1 * np.ones(n_predictions)
                 hrf_2 = hrf_2 * np.ones(n_predictions)
 
@@ -458,12 +458,6 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
         """
         n_predictions = len(sa)
 
-        if hrf_1 is not None and hrf_2 is not None:
-            if len(hrf_1) == 1 and len(hrf_2) == 1:
-                hrf_1 = hrf_1 * np.ones(n_predictions)
-                hrf_2 = hrf_2 * np.ones(n_predictions)
-
-        
         prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
                                     gaussian_params[1]*np.ones(n_predictions),
                                     gaussian_params[2]*np.ones(n_predictions),

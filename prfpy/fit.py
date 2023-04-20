@@ -162,7 +162,7 @@ class Fitter:
 
     """
 
-    def __init__(self, data, model, n_jobs=1, fit_hrf=False, **kwargs):
+    def __init__(self, data, model, n_jobs=1, **kwargs):
         """__init__ sets up data and model
 
         Parameters
@@ -174,9 +174,7 @@ class Fitter:
             predictions.
         n_jobs : int, optional
             number of jobs to use in parallelization (iterative search), by default 1
-        fit_hrf : boolean, optional
-            Whether or not to fit two extra parameters for hrf derivative and
-            dispersion. The default is False.
+
         """
         assert len(data.shape) == 2, \
             "input data should be two-dimensional, with first dimension units and second dimension time"     
@@ -186,7 +184,6 @@ class Fitter:
         
         self.model = model
         self.n_jobs = n_jobs
-        self.fit_hrf = fit_hrf
 
         self.__dict__.update(kwargs)
 
@@ -322,7 +319,7 @@ class Fitter:
             self.model.filter_params['late_iso_dict'] = test_stimulus.late_iso_dict
             
         if self.rsq_mask.sum()>0:
-            if self.fit_hrf and single_hrf:
+            if single_hrf:
                 median_hrf_params = np.median(self.iterative_search_params[self.rsq_mask,-3:-1],
                                                axis=0)
                 
@@ -541,7 +538,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
     """
 
-    def __init__(self, model, data, n_jobs=1, fit_hrf=False,
+    def __init__(self, model, data, n_jobs=1,
                  previous_gaussian_fitter=None,
                  use_previous_gaussian_fitter_hrf=False,
                  **kwargs):
@@ -576,7 +573,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
             self.previous_gaussian_fitter = previous_gaussian_fitter
             self.use_previous_gaussian_fitter_hrf = use_previous_gaussian_fitter_hrf
 
-        super().__init__(data, model, n_jobs=n_jobs, fit_hrf=fit_hrf, **kwargs)
+        super().__init__(data, model, n_jobs=n_jobs, **kwargs)
 
     def insert_new_model_params(self, old_params):
         """
@@ -649,14 +646,6 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
             else:
                 self.rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:,-1] > rsq_threshold
 
-            # enforcing hrf_fit "consistency" with previous gaussian fit:
-            if self.previous_gaussian_fitter.fit_hrf != self.fit_hrf:
-
-                print("Warning: fit_hrf was " + str(
-                    self.previous_gaussian_fitter.fit_hrf) + " in previous_\
-                      gaussian_fit. Overriding current fit_hrf to avoid inconsistency.")
-
-                self.fit_hrf = self.previous_gaussian_fitter.fit_hrf
 
         super().iterative_fit(rsq_threshold=rsq_threshold,
                               verbose=verbose,
@@ -1195,9 +1184,9 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > rsq_threshold
 
             if self.use_previous_gaussian_fitter_hrf:
-                if self.previous_gaussian_fitter.fit_hrf:
-                    self.hrf_1 = self.previous_gaussian_fitter.iterative_search_params[:, -3]
-                    self.hrf_2 = self.previous_gaussian_fitter.iterative_search_params[:, -2]
+                print("Using HRF from previou gaussian iterative fit")
+                self.hrf_1 = self.previous_gaussian_fitter.iterative_search_params[:, -3]
+                self.hrf_2 = self.previous_gaussian_fitter.iterative_search_params[:, -2]
             
         else:
             print('Please provide suitable [n_units, 4] gaussian_params,\
@@ -1205,7 +1194,6 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             raise ValueError
 
         
-
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
         def rsq_betas_for_batch(data,
@@ -1226,9 +1214,8 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 # gridding is over new parameters, while size and position
                 # are obtained from previous Gaussian fit
                 if self.use_previous_gaussian_fitter_hrf:
-                    if self.previous_gaussian_fitter.fit_hrf:
-                        hrf_1 = self.hrf_1[vox_num]
-                        hrf_2 = self.hrf_2[vox_num]
+                    hrf_1 = hrf_1[vox_num] * np.ones(n_predictions)
+                    hrf_2 = hrf_2[vox_num] * np.ones(n_predictions)
 
                 predictions = self.model.create_grid_predictions(
                     gaussian_params[vox_num, :-1], sa, ss, nb, sb, hrf_1, hrf_2)
