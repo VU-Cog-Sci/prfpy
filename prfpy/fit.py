@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.optimize import fmin_powell, minimize, basinhopping, shgo, dual_annealing
-from scipy.stats import pearsonr, zscore
+from scipy.optimize import fmin_powell, minimize
+from scipy.stats import zscore
 from copy import deepcopy
 from joblib import Parallel, delayed
 
@@ -33,7 +33,7 @@ def error_function(
 
 
 def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
-                     bounds=None, constraints=None, **kwargs):
+                     bounds=None, constraints=None):
     """iterative_search
 
     Generic minimization function called by iterative_fit.
@@ -65,9 +65,6 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
     constraints: list of  scipy.optimize.LinearConstraints and/or
         scipy.optimize.NonLinearConstraints
 
-    **kwargs : TYPE
-        DESCRIPTION.
-
     Raises
     ------
     AssertionError
@@ -76,7 +73,7 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
     Returns
     -------
     2-tuple
-        first element: parameter values,
+        first element: parameter values
         second element: rsq value
     """
     if bounds is not None:
@@ -109,25 +106,6 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
                               options=dict(xtol=xtol,
                                            disp=verbose))
 
-
-            # output = basinhopping(error_function, start_params,
-            #                       niter=10, T=0.01*(len(data) * data.var()), stepsize=2,
-            #                       minimizer_kwargs=dict(method='L-BFGS-B',
-            #                                             bounds=bounds,
-            #                                             options=dict(maxls=60, disp=verbose),
-            #                                             args=(args, data, model.return_prediction)))
-
-            # output = shgo(error_function, bounds=bounds,
-            #               args=(args, data, model.return_prediction),
-            #                       options=dict(disp=verbose),
-            #                       minimizer_kwargs=dict(method='L-BFGS-B',
-            #                                             bounds=bounds,
-            #                                             args=(args, data, model.return_prediction)))
-
-            # output = dual_annealing(error_function, bounds=bounds,
-            #               args=(args, data, model.return_prediction),
-            #                       x0=start_params)
-
         return np.nan_to_num(np.r_[output['x'], 1 -
                      (output['fun'])/(len(data) * data.var())])
 
@@ -158,7 +136,7 @@ class Fitter:
 
     data should be two-dimensional so that all bookkeeping with regard to voxels,
     electrodes, etc is done by the user. Generally, a Fitter class should implement
-    both a `grid_fit` and an `interative_fit` method to be run in sequence.
+    both a `grid_fit` and an `iterative_fit` method to be run in sequence.
 
     """
 
@@ -200,7 +178,7 @@ class Fitter:
                       args={},
                       constraints=None,
                       xtol=1e-4,
-                      ftol=1e-3):
+                      ftol=1e-4):
         """
         Generic function for iterative fitting. Does not need to be
         redefined for new models. It is sufficient to define
@@ -215,14 +193,21 @@ class Fitter:
             Rsq threshold for iterative fitting. Must be between 0 and 1.
         verbose : boolean, optional
             Whether to print output. The default is False.
-        starting_params : ndarray of size [units, model params +1], optional
+        starting_params : ndarray, optional
             Explicit start for iterative fit. The default is None.
         bounds : list of tuples, optional
             Bounds for parameter minimization. The default is None.
+            if bounds are None, will use Powell optimizer
+            if bounds are not None, will use LBFGSB or trust-constr
         args : dictionary, optional
             Further arguments passed to iterative_search. The default is {}.
         constraints: list of scipy.optimize.LinearConstraints and/or
             scipy.optimize.NonLinearConstraints
+            if constraints are not None, will use trust-constr optimizer
+        xtol : float, optional
+            if allowed by optimizer, parameter tolerance for termination of fitting
+        ftol : float, optional
+            if allowed by optimizer, objective function tolerance for termination of fitting
         Returns
         -------
         None.
@@ -231,6 +216,8 @@ class Fitter:
 
         self.bounds = np.array(bounds)
         self.constraints = constraints
+
+        assert rsq_threshold>0, 'rsq_threshold must be >0!'
 
         if starting_params is None:
             assert hasattr(
@@ -297,8 +284,7 @@ class Fitter:
         test_stimulus : PRFStimulus, optional
             PRF stimulus for test. If same as train data, not needed.
         single_hrf : Bool
-            Only necessary when HRF params were fit during training. 
-            If True, uses the average-fit HRF params in crossvalidation
+            If True, uses the average-across-units HRF params in crossvalidation
 
         Returns
         -------
@@ -336,11 +322,7 @@ class Fitter:
                 
             #calculate CV-rsq        
             CV_rsq = np.nan_to_num(1-np.sum((test_data[self.rsq_mask]-test_predictions)**2, axis=-1)/(test_data.shape[-1]*test_data[self.rsq_mask].var(-1)))
-            #calcualte CV-correlation
-            #CV_rsq = np.zeros(self.rsq_mask.sum())
-            #for i in range(len(CV_rsq)):
-            #    CV_rsq[i] = np.nan_to_num(pearsonr(test_data[self.rsq_mask][i],np.nan_to_num(test_predictions[i]))[0])
-            
+
             self.iterative_search_params[self.rsq_mask,-1] = CV_rsq
         else:
             print("No voxels/vertices above Rsq threshold were found.")
@@ -372,7 +354,7 @@ class Iso2DGaussianFitter(Fitter):
                  polar_grid,
                  size_grid,
                  verbose=False,
-                 n_batches=10,
+                 n_batches=1,
                  fixed_grid_baseline=None,
                  grid_bounds=None,
                  hrf_1_grid=None,
@@ -385,18 +367,33 @@ class Iso2DGaussianFitter(Fitter):
         Parameters
         ----------
         ecc_grid : 1D ndarray
-            to be filled in by user
+            array of eccentricity values in grid
         polar_grid : 1D ndarray
-            to be filled in by user
+            array of polar angle values in grid
         size_grid : 1D ndarray
-            to be filled in by user
+            array of size values in grid
         verbose : boolean, optional
             print output. The default is False.
         n_batches : int, optional
-            The grid fit is performed in parallel over n_batches of units.
-            Batch parallelization is faster than single-unit
-            parallelization and of sequential computing.
-
+            The data is split in n_batches of units and
+            grid fit is performed in parallel.
+        fixed_grid_baseline : float, optional
+            The default is None. If not None, bold baseline will be fixed
+            to this value (recommended).
+        grid_bounds : list containing one tuple, optional
+            The default is None. If not None, only values of pRF amplitude
+            between grid_bounds[0][0] and grid_bounds[0][1] will be allowed.
+            This is generally used to only allow positive pRFs, for example by
+            specifying grid_bounds = [(0,1000)], only pRFs with amplitude
+            between 0 and 1000 will be allowed in the grid fit  
+        hrf_1_grid : 1D ndarray, optional
+            The default is None. If not None, and if 
+            self.use_previous_gaussian_fitter_hrf is False,
+            will perform grid over these values of the hrf_1 parameter.
+        hrf_1_grid : 1D ndarray, optional
+            The default is None. If not None, and if 
+            self.use_previous_gaussian_fitter_hrf is False,
+            will perform grid over these values of the hrf_1 parameter.
         Returns
         -------
         None.
@@ -540,23 +537,23 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
 
     def __init__(self, model, data, n_jobs=1,
                  previous_gaussian_fitter=None,
-                 use_previous_gaussian_fitter_hrf=False,
-                 **kwargs):
+                 use_previous_gaussian_fitter_hrf=False):
         """
 
         Parameters
         ----------
-        data : numpy.ndarray, 2D
-            input data. First dimension units, Second dimension time
         model : prfpy.Model
             Model object that provides the grid and iterative search
             predictions.
+        data : numpy.ndarray, 2D
+            input data. First dimension units, Second dimension time
         n_jobs : int, optional
             number of jobs to use in parallelization (iterative search), by default 1
         previous_gaussian_fitter : Iso2DGaussianFitter, optional
-            Must have iterative_search_params. The default is None.
-        **kwargs : TYPE
-            DESCRIPTION.
+            The default is None. Must have iterative_search_params. 
+        use_previous_gaussian_fitter_hrf : boolean, optional
+            The default is False. if True, will use the HRF results from
+            previous_gaussian_fitter during grid_fit of this model.
 
         Returns
         -------
@@ -573,7 +570,7 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
             self.previous_gaussian_fitter = previous_gaussian_fitter
             self.use_previous_gaussian_fitter_hrf = use_previous_gaussian_fitter_hrf
 
-        super().__init__(data, model, n_jobs=n_jobs, **kwargs)
+        super().__init__(data, model, n_jobs=n_jobs)
 
     def insert_new_model_params(self, old_params):
         """
@@ -582,9 +579,11 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
         If `grid_fit` is defined and performed, `self.gridsearch_params` take
         precedence, and this function becomes unnecessary.
 
+        Generally should not be used. grid_fit is preferable.
+
         Parameters
         ----------
-        old_params : ndarray [n_units, 6]
+        old_params : ndarray [n_units, 8]
             Previous Gaussian fitter parameters and rsq.
 
         Returns
@@ -604,9 +603,9 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
                       starting_params=None,
                       bounds=None,
                       args={},
-                      constraints=[],
+                      constraints=None,
                       xtol=1e-4,
-                      ftol=1e-3):
+                      ftol=1e-4):
         """
         Iterative_fit for models building on top of the Gaussian. Does not need to be
         redefined for new models. It is sufficient to define either
@@ -623,9 +622,17 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
         starting_params : ndarray of size [units, model_params +1], optional
             Explicit start for minimization. The default is None.
         bounds : list of tuples, optional
-            Bounds for parameter minimization. The default is None.
+            Bounds for parameter minimization. Must have the same
+            length as start_params. The default is None.
         args : dictionary, optional
             Further arguments passed to iterative_search. The default is {}.
+        constraints: list of scipy.optimize.LinearConstraints and/or
+            scipy.optimize.NonLinearConstraints
+            if constraints are not None, will use trust-constr optimizer
+        xtol : float, optional
+            if allowed by optimizer, parameter tolerance for termination of fitting
+        ftol : float, optional
+            if allowed by optimizer, objective function tolerance for termination of fitting
 
         Returns
         -------
@@ -636,6 +643,10 @@ class Extend_Iso2DGaussianFitter(Iso2DGaussianFitter):
         if starting_params is None and not hasattr(
             self, 'gridsearch_params') and hasattr(
                 self, 'previous_gaussian_fitter'):
+            
+            print("Warning: could not find gridsearch_params nor\
+                  previous_gaussian_fitter. Using insert_new_model_params\
+                  to specify starting values of new model params. Not recommended.")
 
             starting_params = self.insert_new_model_params(
                 self.previous_gaussian_fitter.iterative_search_params)
@@ -667,12 +678,12 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         """
         Parameters
         ----------
-        old_params : ndarray [n_units, 6]
+        old_params : ndarray [n_units, 8]
             Previous Gaussian fitter parameters and rsq.
 
         Returns
         -------
-        new_params : ndarray [n_units, 7]
+        new_params : ndarray [n_units, 9]
             Starting parameters and rsq for CSS iterative fit.
 
         """
@@ -684,7 +695,7 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  exponent_grid,
                  gaussian_params=None,
                  verbose=False,
-                 n_batches=10,
+                 n_batches=1,
                  rsq_threshold=0.05,
                  fixed_grid_baseline=None,
                  grid_bounds=None,
@@ -709,9 +720,27 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         verbose : boolean, optional
             print output. The default is False.
         n_batches : int, optional
-            Number of voxel batches. The default is 1000.
+            The data is split in n_batches of units and
+            grid fit is performed in parallel.
         rsq_threshold : float, optional
-            rsq threshold for grid fitting. The default is 0.1.
+            rsq threshold for grid fitting. The default is 0.05.
+        fixed_grid_baseline : float, optional
+            The default is None. If not None, bold baseline will be fixed
+            to this value (recommended).
+        grid_bounds : list containing one tuple, optional
+            The default is None. If not None, only values of pRF amplitude
+            between grid_bounds[0][0] and grid_bounds[0][1] will be allowed.
+            This is generally used to only allow positive pRFs, for example by
+            specifying grid_bounds = [(0,1000)], only pRFs with amplitude
+            between 0 and 1000 will be allowed in the grid fit  
+        hrf_1_grid : 1D ndarray, optional
+            The default is None. If not None, and if 
+            self.use_previous_gaussian_fitter_hrf is False,
+            will perform grid over these values of the hrf_1 parameter.
+        hrf_1_grid : 1D ndarray, optional
+            The default is None. If not None, and if 
+            self.use_previous_gaussian_fitter_hrf is False,
+            will perform grid over these values of the hrf_1 parameter.
 
         Raises
         ------
@@ -894,12 +923,12 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         """
         Parameters
         ----------
-        old_params : ndarray [n_units, 6]
+        old_params : ndarray [n_units, 8]
             Previous Gaussian fitter parameters and rsq.
 
         Returns
         -------
-        new_params : ndarray [n_units, 8]
+        new_params : ndarray [n_units, 10]
             Starting parameters and rsq for DoG iterative fit.
 
         """
@@ -919,7 +948,7 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  surround_size_grid,
                  gaussian_params=None,
                  verbose=False,
-                 n_batches=10,
+                 n_batches=1,
                  rsq_threshold=0.05,
                  fixed_grid_baseline=None,
                  grid_bounds=None,
@@ -946,9 +975,28 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         verbose : boolean, optional
             print output. The default is False.
         n_batches : int, optional
-            Number of voxel batches. The default is 1000.
+            Number of voxel batches. The default is 1.
         rsq_threshold : float, optional
-            rsq threshold for grid fitting. The default is 0.1.
+            rsq threshold for grid fitting. The default is 0.05.
+        fixed_grid_baseline : float, optional
+            The default is None. If not None, bold baseline will be fixed
+            to this value (recommended).
+        grid_bounds : list containing one or two tuples, optional
+            The default is None. If not None, only values of pRF amplitude
+            between grid_bounds[0][0] and grid_bounds[0][1] will be allowed.
+            This is generally used to only allow positive pRFs, for example by
+            specifying grid_bounds = [(0,1000)], only pRFs with amplitude
+            between 0 and 1000 will be allowed in the grid fit.
+            If list contains two tuples, second tuple will give bounds on
+            Surround Amplitude.
+        hrf_1_grid : 1D ndarray, optional
+            The default is None. If not None, and if 
+            self.use_previous_gaussian_fitter_hrf is False,
+            will perform grid over these values of the hrf_1 parameter.
+        hrf_1_grid : 1D ndarray, optional
+            The default is None. If not None, and if 
+            self.use_previous_gaussian_fitter_hrf is False,
+            will perform grid over these values of the hrf_1 parameter.
 
         Raises
         ------
@@ -1003,7 +1051,6 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             raise ValueError
 
         
-
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
         def rsq_betas_for_batch(data,
@@ -1144,12 +1191,12 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
         Parameters
         ----------
-        old_params : ndarray [n_units, 6]
+        old_params : ndarray [n_units, 8]
             Previous Gaussian fitter parameters and rsq.
 
         Returns
         -------
-        new_params : ndarray [n_units, 10]
+        new_params : ndarray [n_units, 12]
             Starting parameters and rsq for norm iterative fit.
 
         """
@@ -1175,7 +1222,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  surround_baseline_grid,
                  gaussian_params=None,
                  verbose=False,
-                 n_batches=10,
+                 n_batches=1,
                  rsq_threshold=0.05,
                  fixed_grid_baseline=None,
                  grid_bounds=None,
@@ -1206,9 +1253,29 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         verbose : boolean, optional
             print output. The default is False.
         n_batches : int, optional
-            Number of voxel batches. The default is 1000.
+            The data is split in n_batches of units and
+            grid fit is performed in parallel.
         rsq_threshold : float, optional
-            rsq threshold for grid fitting. The default is 0.1.
+            rsq threshold for grid fitting. The default is 0.05.
+        fixed_grid_baseline : float, optional
+            The default is None. If not None, bold baseline will be fixed
+            to this value (recommended).
+        grid_bounds : list containing one tuple, optional
+            The default is None. If not None, only values of pRF amplitude
+            between grid_bounds[0][0] and grid_bounds[0][1] will be allowed.
+            This is generally used to only allow positive pRFs, for example by
+            specifying grid_bounds = [(0,1000)], only pRFs with amplitude
+            between 0 and 1000 will be allowed in the grid fit.
+            If list contains two tuples, second tuple will give bounds on
+            Neural Baseline (Norm param B).
+        hrf_1_grid : 1D ndarray, optional
+            The default is None. If not None, and if 
+            self.use_previous_gaussian_fitter_hrf is False,
+            will perform grid over these values of the hrf_1 parameter.
+        hrf_1_grid : 1D ndarray, optional
+            The default is None. If not None, and if 
+            self.use_previous_gaussian_fitter_hrf is False,
+            will perform grid over these values of the hrf_1 parameter.
 
         Raises
         ------

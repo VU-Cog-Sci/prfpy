@@ -236,7 +236,7 @@ class Iso2DGaussianModel(Model):
 
         creates predictions for a given set of parameters
 
-        [description]
+        see return_prediction
 
         Parameters
         ----------
@@ -290,7 +290,7 @@ class Iso2DGaussianModel(Model):
         baseline : float
             baseline of pRF
         hrf_1, hrf_2 : floats, optional
-            hrf parameters, specified only if hrf is being fit to data, otherwise not needed.
+            if specified, will be used to create HRF.
 
         Returns
         -------
@@ -330,7 +330,9 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
 
     def create_grid_predictions(self,
                                 gaussian_params,
-                                nn):
+                                nn,
+                                hrf_1=None,
+                                hrf_2=None):
         """create_predictions
 
         creates predictions for a given set of parameters
@@ -355,7 +357,9 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
                                     np.sqrt(nn),
                                     1.0*np.ones(n_predictions),
                                     0.0*np.ones(n_predictions),
-                                    nn])
+                                    nn,
+                                    hrf_1,
+                                    hrf_2])
         
         return self.return_prediction(*list(prediction_params)).astype('float32')    
 
@@ -389,7 +393,7 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
         n : float, optional
             exponent of pRF (the default is 1, which is a linear Gaussian)
         hrf_1, hrf_2 : floats, optional
-            hrf parameters, specified only if hrf is being fit to data, otherwise not needed.
+            if specified, will be used to create HRF.
 
         Returns
         -------
@@ -453,7 +457,8 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
         sa,ss,nb,sb: ndarrays
             containing the range of grid values for other norm model parameters
             (surroud amplitude (C), surround size (sigma_2), neural baseline (B), surround baseline (D))
-        
+        hrf_1, hrf_2 : floats, optional
+            if specified, will be used to create HRF.       
 
         """
         n_predictions = len(sa)
@@ -510,7 +515,7 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
         surround_baseline : float
             Norm Param D
         hrf_1, hrf_2 : floats, optional
-            hrf parameters, specified only if hrf is being fit to data, otherwise not needed.
+            if specified, will be used to create HRF.   
 
         Returns
         -------
@@ -571,7 +576,9 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
     def create_grid_predictions(self,
                                 gaussian_params,
                                 sa,
-                                ss):
+                                ss,
+                                hrf_1=None,
+                                hrf_2=None):
         """create_predictions
 
         creates predictions for a given set of parameters
@@ -585,7 +592,8 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
         sa,ss: ndarrays
             containing the range of grid values for other DoG model parameters
             (surroud amplitude, surround size (sigma_2))
-        
+        hrf_1, hrf_2 : floats, optional
+            if specified, will be used to create HRF.        
 
         """
         n_predictions = len(sa)
@@ -596,7 +604,9 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
                                     1.0*np.ones(n_predictions),
                                     0.0*np.ones(n_predictions),
                                     sa,
-                                    ss])
+                                    ss,
+                                    hrf_1,
+                                    hrf_2])
         
         return self.return_prediction(*list(prediction_params)).astype('float32')
 
@@ -626,7 +636,16 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
             y-position of pRF
         prf_size : float
             size of pRF
-
+        prf_amplitude : float
+            Amplitude (scaling) of pRF
+        bold_baseline : float
+            BOLD baseline (generally kept fixed)
+        srf_amplitude : float
+            Surround pRF amplitude
+        srf_size : float
+            Surround pRF size
+        hrf_1, hrf_2 : floats, optional
+            if specified, will be used to create HRF.  
 
         Returns
         -------
