@@ -50,7 +50,7 @@ class Model(object):
         
         hrf = np.array(
             [
-                np.ones_like(hrf_params[1])*hrf_params[0] *
+                np.ones_like(hrf_params[1], dtype='float32')*hrf_params[0] *
                 spm_hrf(
                     tr=self.stimulus.TR,
                     oversampling=1,
@@ -64,7 +64,8 @@ class Model(object):
                 spm_dispersion_derivative(
                     tr=self.stimulus.TR,
                     oversampling=1,
-                    time_length=40)[...,np.newaxis]]).sum(
+                    time_length=40)[...,np.newaxis]],
+                    dtype='float32').sum(
             axis=0)                    
 
         return hrf.T
