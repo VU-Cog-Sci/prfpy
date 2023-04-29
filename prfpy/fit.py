@@ -910,8 +910,8 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 self.hrf_2[max_rsqs]]).T
         else:
             self.gridsearch_params[self.gridsearch_rsq_mask,-3:-1] = np.array([
-                self.model.hrf_params[1] * np.ones(self.n_units),
-                self.model.hrf_params[2] * np.ones(self.n_units)]).T
+                self.model.hrf_params[1] * np.ones(self.gridsearch_rsq_mask.sum()),
+                self.model.hrf_params[2] * np.ones(self.gridsearch_rsq_mask.sum())]).T
 
 class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
     """DoG_Iso2DGaussianFitter
@@ -1173,8 +1173,8 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 self.hrf_2[max_rsqs]]).T
         else:
             self.gridsearch_params[self.gridsearch_rsq_mask,-3:-1] = np.array([
-                self.model.hrf_params[1] * np.ones(self.n_units),
-                self.model.hrf_params[2] * np.ones(self.n_units)]).T       
+                self.model.hrf_params[1] * np.ones(self.gridsearch_rsq_mask.sum()),
+                self.model.hrf_params[2] * np.ones(self.gridsearch_rsq_mask.sum())]).T     
 
 
 class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
@@ -1459,8 +1459,8 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 self.hrf_2[max_rsqs]]).T
         else:
             self.gridsearch_params[self.gridsearch_rsq_mask,-3:-1] = np.array([
-                self.model.hrf_params[1] * np.ones(self.n_units),
-                self.model.hrf_params[2] * np.ones(self.n_units)]).T
+                self.model.hrf_params[1] * np.ones(self.gridsearch_rsq_mask.sum()),
+                self.model.hrf_params[2] * np.ones(self.gridsearch_rsq_mask.sum())]).T
 
 
         

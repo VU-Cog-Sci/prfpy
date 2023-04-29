@@ -247,20 +247,20 @@ class Iso2DGaussianModel(Model):
         n_predictions = len(mu_x)
 
         if hrf_1 is not None and hrf_2 is not None:
-            if not hasattr(hrf_1, 'shape') and not hasattr(hrf_1, 'shape'):
+            if not hasattr(hrf_1, 'shape') and not hasattr(hrf_2, 'shape'):
                 hrf_1 = hrf_1 * np.ones(n_predictions)
                 hrf_2 = hrf_2 * np.ones(n_predictions)
 
         
-        prediction_params = np.array([mu_x,
-                                      mu_y,
-                                      size,
-                                      1.0*np.ones(n_predictions),
-                                      0.0*np.ones(n_predictions),                                     
-                                      hrf_1,
-                                      hrf_2])
+        prediction_params = [mu_x,
+                            mu_y,
+                            size,
+                            1.0*np.ones(n_predictions),
+                            0.0*np.ones(n_predictions),                                     
+                            hrf_1,
+                            hrf_2]
         
-        return self.return_prediction(*list(prediction_params)).astype('float32')
+        return self.return_prediction(*prediction_params).astype('float32')
 
 
     def return_prediction(self,
@@ -350,8 +350,13 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
 
         """
         n_predictions = len(nn)
+
+        if hrf_1 is not None and hrf_2 is not None:
+            if not hasattr(hrf_1, 'shape') and not hasattr(hrf_2, 'shape'):
+                hrf_1 = hrf_1 * np.ones(n_predictions)
+                hrf_2 = hrf_2 * np.ones(n_predictions)
         
-        prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
+        prediction_params = [gaussian_params[0]*np.ones(n_predictions),
                                     gaussian_params[1]*np.ones(n_predictions),
                                     gaussian_params[2]*np.ones(n_predictions)*
                                     np.sqrt(nn),
@@ -359,9 +364,9 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
                                     0.0*np.ones(n_predictions),
                                     nn,
                                     hrf_1,
-                                    hrf_2])
+                                    hrf_2]
         
-        return self.return_prediction(*list(prediction_params)).astype('float32')    
+        return self.return_prediction(*prediction_params).astype('float32')    
 
     def return_prediction(self,
                                  mu_x,
@@ -463,7 +468,12 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
         """
         n_predictions = len(sa)
 
-        prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
+        if hrf_1 is not None and hrf_2 is not None:
+            if not hasattr(hrf_1, 'shape') and not hasattr(hrf_2, 'shape'):
+                hrf_1 = hrf_1 * np.ones(n_predictions)
+                hrf_2 = hrf_2 * np.ones(n_predictions)
+
+        prediction_params = [gaussian_params[0]*np.ones(n_predictions),
                                     gaussian_params[1]*np.ones(n_predictions),
                                     gaussian_params[2]*np.ones(n_predictions),
                                     1.0*np.ones(n_predictions),
@@ -473,9 +483,9 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
                                     nb,
                                     sb,
                                     hrf_1,
-                                    hrf_2])
+                                    hrf_2]
         
-        return self.return_prediction(*list(prediction_params)).astype('float32')
+        return self.return_prediction(*prediction_params).astype('float32')
 
     def return_prediction(self,
                                  mu_x,
@@ -597,8 +607,13 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
 
         """
         n_predictions = len(sa)
+
+        if hrf_1 is not None and hrf_2 is not None:
+            if not hasattr(hrf_1, 'shape') and not hasattr(hrf_2, 'shape'):
+                hrf_1 = hrf_1 * np.ones(n_predictions)
+                hrf_2 = hrf_2 * np.ones(n_predictions)
         
-        prediction_params = np.array([gaussian_params[0]*np.ones(n_predictions),
+        prediction_params = [gaussian_params[0]*np.ones(n_predictions),
                                     gaussian_params[1]*np.ones(n_predictions),
                                     gaussian_params[2]*np.ones(n_predictions),
                                     1.0*np.ones(n_predictions),
@@ -606,9 +621,9 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
                                     sa,
                                     ss,
                                     hrf_1,
-                                    hrf_2])
+                                    hrf_2]
         
-        return self.return_prediction(*list(prediction_params)).astype('float32')
+        return self.return_prediction(*prediction_params).astype('float32')
 
     def return_prediction(self,
                                  mu_x,
