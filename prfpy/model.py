@@ -185,7 +185,7 @@ class Iso2DGaussianModel(Model):
         if isinstance(hrf, str):
             if hrf == 'direct':  # for use with anything like eCoG with instantaneous irf
                 self.hrf = 'direct'
-                self.stimulus.convolved_design_matrix = np.copy(stimulus.design_matrix)
+                #self.stimulus.convolved_design_matrix = np.copy(stimulus.design_matrix)
             
         else:
             # some specific hrf with spm basis set
@@ -207,8 +207,8 @@ class Iso2DGaussianModel(Model):
                 self.hrf = np.copy(hrf)
         
         
-            self.stimulus.convolved_design_matrix = convolve_stimulus_dm(
-                stimulus.design_matrix, hrf=self.hrf)
+            #self.stimulus.convolved_design_matrix = convolve_stimulus_dm(
+            #    stimulus.design_matrix, hrf=self.hrf)
 
         # filtering and other stuff
         self.filter_predictions = filter_predictions
