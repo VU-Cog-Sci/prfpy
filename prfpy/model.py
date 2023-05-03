@@ -443,7 +443,7 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
     """
 
     def create_grid_predictions(self,
-                                gaussian_params,
+                                mu_x,mu_y,size,
                                 sa,
                                 ss,
                                 nb,
@@ -474,17 +474,17 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
                 hrf_1 = hrf_1 * np.ones(n_predictions)
                 hrf_2 = hrf_2 * np.ones(n_predictions)
 
-        prediction_params = [gaussian_params[0]*np.ones(n_predictions),
-                                    gaussian_params[1]*np.ones(n_predictions),
-                                    gaussian_params[2]*np.ones(n_predictions),
-                                    1.0*np.ones(n_predictions),
-                                    0.0*np.ones(n_predictions),
-                                    sa,
-                                    ss,
-                                    nb,
-                                    sb,
-                                    hrf_1,
-                                    hrf_2]
+        prediction_params = [mu_x,
+                             mu_y,
+                             size,
+                             1.0*np.ones(n_predictions),
+                             0.0*np.ones(n_predictions),
+                             sa,
+                             ss,
+                             nb,
+                             sb,
+                             hrf_1,
+                             hrf_2]
         
         return self.return_prediction(*prediction_params).astype('float32')
 

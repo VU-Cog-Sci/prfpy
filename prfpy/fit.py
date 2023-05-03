@@ -1227,7 +1227,10 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  fixed_grid_baseline=None,
                  grid_bounds=None,
                  hrf_1_grid=None,
-                 hrf_2_grid=None):
+                 hrf_2_grid=None,
+                 ecc_grid=None,
+                 polar_grid=None,
+                 size_grid=None):
         """
         This function performs a grid_fit for the normalization model new parameters.
         The fit is parallel over batches of voxels, and separate predictions are
@@ -1285,54 +1288,120 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
         """
 
         # setting up grid for norm model new params
-        if hrf_1_grid is None or hrf_2_grid is None:
-            sa, ss, nb, sb = np.meshgrid(
-            surround_amplitude_grid, surround_size_grid,
-            neural_baseline_grid, surround_baseline_grid)
+        if ecc_grid is None or polar_grid is None or size_grid is None:
+            if hrf_1_grid is None or hrf_2_grid is None:
+                sa, ss, nb, sb = np.meshgrid(
+                surround_amplitude_grid, surround_size_grid,
+                neural_baseline_grid, surround_baseline_grid)
 
-            self.hrf_1 = None
-            self.hrf_2 = None
-        else:
-            sa, ss, nb, sb, hrf_1, hrf_2 = np.meshgrid(
-            surround_amplitude_grid, surround_size_grid,
-            neural_baseline_grid, surround_baseline_grid,
-            hrf_1_grid, hrf_2_grid)   
-
-            self.hrf_1 = hrf_1.ravel()
-            self.hrf_2 = hrf_2.ravel()         
-
-        self.sa = sa.ravel()
-        self.ss = ss.ravel()
-        self.nb = nb.ravel()
-        self.sb = sb.ravel()
-
-        self.n_predictions = len(self.nb)
-
-        if gaussian_params is not None and gaussian_params.shape == (
-                self.n_units, 4):
-            self.gaussian_params = gaussian_params.astype('float32')
-            self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
-            
-        elif hasattr(self, 'previous_gaussian_fitter'):
-            starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
-            self.gaussian_params = np.concatenate(
-                (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
-            
-            if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
+                self.hrf_1 = None
+                self.hrf_2 = None
             else:
-                self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > rsq_threshold
+                sa, ss, nb, sb, hrf_1, hrf_2 = np.meshgrid(
+                surround_amplitude_grid, surround_size_grid,
+                neural_baseline_grid, surround_baseline_grid,
+                hrf_1_grid, hrf_2_grid)   
 
-            if self.use_previous_gaussian_fitter_hrf:
-                print("Using HRF from previous gaussian iterative fit")
-                self.hrf_1 = self.previous_gaussian_fitter.iterative_search_params[:, -3]
-                self.hrf_2 = self.previous_gaussian_fitter.iterative_search_params[:, -2]
-            
+                self.hrf_1 = hrf_1.ravel()
+                self.hrf_2 = hrf_2.ravel()         
+
+            self.sa = sa.ravel()
+            self.ss = ss.ravel()
+            self.nb = nb.ravel()
+            self.sb = sb.ravel()
+
+            self.n_predictions = len(self.nb)
+
+            if gaussian_params is not None and gaussian_params.shape == (
+                    self.n_units, 4):
+                self.gaussian_params = gaussian_params.astype('float32')
+                self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
+                
+            elif hasattr(self, 'previous_gaussian_fitter'):
+                starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
+                self.gaussian_params = np.concatenate(
+                    (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
+                
+                if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
+                    self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
+                else:
+                    self.gridsearch_rsq_mask = self.previous_gaussian_fitter.gridsearch_params[:, -1] > rsq_threshold
+
+                if self.use_previous_gaussian_fitter_hrf:
+                    print("Using HRF from previous gaussian iterative fit")
+                    self.hrf_1 = self.previous_gaussian_fitter.iterative_search_params[:, -3]
+                    self.hrf_2 = self.previous_gaussian_fitter.iterative_search_params[:, -2]
+                
+            else:
+                print('Please provide suitable [n_units, 4] gaussian_params,\
+                    or previous_gaussian_fitter')
+                raise ValueError
         else:
-            print('Please provide suitable [n_units, 4] gaussian_params,\
-                  or previous_gaussian_fitter')
-            raise ValueError
+            print("Performing full grid for DN model")
+            if self.use_previous_gaussian_fitter_hrf:
+                print('Will not be able to use voxel-wise hrf parameter from gauss model')
+                self.use_previous_gaussian_fitter_hrf=False
+            self.gaussian_params = None
+            self.gridsearch_rsq_mask = np.ones(self.data.shape[0], dtype='bool')
 
+            if hrf_1_grid is None or hrf_2_grid is None:
+                eccs, polars, sizes, sa, ss, nb, sb = np.meshgrid(
+                ecc_grid, polar_grid, size_grid,
+                surround_amplitude_grid, surround_size_grid,
+                neural_baseline_grid, surround_baseline_grid)
+
+                mu_x, mu_y = np.cos(polars) * eccs, np.sin(polars) * eccs
+
+                self.hrf_1 = None
+                self.hrf_2 = None
+            else:
+                eccs, polars, sizes, sa, ss, nb, sb, hrf_1, hrf_2 = np.meshgrid(
+                ecc_grid, polar_grid, size_grid,
+                surround_amplitude_grid, surround_size_grid,
+                neural_baseline_grid, surround_baseline_grid,
+                hrf_1_grid, hrf_2_grid)   
+
+                mu_x, mu_y = np.cos(polars) * eccs, np.sin(polars) * eccs
+
+                self.hrf_1 = hrf_1.ravel()
+                self.hrf_2 = hrf_2.ravel()         
+
+
+            self.mu_x = mu_x.ravel()
+            self.mu_y = mu_y.ravel()
+            self.sizes = sizes.ravel()
+            self.sa = sa.ravel()
+            self.ss = ss.ravel()
+            self.nb = nb.ravel()
+            self.sb = sb.ravel()
+
+            self.n_predictions = len(self.nb)
+
+            if self.n_predictions>100000:
+                splits = self.n_jobs
+                grid_predictions = Parallel(self.n_jobs, verbose=11)(
+                    delayed(self.model.create_grid_predictions)(mxx,myx,sx,
+                                                                sax,ssx,
+                                                                nbx,sbx,
+                                                                hrf1x,hrf2x)
+                for mxx,myx,sx,sax,ssx,nbx,sbx,hrf1x,hrf2x in
+                zip(np.array_split(self.mu_x,splits),np.array_split(self.mu_y,splits),
+                    np.array_split(self.sizes,splits),np.array_split(self.sa,splits),
+                    np.array_split(self.ss,splits),np.array_split(self.nb,splits),
+                    np.array_split(self.sb,splits),np.array_split(self.hrf_1,splits),
+                    np.array_split(self.hrf_2,splits))
+                )
+                grid_predictions = np.concatenate(grid_predictions,axis=0)
+            else:
+                grid_predictions = self.model.create_grid_predictions(
+                    self.mu_x, self.mu_y, self.sizes,
+                    self.sa, self.ss, self.nb, self.sb, 
+                    self.hrf_1, self.hrf_2)
+            print(f'{self.n_predictions} full grid predictions completed')
+            # bookkeeping
+            self.sum_preds = np.sum(grid_predictions, axis=-1)
+            self.square_norm_preds = np.linalg.norm(
+                grid_predictions, axis=-1, ord=2)**2
         
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
@@ -1353,16 +1422,29 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 # let the model create the timecourses, per voxel, since the
                 # gridding is over new parameters, while size and position
                 # are obtained from previous Gaussian fit
-                if self.use_previous_gaussian_fitter_hrf:
-                    hrf_1 = hrf_1[vox_num] * np.ones(n_predictions)
-                    hrf_2 = hrf_2[vox_num] * np.ones(n_predictions)
+                if self.gaussian_params is not None:
+                    if self.use_previous_gaussian_fitter_hrf:
+                        hrf_1 = hrf_1[vox_num] * np.ones(n_predictions)
+                        hrf_2 = hrf_2[vox_num] * np.ones(n_predictions)
 
-                predictions = self.model.create_grid_predictions(
-                    gaussian_params[vox_num, :-1], sa, ss, nb, sb, hrf_1, hrf_2)
-                # bookkeeping
-                sum_preds = np.sum(predictions, axis=-1)
-                square_norm_preds = np.linalg.norm(
-                    predictions, axis=-1, ord=2)**2
+                    mu_x = gaussian_params[vox_num, 0] * np.ones(n_predictions)
+                    mu_y = gaussian_params[vox_num, 1] * np.ones(n_predictions)
+                    size = gaussian_params[vox_num, 2] * np.ones(n_predictions)
+
+                    predictions = self.model.create_grid_predictions(
+                        mu_x, mu_y, size, sa, ss, nb, sb, hrf_1, hrf_2)
+                    
+                    # bookkeeping
+                    sum_preds = np.sum(predictions, axis=-1)
+                    square_norm_preds = np.linalg.norm(
+                        predictions, axis=-1, ord=2)**2
+                    
+                else:
+                    predictions = grid_predictions
+                    sum_preds = self.sum_preds
+                    square_norm_preds = self.square_norm_preds
+
+ 
                 sumd = np.sum(vox_data)
 
                 # best possible slopes and baselines
@@ -1436,16 +1518,28 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
         self.gridsearch_params = np.zeros((self.n_units, 12))
 
-        self.gridsearch_params[self.gridsearch_rsq_mask,:-3] = np.array([
-            self.gaussian_params[self.gridsearch_rsq_mask, 0],
-            self.gaussian_params[self.gridsearch_rsq_mask, 1],
-            self.gaussian_params[self.gridsearch_rsq_mask, 2],
-            self.best_fitting_beta,
-            self.best_fitting_baseline,
-            self.sa[max_rsqs],
-            self.ss[max_rsqs],
-            self.nb[max_rsqs] * self.best_fitting_beta,
-            self.sb[max_rsqs]]).T
+        if self.gaussian_params is not None:
+            self.gridsearch_params[self.gridsearch_rsq_mask,:-3] = np.array([
+                self.gaussian_params[self.gridsearch_rsq_mask, 0],
+                self.gaussian_params[self.gridsearch_rsq_mask, 1],
+                self.gaussian_params[self.gridsearch_rsq_mask, 2],
+                self.best_fitting_beta,
+                self.best_fitting_baseline,
+                self.sa[max_rsqs],
+                self.ss[max_rsqs],
+                self.nb[max_rsqs] * self.best_fitting_beta,
+                self.sb[max_rsqs]]).T
+        else:
+            self.gridsearch_params[self.gridsearch_rsq_mask,:-3] = np.array([
+                self.mu_x[max_rsqs],
+                self.mu_y[max_rsqs],
+                self.sizes[max_rsqs],
+                self.best_fitting_beta,
+                self.best_fitting_baseline,
+                self.sa[max_rsqs],
+                self.ss[max_rsqs],
+                self.nb[max_rsqs] * self.best_fitting_beta,
+                self.sb[max_rsqs]]).T
 
         self.gridsearch_params[self.gridsearch_rsq_mask,-1] = self.gridsearch_r2             
 
