@@ -1402,7 +1402,8 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             self.sum_preds = np.sum(grid_predictions, axis=-1)
             self.square_norm_preds = np.linalg.norm(
                 grid_predictions, axis=-1, ord=2)**2
-        
+            
+        max_ecc_scr = self.model.stimulus.screen_size_degrees/2.0
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
         def rsq_betas_for_batch(data,
@@ -1427,9 +1428,13 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                         hrf_1 = hrf_1[vox_num] * np.ones(n_predictions)
                         hrf_2 = hrf_2[vox_num] * np.ones(n_predictions)
 
-                    mu_x = gaussian_params[vox_num, 0] * np.ones(n_predictions)
-                    mu_y = gaussian_params[vox_num, 1] * np.ones(n_predictions)
-                    size = gaussian_params[vox_num, 2] * np.ones(n_predictions)
+                    #bring prfs back in the screen for the grid stage if they are outside
+                    ecc_vx = np.sqrt(gaussian_params[vox_num, 0]**2 + gaussian_params[vox_num, 1]**2)
+                    resc_fctr = np.min([max_ecc_scr/ecc_vx,1])
+
+                    mu_x = gaussian_params[vox_num, 0] * resc_fctr * np.ones(n_predictions)
+                    mu_y = gaussian_params[vox_num, 1] * resc_fctr * np.ones(n_predictions)
+                    size = gaussian_params[vox_num, 2] * resc_fctr * np.ones(n_predictions)
 
                     predictions = self.model.create_grid_predictions(
                         mu_x, mu_y, size, sa, ss, nb, sb, hrf_1, hrf_2)
