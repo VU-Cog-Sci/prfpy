@@ -539,32 +539,30 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
         else:
             current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
 
-        # create the rfs
+        # slight memory load improvement to avoid holding all rfs in memory
 
-        prf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+        activation_part = stimulus_through_prf(np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
                                sigma=prf_size,
-                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
+                               normalize_RFs=self.normalize_RFs).T, axes=(1,2)), self.stimulus.design_matrix, self.stimulus.dx)
 
         # surround receptive field (denominator)
-        srf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
+        normalization_part = stimulus_through_prf(np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
                                sigma=srf_size,
-                               normalize_RFs=self.normalize_RFs).T, axes=(1,2))
-
-        dm = self.stimulus.design_matrix
+                               normalize_RFs=self.normalize_RFs).T, axes=(1,2)), self.stimulus.design_matrix, self.stimulus.dx)
 
         # create normalization model timecourse
         
         if current_hrf == 'direct':
-            tc = (prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) + neural_baseline[..., np.newaxis]) /\
-            (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx) + surround_baseline[..., np.newaxis]) \
+            tc = (prf_amplitude[..., np.newaxis] * activation_part  + neural_baseline[..., np.newaxis]) /\
+            (srf_amplitude[..., np.newaxis] * normalization_part + surround_baseline[..., np.newaxis]) \
                 - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
         else:
-            tc = self.convolve_timecourse_hrf((prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) + neural_baseline[..., np.newaxis]) /\
-            (srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx) + surround_baseline[..., np.newaxis]) \
+            tc = self.convolve_timecourse_hrf((prf_amplitude[..., np.newaxis] * activation_part + neural_baseline[..., np.newaxis]) /\
+            (srf_amplitude[..., np.newaxis] * normalization_part + surround_baseline[..., np.newaxis]) \
                 - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
                 , current_hrf)        
 

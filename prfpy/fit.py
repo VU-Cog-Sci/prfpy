@@ -1377,7 +1377,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
             self.n_predictions = len(self.nb)
 
-            if self.n_predictions>100000:
+            if self.n_predictions>50000:
                 splits = self.n_jobs
                 grid_predictions = Parallel(self.n_jobs, verbose=11)(
                     delayed(self.model.create_grid_predictions)(mxx,myx,sx,
