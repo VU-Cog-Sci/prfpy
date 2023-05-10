@@ -486,7 +486,7 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
                              hrf_1,
                              hrf_2]
         
-        return self.return_prediction(*prediction_params).astype('float32')
+        return self.return_prediction(*prediction_params)
 
     def return_prediction(self,
                                  mu_x,
@@ -545,36 +545,38 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
                                sigma=prf_size,
-                               normalize_RFs=self.normalize_RFs).T, axes=(1,2)), self.stimulus.design_matrix, self.stimulus.dx)
+                               normalize_RFs=self.normalize_RFs).T, axes=(1,2)),
+                               self.stimulus.design_matrix, self.stimulus.dx).astype('float32')
 
         # surround receptive field (denominator)
         normalization_part = stimulus_through_prf(np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],
                                mu=(mu_x, mu_y),
                                sigma=srf_size,
-                               normalize_RFs=self.normalize_RFs).T, axes=(1,2)), self.stimulus.design_matrix, self.stimulus.dx)
+                               normalize_RFs=self.normalize_RFs).T, axes=(1,2)),
+                               self.stimulus.design_matrix, self.stimulus.dx).astype('float32')
 
         # create normalization model timecourse
         
         if current_hrf == 'direct':
-            tc = (prf_amplitude[..., np.newaxis] * activation_part  + neural_baseline[..., np.newaxis]) /\
+            tc = ((prf_amplitude[..., np.newaxis] * activation_part  + neural_baseline[..., np.newaxis]) /\
             (srf_amplitude[..., np.newaxis] * normalization_part + surround_baseline[..., np.newaxis]) \
-                - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
+                - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]).astype('float32')
         else:
-            tc = self.convolve_timecourse_hrf((prf_amplitude[..., np.newaxis] * activation_part + neural_baseline[..., np.newaxis]) /\
+            tc = self.convolve_timecourse_hrf(((prf_amplitude[..., np.newaxis] * activation_part + neural_baseline[..., np.newaxis]) /\
             (srf_amplitude[..., np.newaxis] * normalization_part + surround_baseline[..., np.newaxis]) \
-                - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]
-                , current_hrf)        
+                - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]).astype('float32')
+                , current_hrf.astype('float32'))        
 
 
                 
         if not self.filter_predictions:
-            return bold_baseline[..., np.newaxis] + tc
+            return (bold_baseline[..., np.newaxis] + tc).astype('float32')
         else:
-            return bold_baseline[..., np.newaxis] + filter_predictions(
+            return (bold_baseline[..., np.newaxis] + filter_predictions(
                 tc,
                 self.filter_type,
-                self.filter_params)
+                self.filter_params)).astype('float32')
 
 
 

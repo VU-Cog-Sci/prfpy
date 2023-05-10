@@ -24,7 +24,7 @@ def gauss1D_cart(x, mu=0.0, sigma=1.0):
         gaussian values at x
     """
 
-    return np.exp(-((x-mu)**2)/(2*sigma**2))
+    return np.exp(-((x-mu)**2)/(2*sigma**2)).astype('float32')
 
 
 
@@ -49,7 +49,7 @@ def gauss1D_log(x, mu=0.0, sigma=1.0):
         gaussian values at log(x)
     """
 
-    return np.exp(-(np.log(x/mu)**2)/(2*sigma**2))
+    return np.exp(-(np.log(x/mu)**2)/(2*sigma**2)).astype('float32')
 
 
 
@@ -107,9 +107,9 @@ def gauss2D_iso_cart(x, y, mu=(0.0, 0.0), sigma=1.0, normalize_RFs=False):
         gaussian values evaluated at (x,y)
     """
     if normalize_RFs:
-        return np.exp(-((x-mu[0])**2 + (y-mu[1])**2)/(2*sigma**2)) /(2*np.pi*sigma**2)
+        return (np.exp(-((x-mu[0])**2 + (y-mu[1])**2)/(2*sigma**2)) /(2*np.pi*sigma**2)).astype('float32')
     else:
-        return np.exp(-((x-mu[0])**2 + (y-mu[1])**2)/(2*sigma**2))
+        return (np.exp(-((x-mu[0])**2 + (y-mu[1])**2)/(2*sigma**2))).astype('float32')
 
 
 
