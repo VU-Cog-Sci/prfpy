@@ -1312,6 +1312,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
             self.n_predictions = len(self.nb)
 
+            #gaussian params case, either explicit or from previous fitter
             if gaussian_params is not None and gaussian_params.shape == (
                     self.n_units, 4):
                 self.gaussian_params = gaussian_params.astype('float32')
@@ -1323,13 +1324,19 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
                 self.gaussian_params[:, :3] *= resc_fctr
 
-
                 self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
                 
             elif hasattr(self, 'previous_gaussian_fitter'):
                 starting_params_grid = self.previous_gaussian_fitter.iterative_search_params
                 self.gaussian_params = np.concatenate(
                     (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
+                
+                #back in the grid also for DN model, as gauss
+                max_ecc_scr = self.model.stimulus.screen_size_degrees/2.0
+                ecc_gauss = np.sqrt(self.gaussian_params[:, 0]**2 + self.gaussian_params[:, 1]**2)
+                resc_fctr = np.min([max_ecc_scr/ecc_gauss, np.ones_like(ecc_gauss)], axis=0)
+
+                self.gaussian_params[:, :3] *= resc_fctr
                 
                 if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                     self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
@@ -1439,8 +1446,12 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 # are obtained from previous Gaussian fit
                 if self.gaussian_params is not None:
                     if self.use_previous_gaussian_fitter_hrf:
-                        hrf_1 = hrf_1[vox_num] * np.ones(n_predictions)
-                        hrf_2 = hrf_2[vox_num] * np.ones(n_predictions)
+                        hrf_1_vx = hrf_1[vox_num] * np.ones(n_predictions)
+                        hrf_2_vx = hrf_2[vox_num] * np.ones(n_predictions)
+                    else:
+                        hrf_1_vx = hrf_1
+                        hrf_2_vx = hrf_2
+
 
                     mu_x = gaussian_params[vox_num, 0] * np.ones(n_predictions)
                     mu_y = gaussian_params[vox_num, 1] * np.ones(n_predictions)
