@@ -1322,7 +1322,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 ecc_gauss = np.sqrt(self.gaussian_params[:, 0]**2 + self.gaussian_params[:, 1]**2)
                 resc_fctr = np.min([max_ecc_scr/ecc_gauss, np.ones_like(ecc_gauss)], axis=0)
 
-                self.gaussian_params[:, :3] *= resc_fctr
+                self.gaussian_params[:, :3] *= resc_fctr[...,np.newaxis]
 
                 self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
                 
@@ -1336,7 +1336,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 ecc_gauss = np.sqrt(self.gaussian_params[:, 0]**2 + self.gaussian_params[:, 1]**2)
                 resc_fctr = np.min([max_ecc_scr/ecc_gauss, np.ones_like(ecc_gauss)], axis=0)
 
-                self.gaussian_params[:, :3] *= resc_fctr
+                self.gaussian_params[:, :3] *= resc_fctr[...,np.newaxis]
                 
                 if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                     self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
