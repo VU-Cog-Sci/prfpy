@@ -1460,7 +1460,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                     surr_size = gaussian_params[vox_num, 2] * ss
 
                     predictions = self.model.create_grid_predictions(
-                        mu_x, mu_y, size, sa, surr_size, nb, sb, hrf_1, hrf_2)
+                        mu_x, mu_y, size, sa, surr_size, nb, sb, hrf_1_vx, hrf_2_vx)
                     
                     # bookkeeping
                     sum_preds = np.sum(predictions, axis=-1)
@@ -1546,8 +1546,8 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
         self.gridsearch_params = np.zeros((self.n_units, 12))
 
-        #GLM also rescales b
-        #ss as proportion of individual size 
+        #NOTE: GLM also rescales b
+        #NOTE: ss as proportion of individual size 
 
         if self.gaussian_params is not None:
             #gaussian params situation
