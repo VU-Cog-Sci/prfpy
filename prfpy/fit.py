@@ -1315,6 +1315,15 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             if gaussian_params is not None and gaussian_params.shape == (
                     self.n_units, 4):
                 self.gaussian_params = gaussian_params.astype('float32')
+
+                #back in the grid also for DN model, as gauss
+                max_ecc_scr = self.model.stimulus.screen_size_degrees/2.0
+                ecc_gauss = np.sqrt(self.gaussian_params[:, 0]**2 + self.gaussian_params[:, 1]**2)
+                resc_fctr = np.min([max_ecc_scr/ecc_gauss, np.ones_like(ecc_gauss)], axis=0)
+
+                self.gaussian_params[:, :3] *= resc_fctr
+
+
                 self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
                 
             elif hasattr(self, 'previous_gaussian_fitter'):
@@ -1381,7 +1390,9 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 splits = self.n_jobs
                 grid_predictions = Parallel(self.n_jobs, verbose=11)(
                     delayed(self.model.create_grid_predictions)(mxx,myx,sx,
-                                                                sax,ssx,
+                                                                sax,
+                                                                #proportion
+                                                                ssx*sx,
                                                                 nbx,sbx,
                                                                 hrf1x,hrf2x)
                 for mxx,myx,sx,sax,ssx,nbx,sbx,hrf1x,hrf2x in
@@ -1395,7 +1406,10 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             else:
                 grid_predictions = self.model.create_grid_predictions(
                     self.mu_x, self.mu_y, self.sizes,
-                    self.sa, self.ss, self.nb, self.sb, 
+                    self.sa, 
+                    #proportion
+                    self.ss * self.sizes,
+                    self.nb, self.sb, 
                     self.hrf_1, self.hrf_2)
             print(f'{self.n_predictions} full grid predictions completed')
             # bookkeeping
@@ -1403,7 +1417,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             self.square_norm_preds = np.linalg.norm(
                 grid_predictions, axis=-1, ord=2)**2
             
-        max_ecc_scr = self.model.stimulus.screen_size_degrees/2.0
+        
         # this function analytically computes best-fit rsq, slope, and baseline
         # for a given batch of units (faster than scipy/numpy lstsq).
         def rsq_betas_for_batch(data,
@@ -1428,16 +1442,14 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                         hrf_1 = hrf_1[vox_num] * np.ones(n_predictions)
                         hrf_2 = hrf_2[vox_num] * np.ones(n_predictions)
 
-                    #bring prfs back in the screen for the grid stage if they are outside
-                    ecc_vx = np.sqrt(gaussian_params[vox_num, 0]**2 + gaussian_params[vox_num, 1]**2)
-                    resc_fctr = np.min([max_ecc_scr/ecc_vx,1])
+                    mu_x = gaussian_params[vox_num, 0] * np.ones(n_predictions)
+                    mu_y = gaussian_params[vox_num, 1] * np.ones(n_predictions)
+                    size = gaussian_params[vox_num, 2] * np.ones(n_predictions)
 
-                    mu_x = gaussian_params[vox_num, 0] * resc_fctr * np.ones(n_predictions)
-                    mu_y = gaussian_params[vox_num, 1] * resc_fctr * np.ones(n_predictions)
-                    size = gaussian_params[vox_num, 2] * resc_fctr * np.ones(n_predictions)
+                    surr_size = gaussian_params[vox_num, 2] * ss
 
                     predictions = self.model.create_grid_predictions(
-                        mu_x, mu_y, size, sa, ss, nb, sb, hrf_1, hrf_2)
+                        mu_x, mu_y, size, sa, surr_size, nb, sb, hrf_1, hrf_2)
                     
                     # bookkeeping
                     sum_preds = np.sum(predictions, axis=-1)
@@ -1523,7 +1535,11 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
         self.gridsearch_params = np.zeros((self.n_units, 12))
 
+        #GLM also rescales b
+        #ss as proportion of individual size 
+
         if self.gaussian_params is not None:
+            #gaussian params situation
             self.gridsearch_params[self.gridsearch_rsq_mask,:-3] = np.array([
                 self.gaussian_params[self.gridsearch_rsq_mask, 0],
                 self.gaussian_params[self.gridsearch_rsq_mask, 1],
@@ -1531,18 +1547,19 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 self.best_fitting_beta,
                 self.best_fitting_baseline,
                 self.sa[max_rsqs],
-                self.ss[max_rsqs],
+                self.ss[max_rsqs] * self.gaussian_params[self.gridsearch_rsq_mask, 2],
                 self.nb[max_rsqs] * self.best_fitting_beta,
                 self.sb[max_rsqs]]).T
         else:
+            #full grid situation
             self.gridsearch_params[self.gridsearch_rsq_mask,:-3] = np.array([
                 self.mu_x[max_rsqs],
                 self.mu_y[max_rsqs],
                 self.sizes[max_rsqs],
                 self.best_fitting_beta,
                 self.best_fitting_baseline,
-                self.sa[max_rsqs],
-                self.ss[max_rsqs],
+                self.sa[max_rsqs],              
+                self.ss[max_rsqs] * self.sizes[max_rsqs],            
                 self.nb[max_rsqs] * self.best_fitting_beta,
                 self.sb[max_rsqs]]).T
 
