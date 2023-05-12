@@ -813,13 +813,16 @@ class CSS_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 # are obtained from previous Gaussian fit
 
                 if self.use_previous_gaussian_fitter_hrf:
-                    hrf_1 = hrf_1[vox_num] * np.ones(n_predictions)
-                    hrf_2 = hrf_2[vox_num] * np.ones(n_predictions)
+                    hrf_1_vx = hrf_1[vox_num] * np.ones(n_predictions)
+                    hrf_2_vx = hrf_2[vox_num] * np.ones(n_predictions)
+                else:
+                    hrf_1_vx = hrf_1
+                    hrf_2_vx = hrf_2
                 
                 css_resc_gp = np.copy(gaussian_params[vox_num, :-1])
                 
                 predictions = self.model.create_grid_predictions(
-                    css_resc_gp, nn, hrf_1, hrf_2)
+                    css_resc_gp, nn, hrf_1_vx, hrf_2_vx)
                 # bookkeeping
                 sum_preds = np.sum(predictions, axis=-1)
                 square_norm_preds = np.linalg.norm(
@@ -1071,11 +1074,14 @@ class DoG_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 # gridding is over new parameters, while size and position
                 # are obtained from previous Gaussian fit
                 if self.use_previous_gaussian_fitter_hrf:
-                    hrf_1 = hrf_1[vox_num] * np.ones(n_predictions)
-                    hrf_2 = hrf_2[vox_num] * np.ones(n_predictions)
+                    hrf_1_vx = hrf_1[vox_num] * np.ones(n_predictions)
+                    hrf_2_vx = hrf_2[vox_num] * np.ones(n_predictions)
+                else:
+                    hrf_1_vx = hrf_1
+                    hrf_2_vx = hrf_2
 
                 predictions = self.model.create_grid_predictions(
-                    gaussian_params[vox_num, :-1], sa, ss, hrf_1, hrf_2)
+                    gaussian_params[vox_num, :-1], sa, ss, hrf_1_vx, hrf_2_vx)
                 # bookkeeping
                 sum_preds = np.sum(predictions, axis=-1)
                 square_norm_preds = np.linalg.norm(
@@ -1230,7 +1236,9 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                  hrf_2_grid=None,
                  ecc_grid=None,
                  polar_grid=None,
-                 size_grid=None):
+                 size_grid=None,
+                 surround_size_as_proportion=False,
+                 ecc_in_stim_range=False):
         """
         This function performs a grid_fit for the normalization model new parameters.
         The fit is parallel over batches of voxels, and separate predictions are
@@ -1275,10 +1283,26 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
             The default is None. If not None, and if 
             self.use_previous_gaussian_fitter_hrf is False,
             will perform grid over these values of the hrf_1 parameter.
-        hrf_1_grid : 1D ndarray, optional
+        hrf_2_grid : 1D ndarray, optional
             The default is None. If not None, and if 
             self.use_previous_gaussian_fitter_hrf is False,
-            will perform grid over these values of the hrf_1 parameter.
+            will perform grid over these values of the hrf_2 parameter.
+        ecc_grid : 1D ndarray, optional
+            The default is None. If all ecc_grid, polar_grid, and size_grid
+            are not None, will perform full grid for DN model.
+        polar_grid : 1D ndarray, optional
+            The default is None. If all ecc_grid, polar_grid, and size_grid
+            are not None, will perform full grid for DN model.
+        size_grid : 1D ndarray, optional
+            The default is None. If all ecc_grid, polar_grid, and size_grid
+            are not None, will perform full grid for DN model.
+        surround_size_as_proportion : boolean, optional
+            If True, interpret surround_size_grid as a factor multiplying
+            the activation pRF size. The default is False.
+        ecc_in_stim_range : boolean, optional
+            If True, rescale eccentricity and size
+            of pRFs outside of the screen
+            in gaussian params to be in screen. The default is False.
 
         Raises
         ------
@@ -1318,11 +1342,12 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 self.gaussian_params = gaussian_params.astype('float32')
 
                 #back in the grid also for DN model, as gauss
-                max_ecc_scr = self.model.stimulus.screen_size_degrees/2.0
-                ecc_gauss = np.sqrt(self.gaussian_params[:, 0]**2 + self.gaussian_params[:, 1]**2)
-                resc_fctr = np.min([max_ecc_scr/ecc_gauss, np.ones_like(ecc_gauss)], axis=0)
+                if ecc_in_stim_range:
+                    max_ecc_scr = self.model.stimulus.screen_size_degrees/2.0
+                    ecc_gauss = np.sqrt(self.gaussian_params[:, 0]**2 + self.gaussian_params[:, 1]**2)
+                    resc_fctr = np.min([max_ecc_scr/ecc_gauss, np.ones_like(ecc_gauss)], axis=0)
 
-                self.gaussian_params[:, :3] *= resc_fctr[...,np.newaxis]
+                    self.gaussian_params[:, :3] *= resc_fctr[...,np.newaxis]
 
                 self.gridsearch_rsq_mask = self.gaussian_params[:, -1] > rsq_threshold
                 
@@ -1332,11 +1357,12 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                     (starting_params_grid[:, :3], starting_params_grid[:, -1][..., np.newaxis]), axis=-1)
                 
                 #back in the grid also for DN model, as gauss
-                max_ecc_scr = self.model.stimulus.screen_size_degrees/2.0
-                ecc_gauss = np.sqrt(self.gaussian_params[:, 0]**2 + self.gaussian_params[:, 1]**2)
-                resc_fctr = np.min([max_ecc_scr/ecc_gauss, np.ones_like(ecc_gauss)], axis=0)
+                if ecc_in_stim_range:
+                    max_ecc_scr = self.model.stimulus.screen_size_degrees/2.0
+                    ecc_gauss = np.sqrt(self.gaussian_params[:, 0]**2 + self.gaussian_params[:, 1]**2)
+                    resc_fctr = np.min([max_ecc_scr/ecc_gauss, np.ones_like(ecc_gauss)], axis=0)
 
-                self.gaussian_params[:, :3] *= resc_fctr[...,np.newaxis]
+                    self.gaussian_params[:, :3] *= resc_fctr[...,np.newaxis]
                 
                 if hasattr(self.previous_gaussian_fitter, 'rsq_mask'):
                     self.gridsearch_rsq_mask = self.previous_gaussian_fitter.rsq_mask
@@ -1393,13 +1419,15 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
             self.n_predictions = len(self.nb)
 
+            if surround_size_as_proportion:
+                self.ss *= self.sizes
+
             if self.n_predictions>50000:
                 splits = self.n_jobs
                 grid_predictions = Parallel(self.n_jobs, verbose=11)(
                     delayed(self.model.create_grid_predictions)(mxx,myx,sx,
                                                                 sax,
-                                                                #proportion
-                                                                ssx*sx,
+                                                                ssx,
                                                                 nbx,sbx,
                                                                 hrf1x,hrf2x)
                 for mxx,myx,sx,sax,ssx,nbx,sbx,hrf1x,hrf2x in
@@ -1414,8 +1442,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 grid_predictions = self.model.create_grid_predictions(
                     self.mu_x, self.mu_y, self.sizes,
                     self.sa, 
-                    #proportion
-                    self.ss * self.sizes,
+                    self.ss,
                     self.nb, self.sb, 
                     self.hrf_1, self.hrf_2)
             print(f'{self.n_predictions} full grid predictions completed')
@@ -1457,7 +1484,8 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                     mu_y = gaussian_params[vox_num, 1] * np.ones(n_predictions)
                     size = gaussian_params[vox_num, 2] * np.ones(n_predictions)
 
-                    surr_size = gaussian_params[vox_num, 2] * ss
+                    if surround_size_as_proportion:
+                        surr_size = gaussian_params[vox_num, 2] * ss
 
                     predictions = self.model.create_grid_predictions(
                         mu_x, mu_y, size, sa, surr_size, nb, sb, hrf_1_vx, hrf_2_vx)
@@ -1558,11 +1586,14 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 self.best_fitting_beta,
                 self.best_fitting_baseline,
                 self.sa[max_rsqs],
-                self.ss[max_rsqs] * self.gaussian_params[self.gridsearch_rsq_mask, 2],
+                self.ss[max_rsqs],
                 self.nb[max_rsqs] * self.best_fitting_beta,
                 self.sb[max_rsqs]]).T
+            #ss as proportion
+            if surround_size_as_proportion:
+                self.gridsearch_params[self.gridsearch_rsq_mask,6] *= self.gaussian_params[self.gridsearch_rsq_mask, 2]
         else:
-            #full grid situation
+            #full grid situation (self.ss already rescaled)
             self.gridsearch_params[self.gridsearch_rsq_mask,:-3] = np.array([
                 self.mu_x[max_rsqs],
                 self.mu_y[max_rsqs],
@@ -1570,7 +1601,7 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
                 self.best_fitting_beta,
                 self.best_fitting_baseline,
                 self.sa[max_rsqs],              
-                self.ss[max_rsqs] * self.sizes[max_rsqs],            
+                self.ss[max_rsqs],            
                 self.nb[max_rsqs] * self.best_fitting_beta,
                 self.sb[max_rsqs]]).T
 
