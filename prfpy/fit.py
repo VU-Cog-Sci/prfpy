@@ -1486,6 +1486,8 @@ class Norm_Iso2DGaussianFitter(Extend_Iso2DGaussianFitter):
 
                     if surround_size_as_proportion:
                         surr_size = gaussian_params[vox_num, 2] * ss
+                    else:
+                        surr_size = ss
 
                     predictions = self.model.create_grid_predictions(
                         mu_x, mu_y, size, sa, surr_size, nb, sb, hrf_1_vx, hrf_2_vx)
