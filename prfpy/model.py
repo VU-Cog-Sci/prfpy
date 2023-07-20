@@ -312,8 +312,9 @@ class Iso2DGaussianModel(Model):
 
         dm = self.stimulus.design_matrix
 
-        if current_hrf == 'direct':
-            tc = stimulus_through_prf(rf, dm, self.stimulus.dx)
+        if type(current_hrf) == str:
+            if current_hrf == 'direct':
+                tc = stimulus_through_prf(rf, dm, self.stimulus.dx)
         else:
             tc = self.convolve_timecourse_hrf(stimulus_through_prf(rf, dm, self.stimulus.dx), current_hrf)
         
@@ -421,8 +422,9 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
 
         dm = self.stimulus.design_matrix
         
-        if current_hrf == 'direct':
-            tc = stimulus_through_prf(rf, dm, self.stimulus.dx)**n[..., np.newaxis]
+        if type(current_hrf) == str:
+            if current_hrf == 'direct':
+                tc = stimulus_through_prf(rf, dm, self.stimulus.dx)**n[..., np.newaxis]
         else:
             tc = self.convolve_timecourse_hrf(stimulus_through_prf(rf, dm, self.stimulus.dx)**n[..., np.newaxis], current_hrf)
 
@@ -558,8 +560,9 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
 
         # create normalization model timecourse
         
-        if current_hrf == 'direct':
-            tc = ((prf_amplitude[..., np.newaxis] * activation_part  + neural_baseline[..., np.newaxis]) /\
+        if type(current_hrf) == str:
+            if current_hrf == 'direct':
+                tc = ((prf_amplitude[..., np.newaxis] * activation_part  + neural_baseline[..., np.newaxis]) /\
             (srf_amplitude[..., np.newaxis] * normalization_part + surround_baseline[..., np.newaxis]) \
                 - neural_baseline[..., np.newaxis]/surround_baseline[..., np.newaxis]).astype('float32')
         else:
@@ -688,8 +691,9 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
 
         dm = self.stimulus.design_matrix
 
-        if current_hrf == 'direct':
-            tc = prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) - \
+        if type(current_hrf) == str:
+            if current_hrf == 'direct':
+                tc = prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) - \
             srf_amplitude[..., np.newaxis] * stimulus_through_prf(srf, dm, self.stimulus.dx)
         else:
             tc = self.convolve_timecourse_hrf(prf_amplitude[..., np.newaxis] * stimulus_through_prf(prf, dm, self.stimulus.dx) - \
