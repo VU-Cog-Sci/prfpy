@@ -7,7 +7,7 @@ from .timecourse import stimulus_through_prf, \
     convolve_stimulus_dm, \
     generate_random_cosine_drifts, \
     generate_arima_noise, \
-    filter_predictions
+    filter_predictions, tdm_hrf
     
 
 
@@ -31,7 +31,7 @@ class Model(object):
         """
         self.stimulus = stimulus
 
-    def create_hrf(self, hrf_params):
+    def create_hrf(self, hrf_params, hrf_basis, normalize_hrf):
         """
         
         construct single or multiple HRFs        
@@ -47,28 +47,61 @@ class Model(object):
             the hrf.
 
         """
-        
-        hrf = np.array(
-            [
-                np.ones_like(hrf_params[1], dtype='float32')*hrf_params[0] *
-                spm_hrf(
-                    tr=self.stimulus.TR,
-                    oversampling=1,
-                    time_length=40)[...,np.newaxis],
-                hrf_params[1] *
-                spm_time_derivative(
-                    tr=self.stimulus.TR,
-                    oversampling=1,
-                    time_length=40)[...,np.newaxis],
-                hrf_params[2] *
-                spm_dispersion_derivative(
-                    tr=self.stimulus.TR,
-                    oversampling=1,
-                    time_length=40)[...,np.newaxis]],
-                    dtype='float32').sum(
-            axis=0)                    
+        if hrf_basis.lower() == 'spm':
+            hrf = np.array(
+                [
+                    np.ones_like(hrf_params[1], dtype='float32')*hrf_params[0] *
+                    spm_hrf(
+                        tr=self.stimulus.TR,
+                        oversampling=1,
+                        time_length=40)[...,np.newaxis],
+                    hrf_params[1] *
+                    spm_time_derivative(
+                        tr=self.stimulus.TR,
+                        oversampling=1,
+                        time_length=40)[...,np.newaxis],
+                    hrf_params[2] *
+                    spm_dispersion_derivative(
+                        tr=self.stimulus.TR,
+                        oversampling=1,
+                        time_length=40)[...,np.newaxis]],
+                        dtype='float32').sum(
+                axis=0).T
+        elif hrf_basis.lower() == 'tdm':
 
-        return hrf.T
+            hrf =  tdm_hrf(hrf_params[1],
+                        tr=self.stimulus.TR,
+                        time_length=40)                  
+            
+        else:
+            print("Unknown HRF basis. use spm or tdm. defaulting to spm")                    
+            hrf = np.array(
+                [
+                    np.ones_like(hrf_params[1], dtype='float32')*hrf_params[0] *
+                    spm_hrf(
+                        tr=self.stimulus.TR,
+                        oversampling=1,
+                        time_length=40)[...,np.newaxis],
+                    hrf_params[1] *
+                    spm_time_derivative(
+                        tr=self.stimulus.TR,
+                        oversampling=1,
+                        time_length=40)[...,np.newaxis],
+                    hrf_params[2] *
+                    spm_dispersion_derivative(
+                        tr=self.stimulus.TR,
+                        oversampling=1,
+                        time_length=40)[...,np.newaxis]],
+                        dtype='float32').sum(
+                axis=0).T
+            
+            
+        if normalize_hrf:
+            for i in range(hrf.shape[0]):
+                hrf[i] /= np.max(hrf[i])
+           
+
+        return hrf
     
     def convolve_timecourse_hrf(self, tc, hrf):
         """
@@ -157,7 +190,8 @@ class Iso2DGaussianModel(Model):
                  filter_type='dc',
                  filter_params={},
                  normalize_RFs=False,
-                 **kwargs):
+                 hrf_basis='SPM',
+                 normalize_hrf=False):
         """__init__ for Iso2DGaussianModel
 
         constructor, sets up stimulus and hrf for this Model
@@ -179,7 +213,10 @@ class Iso2DGaussianModel(Model):
         normalize_RFs : whether or not to normalize the RF volumes (generally not needed).
         """
         super().__init__(stimulus)
-        self.__dict__.update(kwargs)
+
+
+        self.hrf_basis = hrf_basis
+        self.normalize_hrf = normalize_hrf
 
         # HRF stuff
         if isinstance(hrf, str):
@@ -194,12 +231,12 @@ class Iso2DGaussianModel(Model):
                 self.hrf_params = np.copy(hrf)
                 
                 if hrf[0] == 1: 
-                    self.hrf = self.create_hrf(hrf_params=hrf)
+                    self.hrf = self.create_hrf(hrf_params=hrf, hrf_basis=self.hrf_basis, normalize_hrf=self.normalize_hrf)
                 else:
                     print("WARNING: hrf[0] is not 1. this will confound it with amplitude\
                           parameters. consider setting it to 1 unless you are absolutely sure of what you are doing.\
                           this will also prevent you from fitting the HRF.")
-                    self.hrf = self.create_hrf(hrf_params=hrf)
+                    self.hrf = self.create_hrf(hrf_params=hrf, hrf_basis=self.hrf_basis, normalize_hrf=self.normalize_hrf)
                     
             # some specific hrf already defined at the TR (!)
             # elif isinstance(hrf, np.ndarray) and len(hrf) > 3:
@@ -224,6 +261,7 @@ class Iso2DGaussianModel(Model):
       
         #normalizing RFs to have volume 1
         self.normalize_RFs = normalize_RFs
+
         
 
 
@@ -301,7 +339,7 @@ class Iso2DGaussianModel(Model):
         if hrf_1 is None or hrf_2 is None:
             current_hrf = self.hrf
         else:
-            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
+            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2], hrf_basis=self.hrf_basis, normalize_hrf=self.normalize_hrf)
 
         # create the single rf
         rf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
@@ -411,7 +449,7 @@ class CSS_Iso2DGaussianModel(Iso2DGaussianModel):
         if hrf_1 is None or hrf_2 is None:
             current_hrf = self.hrf
         else:
-            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
+            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2], hrf_basis=self.hrf_basis, normalize_hrf=self.normalize_hrf)
 
         # create the single rf
         rf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
@@ -539,7 +577,7 @@ class Norm_Iso2DGaussianModel(Iso2DGaussianModel):
         if hrf_1 is None or hrf_2 is None:
             current_hrf = self.hrf
         else:
-            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
+            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2], hrf_basis=self.hrf_basis, normalize_hrf=self.normalize_hrf)
 
         # slight memory load improvement to avoid holding all rfs in memory
 
@@ -674,7 +712,7 @@ class DoG_Iso2DGaussianModel(Iso2DGaussianModel):
         if hrf_1 is None or hrf_2 is None:
             current_hrf = self.hrf
         else:
-            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2])
+            current_hrf = self.create_hrf([1.0, hrf_1, hrf_2], hrf_basis=self.hrf_basis, normalize_hrf=self.normalize_hrf)
         # create the rfs
         prf = np.rot90(gauss2D_iso_cart(x=self.stimulus.x_coordinates[..., np.newaxis],
                                y=self.stimulus.y_coordinates[..., np.newaxis],

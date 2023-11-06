@@ -1,7 +1,32 @@
 import numpy as np
 import scipy as sp
+import os
 import scipy.signal as signal
 from statsmodels.tsa.arima_process import arma_generate_sample
+
+#hrf library defined at 0.01s sampling
+fpath = os.path.dirname(os.path.realpath(__file__))
+hrf_library = np.genfromtxt(os.path.join(fpath,"tdm_hrfs_highsample.tsv"), delimiter="\t")
+
+def tdm_hrf(hrf_param,tr,time_length):
+
+    if isinstance(hrf_param,np.ndarray) or isinstance(hrf_param,list):
+        hrf_param = np.array([int(h_p*2) for h_p in hrf_param])
+    else:
+        hrf_param = np.array([int(hrf_param*2)])
+
+    #enforcing bounds. there are only 20 hrfs in the set
+    hrf_param[hrf_param>19] = 19
+    hrf_param[hrf_param<0] = 0
+
+    downsample = int(tr/0.01)
+    #to match spm
+    this_time_length = int((time_length-1)/0.01)
+
+    hrf_pick = hrf_library[hrf_param]
+    hrf = hrf_pick[:,:this_time_length:downsample]
+
+    return hrf
 
 
 def convolve_stimulus_dm(stimulus, hrf):
