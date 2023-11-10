@@ -272,7 +272,7 @@ class Fitter:
     def crossvalidate_fit(self,
                           test_data,
                           test_stimulus=None,
-                          single_hrf=True):
+                          single_hrf=False):
         """
         Simple function to crossvalidate results of previous iterative fitting.
        
