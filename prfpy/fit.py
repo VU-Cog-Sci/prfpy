@@ -32,8 +32,12 @@ def error_function(
     #return 1-np.nan_to_num(pearsonr(data,np.nan_to_num(objective_function(*list(parameters), **args)[0]))[0])
 
 
-def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
-                     bounds=None, constraints=None):
+#(fun, x0, args=(), method=None, jac=None, hess=None, hessp=None, bounds=None, constraints=(), tol=None, callback=None, options=None)
+
+#old after args
+#xtol, ftol, verbose=True, bounds=None, constraints=None, method=None
+
+def iterative_search(model, data, start_params, args, **kwargs):
     """iterative_search
 
     Generic minimization function called by iterative_fit.
@@ -52,23 +56,9 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
     start_params : list or 1D numpy.ndarray
         initial values for the fit
     args : dictionary, arguments to model.return_prediction that
-        are not optimized
-    xtol : float, passed to fitting routine
-        numerical tolerance on x
-    ftol : float, passed to fitting routine
-        numerical tolerance on function
-    verbose : bool, optional
-        whether to have minimizer output.
-    bounds : list of tuples, optional
-        Bounds for parameter minimization. Must have the same
-        length as start_params. The default is None.
-    constraints: list of  scipy.optimize.LinearConstraints and/or
-        scipy.optimize.NonLinearConstraints
-
-    Raises
-    ------
-    AssertionError
-        Raised if parameters and bounds do not have the same length.
+        are not optimized    
+    **kwargs : additional keyword arguments will be passed to 
+        scipy.optimize.minimize
 
     Returns
     -------
@@ -76,56 +66,14 @@ def iterative_search(model, data, start_params, args, xtol, ftol, verbose=True,
         first element: parameter values
         second element: rsq value
     """
-    if bounds is not None:
-        assert len(bounds) == len(
-            start_params), "Unequal bounds and parameters"
+
+    output = minimize(error_function, start_params,
+                    args=(args, data, model.return_prediction),
+                    **kwargs)
+    
+    return np.nan_to_num(np.r_[output['x'], 1 - (output['fun'])/(len(data) * data.var())])
 
 
-        if constraints is None:
-            if verbose:
-                print('Performing bounded, unconstrained minimization (L-BFGS-B).')
-
-            output = minimize(error_function, start_params, bounds=bounds,
-                              args=(
-                                  args, data, model.return_prediction),
-                               method='L-BFGS-B',
-                              # default max line searches is 20
-                              options=dict(ftol=ftol,
-                                           maxls=40,
-                                           disp=verbose))
-        else:
-            if verbose:
-                print('Performing bounded, constrained minimization (trust-constr).')
-
-            output = minimize(error_function, start_params, bounds=bounds,
-                              args=(args, data,
-                                    model.return_prediction),
-                              method='trust-constr',
-                              constraints=constraints,
-                              tol=ftol,
-                              options=dict(xtol=xtol,
-                                           disp=verbose))
-
-        return np.nan_to_num(np.r_[output['x'], 1 -
-                     (output['fun'])/(len(data) * data.var())])
-
-    else:
-        if verbose:
-            print('Performing unbounded, unconstrained minimization (Powell).')
-
-        output = fmin_powell(
-            error_function,
-            start_params,
-            xtol=xtol,
-            ftol=ftol,
-            args=(
-                args,
-                data,
-                model.return_prediction),
-            full_output=True,
-            disp=verbose)
-
-        return np.nan_to_num(np.r_[output[0], 1 - (output[1])/(len(data) * data.var())])
 
 
 class Fitter:
@@ -173,12 +121,9 @@ class Fitter:
     def iterative_fit(self,
                       rsq_threshold,
                       verbose=False,
-                      starting_params=None,
-                      bounds=None,
+                      starting_params=None,                   
                       args={},
-                      constraints=None,
-                      xtol=1e-4,
-                      ftol=1e-4):
+                      **kwargs):
         """
         Generic function for iterative fitting. Does not need to be
         redefined for new models. It is sufficient to define
@@ -201,21 +146,20 @@ class Fitter:
             if bounds are not None, will use LBFGSB or trust-constr
         args : dictionary, optional
             Further arguments passed to iterative_search. The default is {}.
-        constraints: list of scipy.optimize.LinearConstraints and/or
-            scipy.optimize.NonLinearConstraints
-            if constraints are not None, will use trust-constr optimizer
-        xtol : float, optional
-            if allowed by optimizer, parameter tolerance for termination of fitting
-        ftol : float, optional
-            if allowed by optimizer, objective function tolerance for termination of fitting
+        **kwargs : additional keyword arguments will be passed to 
+            iterative_search, and from there to scipy.optimize.minimize
+
         Returns
         -------
         None.
 
         """
 
-        self.bounds = np.array(bounds)
-        self.constraints = constraints
+        self.__dict__.update(kwargs)
+        
+        #bounds need special handling for the unit-wise case
+        self.bounds  = np.array(kwargs.pop('bounds', None))
+
 
         assert rsq_threshold>0, 'rsq_threshold must be >0!'
 
@@ -241,16 +185,15 @@ class Fitter:
 
         if self.rsq_mask.sum()>0:
             if np.any(self.bounds) != None:
+                #remove bounds from general kwargs so it can be handled
+                
                 iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
                     delayed(iterative_search)(self.model,
                                               data,
                                               start_params,
                                               args=args,
-                                              xtol=xtol,
-                                              ftol=ftol,
-                                              verbose=verbose,
                                               bounds=curr_bounds,
-                                              constraints=self.constraints)
+                                              **kwargs)
                     for (data, start_params, curr_bounds) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1], self.bounds[self.rsq_mask]))
             else:
                 iterative_search_params = Parallel(self.n_jobs, verbose=verbose)(
@@ -258,11 +201,7 @@ class Fitter:
                                               data,
                                               start_params,
                                               args=args,
-                                              xtol=xtol,
-                                              ftol=ftol,
-                                              verbose=verbose,
-                                              bounds=None,
-                                              constraints=self.constraints)
+                                              **kwargs)
                     for (data, start_params) in zip(self.data[self.rsq_mask], self.starting_params[self.rsq_mask, :-1]))            
             
             self.iterative_search_params[self.rsq_mask] = np.array(
