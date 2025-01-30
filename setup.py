@@ -49,4 +49,8 @@ setup(name="prfpy",
       packages=find_packages(),
       install_requires=requirements,
       zip_safe=False,
+      include_package_data=True,  # Ensures package data is included
+    package_data={
+        "prfpy": ["tdm_hrfs_highsample.tsv"],  # Explicitly include the file
+    },
       )
