@@ -52,17 +52,17 @@ class Model(object):
                 [
                     np.ones_like(hrf_params[1], dtype='float32')*hrf_params[0] *
                     spm_hrf(
-                        tr=self.stimulus.TR,
+                        t_r=self.stimulus.TR,
                         oversampling=1,
                         time_length=40)[...,np.newaxis],
                     hrf_params[1] *
                     spm_time_derivative(
-                        tr=self.stimulus.TR,
+                        t_r=self.stimulus.TR,
                         oversampling=1,
                         time_length=40)[...,np.newaxis],
                     hrf_params[2] *
                     spm_dispersion_derivative(
-                        tr=self.stimulus.TR,
+                        t_r=self.stimulus.TR,
                         oversampling=1,
                         time_length=40)[...,np.newaxis]],
                         dtype='float32').sum(
@@ -70,7 +70,7 @@ class Model(object):
         elif hrf_basis.lower() == 'tdm':
 
             hrf =  tdm_hrf(hrf_params[1],
-                        tr=self.stimulus.TR,
+                        t_r=self.stimulus.TR,
                         time_length=40)                  
             
         else:
@@ -79,17 +79,17 @@ class Model(object):
                 [
                     np.ones_like(hrf_params[1], dtype='float32')*hrf_params[0] *
                     spm_hrf(
-                        tr=self.stimulus.TR,
+                        t_r=self.stimulus.TR,
                         oversampling=1,
                         time_length=40)[...,np.newaxis],
                     hrf_params[1] *
                     spm_time_derivative(
-                        tr=self.stimulus.TR,
+                        t_r=self.stimulus.TR,
                         oversampling=1,
                         time_length=40)[...,np.newaxis],
                     hrf_params[2] *
                     spm_dispersion_derivative(
-                        tr=self.stimulus.TR,
+                        t_r=self.stimulus.TR,
                         oversampling=1,
                         time_length=40)[...,np.newaxis]],
                         dtype='float32').sum(

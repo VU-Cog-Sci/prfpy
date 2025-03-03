@@ -8,7 +8,7 @@ from statsmodels.tsa.arima_process import arma_generate_sample
 fpath = os.path.dirname(os.path.realpath(__file__))
 hrf_library = np.genfromtxt(os.path.join(fpath,"tdm_hrfs_highsample.tsv"), delimiter="\t")
 
-def tdm_hrf(hrf_param,tr,time_length):
+def tdm_hrf(hrf_param,t_r,time_length):
 
     if isinstance(hrf_param,np.ndarray) or isinstance(hrf_param,list):
         hrf_param = np.array([int(h_p*2) for h_p in hrf_param])
@@ -19,7 +19,7 @@ def tdm_hrf(hrf_param,tr,time_length):
     hrf_param[hrf_param>19] = 19
     hrf_param[hrf_param<0] = 0
 
-    downsample = int(tr/0.01)
+    downsample = int(t_r/0.01)
     #to match spm
     this_time_length = int((time_length-1)/0.01)
 
